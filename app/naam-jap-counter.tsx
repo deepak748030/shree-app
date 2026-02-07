@@ -1,0 +1,305 @@
+import AnalyticsSheet from '@/components/naam-jap/analytics-sheet';
+import MenuDropdown from '@/components/naam-jap/menu-dropdown';
+import PickImageSheet from '@/components/naam-jap/pick-image-sheet';
+import SettingsSheet from '@/components/naam-jap/settings-sheet';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { Image } from 'expo-image';
+import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useCallback, useState } from 'react';
+import {
+    Dimensions,
+    Pressable,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    Vibration,
+    View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Circle } from 'react-native-svg';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+const YELLOW_BG = '#FFEB3B';
+const YELLOW_LIGHT = '#FFF9C4';
+const TEXT_DARK = '#333333';
+const CIRCLE_BG = '#E0D6A0';
+const CIRCLE_PROGRESS = '#333333';
+
+const MALA_COUNT = 108;
+const CIRCLE_SIZE = 180;
+const STROKE_WIDTH = 14;
+const RADIUS = (CIRCLE_SIZE - STROKE_WIDTH) / 2;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+export default function NaamJapCounterScreen() {
+    const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const [count, setCount] = useState(0);
+    const [malaCount, setMalaCount] = useState(0);
+
+    // Menu & sheets
+    const [menuVisible, setMenuVisible] = useState(false);
+    const [settingsVisible, setSettingsVisible] = useState(false);
+    const [pickImageVisible, setPickImageVisible] = useState(false);
+    const [analyticsVisible, setAnalyticsVisible] = useState(false);
+    const [vibrationEnabled, setVibrationEnabled] = useState(true);
+
+    // Display mode: 'text' (default राधा) or 'image' (selected preset image)
+    const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
+    const [selectedImage, setSelectedImage] = useState<any>(null);
+    const [selectedTextStyle, setSelectedTextStyle] = useState<{ color: string }>({ color: TEXT_DARK });
+
+    const currentInMala = count % MALA_COUNT;
+    const progress = currentInMala / MALA_COUNT;
+    const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
+
+    const menuAnchorY = insets.top + 40;
+
+    const handleTap = useCallback(() => {
+        if (vibrationEnabled) {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        }
+        setCount((prev) => {
+            const newCount = prev + 1;
+            if (newCount % MALA_COUNT === 0 && newCount > 0) {
+                setMalaCount((m) => m + 1);
+                // Single long vibration on mala completion
+                if (vibrationEnabled) {
+                    Vibration.vibrate(1000);
+                }
+            }
+            return newCount;
+        });
+    }, [vibrationEnabled]);
+
+    const handleResetCurrentMala = useCallback(() => {
+        setCount((prev) => prev - (prev % MALA_COUNT));
+    }, []);
+
+    const handleResetAllMalas = useCallback(() => {
+        setCount(0);
+        setMalaCount(0);
+    }, []);
+
+    return (
+        <View style={styles.container}>
+            <StatusBar style="dark" backgroundColor={YELLOW_BG} translucent={false} />
+
+            {/* Header */}
+            <View style={[styles.headerBg, { paddingTop: insets.top }]}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>नाम जप Counter</Text>
+                    <TouchableOpacity style={styles.menuDots} onPress={() => setMenuVisible(true)}>
+                        <MaterialIcons name="more-vert" size={24} color={TEXT_DARK} />
+                    </TouchableOpacity>
+                </View>
+            </View>
+
+            {/* Main tappable area */}
+            <Pressable style={styles.content} onPress={handleTap}>
+                {/* राधा text or selected image */}
+                {displayMode === 'image' && selectedImage ? (
+                    <Image source={selectedImage} style={styles.displayImage} contentFit="cover" />
+                ) : (
+                    <Text style={[styles.radhaText, { color: selectedTextStyle.color }]}>राधा</Text>
+                )}
+
+                {/* Circular counter */}
+                <View style={styles.circleContainer}>
+                    <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svgCircle}>
+                        <Circle
+                            cx={CIRCLE_SIZE / 2}
+                            cy={CIRCLE_SIZE / 2}
+                            r={RADIUS}
+                            stroke={CIRCLE_BG}
+                            strokeWidth={STROKE_WIDTH}
+                            fill="none"
+                        />
+                        <Circle
+                            cx={CIRCLE_SIZE / 2}
+                            cy={CIRCLE_SIZE / 2}
+                            r={RADIUS}
+                            stroke={CIRCLE_PROGRESS}
+                            strokeWidth={STROKE_WIDTH}
+                            fill="none"
+                            strokeDasharray={CIRCUMFERENCE}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                            transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`}
+                        />
+                    </Svg>
+                    <Text style={styles.countText}>{count}</Text>
+                </View>
+
+                {/* Mala progress */}
+                <Text style={styles.totalCountText}>{currentInMala} / {MALA_COUNT}</Text>
+
+                {/* Today's Mala Count */}
+                <Text style={styles.malaText}>Today's Mala Count: {malaCount}</Text>
+
+                {/* Rank Card - no shadow */}
+                <View style={styles.rankCard}>
+                    <MaterialIcons name="bar-chart" size={28} color={YELLOW_BG} style={styles.rankIcon} />
+                    <View>
+                        <Text style={styles.rankLabel}>My Rank this Week</Text>
+                        <Text style={styles.rankValue}>1,20,477 / 1,30,183</Text>
+                    </View>
+                </View>
+            </Pressable>
+
+            {/* 3-dots Dropdown Menu */}
+            <MenuDropdown
+                visible={menuVisible}
+                onClose={() => setMenuVisible(false)}
+                anchorY={menuAnchorY}
+                onPickImage={() => setPickImageVisible(true)}
+                onAnalytics={() => setAnalyticsVisible(true)}
+                onSettings={() => setSettingsVisible(true)}
+            />
+
+            {/* Settings Bottom Sheet */}
+            <SettingsSheet
+                visible={settingsVisible}
+                onClose={() => setSettingsVisible(false)}
+                vibrationEnabled={vibrationEnabled}
+                onToggleVibration={setVibrationEnabled}
+                onResetCurrentMala={handleResetCurrentMala}
+                onResetAllMalas={handleResetAllMalas}
+            />
+
+            {/* Pick Image Bottom Sheet */}
+            <PickImageSheet
+                visible={pickImageVisible}
+                onClose={() => setPickImageVisible(false)}
+                onSelectTextStyle={(index) => {
+                    setDisplayMode('text');
+                    const textStyles = [
+                        { color: TEXT_DARK },
+                        { color: YELLOW_BG },
+                        { color: '#E53935' },
+                    ];
+                    setSelectedTextStyle(textStyles[index]);
+                    setPickImageVisible(false);
+                }}
+                onSelectImage={(img) => {
+                    setDisplayMode('image');
+                    setSelectedImage(img);
+                    setPickImageVisible(false);
+                }}
+            />
+
+            {/* Analytics Sheet */}
+            <AnalyticsSheet
+                visible={analyticsVisible}
+                onClose={() => setAnalyticsVisible(false)}
+            />
+        </View>
+    );
+}
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+        backgroundColor: YELLOW_LIGHT,
+    },
+    headerBg: {
+        backgroundColor: YELLOW_BG,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 6,
+        paddingVertical: 10,
+    },
+    backButton: {
+        padding: 4,
+    },
+    headerTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: TEXT_DARK,
+        flex: 1,
+        marginLeft: 12,
+    },
+    menuDots: {
+        padding: 4,
+    },
+    content: {
+        flex: 1,
+        alignItems: 'center',
+        justifyContent: 'center',
+        paddingHorizontal: 6,
+    },
+    radhaText: {
+        fontSize: 100,
+        fontWeight: 'bold',
+        color: TEXT_DARK,
+        marginBottom: 20,
+    },
+    displayImage: {
+        width: SCREEN_WIDTH - 12,
+        height: 350,
+        marginBottom: 20,
+        marginTop: 0,
+        borderRadius: 12,
+        resizeMode: 'contain',
+    },
+    circleContainer: {
+        width: CIRCLE_SIZE,
+        height: CIRCLE_SIZE,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginBottom: 30,
+    },
+    svgCircle: {
+        position: 'absolute',
+    },
+    countText: {
+        fontSize: 48,
+        fontWeight: 'bold',
+        color: TEXT_DARK,
+    },
+    totalCountText: {
+        fontSize: 16,
+        fontWeight: '500',
+        color: TEXT_DARK,
+        marginBottom: 10,
+        opacity: 0.7,
+    },
+    malaText: {
+        fontSize: 22,
+        fontWeight: '600',
+        color: TEXT_DARK,
+        marginBottom: 30,
+    },
+    rankCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        borderWidth: 1.5,
+        borderColor: '#333333',
+    },
+    rankIcon: {
+        marginRight: 10,
+    },
+    rankLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: TEXT_DARK,
+    },
+    rankValue: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: TEXT_DARK,
+    },
+});

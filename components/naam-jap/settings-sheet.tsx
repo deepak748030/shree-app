@@ -1,3 +1,5 @@
+import { useLanguage } from '@/contexts/language-context';
+import { useAppTheme } from '@/contexts/theme-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -10,7 +12,6 @@ import {
     View,
 } from 'react-native';
 
-const YELLOW_BG = '#FFEB3B';
 const TEXT_DARK = '#333333';
 
 interface SettingsSheetProps {
@@ -30,15 +31,17 @@ export default function SettingsSheet({
     onResetCurrentMala,
     onResetAllMalas,
 }: SettingsSheetProps) {
+    const { theme } = useAppTheme();
+    const { t } = useLanguage();
+
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose} />
-            <View style={styles.sheet}>
-                {/* Vibration Toggle */}
+            <View style={[styles.sheet, { backgroundColor: theme.headerBg }]}>
                 <View style={styles.row}>
                     <View style={styles.rowLeft}>
                         <MaterialCommunityIcons name="vibrate" size={24} color={TEXT_DARK} />
-                        <Text style={styles.rowLabel}>Vibration / Haptics</Text>
+                        <Text style={styles.rowLabel}>{t('settings_vibration')}</Text>
                     </View>
                     <Switch
                         value={vibrationEnabled}
@@ -50,26 +53,24 @@ export default function SettingsSheet({
 
                 <View style={styles.divider} />
 
-                {/* Reset Current Mala */}
                 <TouchableOpacity style={styles.row} onPress={() => { onResetCurrentMala(); onClose(); }}>
                     <View style={styles.rowLeft}>
                         <Ionicons name="refresh" size={24} color={TEXT_DARK} />
                         <View style={styles.rowTextGroup}>
-                            <Text style={styles.rowLabel}>Reset Current Mala</Text>
-                            <Text style={styles.rowSubLabel}>Reset the current 108 count</Text>
+                            <Text style={styles.rowLabel}>{t('settings_reset_current')}</Text>
+                            <Text style={styles.rowSubLabel}>{t('settings_reset_current_sub')}</Text>
                         </View>
                     </View>
                 </TouchableOpacity>
 
                 <View style={styles.divider} />
 
-                {/* Reset All Malas */}
                 <TouchableOpacity style={styles.row} onPress={() => { onResetAllMalas(); onClose(); }}>
                     <View style={styles.rowLeft}>
                         <MaterialCommunityIcons name="close-box-outline" size={24} color={TEXT_DARK} />
                         <View style={styles.rowTextGroup}>
-                            <Text style={styles.rowLabel}>Reset All Malas Done Today</Text>
-                            <Text style={styles.rowSubLabel}>Reset count and malas to 0</Text>
+                            <Text style={styles.rowLabel}>{t('settings_reset_all')}</Text>
+                            <Text style={styles.rowSubLabel}>{t('settings_reset_all_sub')}</Text>
                         </View>
                     </View>
                 </TouchableOpacity>
@@ -84,7 +85,6 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(0,0,0,0.3)',
     },
     sheet: {
-        backgroundColor: YELLOW_BG,
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         paddingVertical: 16,

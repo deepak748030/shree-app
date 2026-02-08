@@ -1,3 +1,4 @@
+import { useLanguage } from '@/contexts/language-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import React from 'react';
@@ -43,29 +44,28 @@ export default function PickImageSheet({
     onSelectTextStyle,
     onSelectImage,
 }: PickImageSheetProps) {
+    const { t } = useLanguage();
+
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose} />
             <View style={styles.sheet}>
-                {/* Header */}
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>Select an Image</Text>
+                    <Text style={styles.headerTitle}>{t('pick_image_header')}</Text>
                     <TouchableOpacity onPress={onClose}>
                         <Ionicons name="close" size={24} color={TEXT_DARK} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Upload option */}
                 <TouchableOpacity style={styles.uploadRow}>
                     <Ionicons name="image-outline" size={24} color={TEXT_DARK} />
-                    <Text style={styles.uploadText}>Upload your own image</Text>
+                    <Text style={styles.uploadText}>{t('pick_image_upload')}</Text>
                 </TouchableOpacity>
 
                 <ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                 >
-                    {/* Text Styles */}
                     <View style={styles.textStyleRow}>
                         {textStyles.map((item, index) => (
                             <TouchableOpacity
@@ -78,7 +78,6 @@ export default function PickImageSheet({
                         ))}
                     </View>
 
-                    {/* Image Grid */}
                     <View style={styles.imageGrid}>
                         {presetImages.map((img, index) => (
                             <TouchableOpacity

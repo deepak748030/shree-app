@@ -1,3 +1,5 @@
+import { useLanguage } from '@/contexts/language-context';
+import { useAppTheme } from '@/contexts/theme-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -6,23 +8,12 @@ import {
     StyleSheet,
     Text,
     TouchableOpacity,
-    View
+    View,
 } from 'react-native';
 
-const YELLOW_BG = '#FFEB3B';
-const YELLOW_LIGHT = '#FFF9C4';
 const TEXT_DARK = '#333333';
 const GREEN_BG = '#4CAF50';
 const GREEN_LIGHT = '#E8F5E9';
-
-const worldwideStats = [
-    { label: 'All-Time Users', value: '11,32,088', bg: YELLOW_LIGHT, borderColor: '#E0D6A0' },
-    { label: 'All-Time Malas', value: '1,00,33,10,084', bg: YELLOW_LIGHT, borderColor: '#E0D6A0' },
-    { label: 'Users This Week', value: '97,501', bg: GREEN_LIGHT, borderColor: GREEN_BG },
-    { label: 'Malas This Week', value: '2,60,28,938', bg: GREEN_LIGHT, borderColor: GREEN_BG },
-    { label: 'Users This Month', value: '1,02,234', bg: YELLOW_LIGHT, borderColor: '#E0D6A0' },
-    { label: 'Malas This Month', value: '3,04,95,724', bg: YELLOW_LIGHT, borderColor: '#E0D6A0' },
-];
 
 const top200Users = [
     { rank: 1, name: 'Narayan Solanki', location: 'Chittorgarh', malas: '16469' },
@@ -43,17 +34,36 @@ interface AnalyticsSheetProps {
 }
 
 export default function AnalyticsSheet({ visible, onClose }: AnalyticsSheetProps) {
-    const [activeTab, setActiveTab] = React.useState<'Daily' | 'Weekly' | 'Monthly'>('Weekly');
+    const [activeTab, setActiveTab] = React.useState<'daily' | 'weekly' | 'monthly'>('weekly');
+    const { theme } = useAppTheme();
+    const { t } = useLanguage();
+
+    const YELLOW_LIGHT = theme.bgCream;
+    const YELLOW_BG = theme.headerBg;
+
+    const worldwideStats = [
+        { labelKey: 'analytics_all_time_users', value: '11,32,088', bg: YELLOW_LIGHT, borderColor: theme.cardBorder },
+        { labelKey: 'analytics_all_time_malas', value: '1,00,33,10,084', bg: YELLOW_LIGHT, borderColor: theme.cardBorder },
+        { labelKey: 'analytics_users_week', value: '97,501', bg: GREEN_LIGHT, borderColor: GREEN_BG },
+        { labelKey: 'analytics_malas_week', value: '2,60,28,938', bg: GREEN_LIGHT, borderColor: GREEN_BG },
+        { labelKey: 'analytics_users_month', value: '1,02,234', bg: YELLOW_LIGHT, borderColor: theme.cardBorder },
+        { labelKey: 'analytics_malas_month', value: '3,04,95,724', bg: YELLOW_LIGHT, borderColor: theme.cardBorder },
+    ];
+
+    const tabKeys = [
+        { id: 'daily' as const, key: 'analytics_daily' },
+        { id: 'weekly' as const, key: 'analytics_weekly' },
+        { id: 'monthly' as const, key: 'analytics_monthly' },
+    ];
 
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-            <View style={styles.container}>
-                {/* Header */}
-                <View style={styles.header}>
+            <View style={[styles.container, { backgroundColor: YELLOW_LIGHT }]}>
+                <View style={[styles.header, { backgroundColor: YELLOW_BG }]}>
                     <TouchableOpacity onPress={onClose} style={styles.backBtn}>
                         <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Analytics</Text>
+                    <Text style={styles.headerTitle}>{t('analytics_header')}</Text>
                     <View style={{ width: 32 }} />
                 </View>
 
@@ -62,87 +72,69 @@ export default function AnalyticsSheet({ visible, onClose }: AnalyticsSheetProps
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* My Rank */}
                     <View style={styles.rankBadge}>
-                        <Text style={styles.rankBadgeLabel}>My Rank this Week</Text>
+                        <Text style={styles.rankBadgeLabel}>{t('analytics_my_rank')}</Text>
                         <Text style={styles.rankBadgeValue}>⭐ 1,13,413 / 1,30,386</Text>
                     </View>
 
-                    {/* Worldwide Japa Tracker */}
-                    <Text style={styles.sectionTitle}>Worldwide Japa Tracker</Text>
+                    <Text style={styles.sectionTitle}>{t('analytics_worldwide')}</Text>
                     <View style={styles.statsGrid}>
                         {worldwideStats.map((stat, index) => (
                             <View
                                 key={index}
-                                style={[
-                                    styles.statCard,
-                                    { backgroundColor: stat.bg, borderColor: stat.borderColor },
-                                ]}
+                                style={[styles.statCard, { backgroundColor: stat.bg, borderColor: stat.borderColor }]}
                             >
-                                <Text style={styles.statLabel}>{stat.label}</Text>
+                                <Text style={styles.statLabel}>{t(stat.labelKey as any)}</Text>
                                 <Text style={styles.statValue}>{stat.value}</Text>
                             </View>
                         ))}
                     </View>
 
-                    {/* Top 200 Users */}
-                    <Text style={styles.sectionTitle}>Top 200 Users This Week</Text>
+                    <Text style={styles.sectionTitle}>{t('analytics_top_200')}</Text>
                     <View style={styles.tableContainer}>
-                        {/* Table Header */}
                         <View style={styles.tableHeader}>
                             <Text style={[styles.tableHeaderText, { width: 24 }]}>#</Text>
-                            <Text style={[styles.tableHeaderText, { flex: 1 }]}>User</Text>
-                            <Text style={[styles.tableHeaderText, { width: 90, textAlign: 'center' }]}>Location</Text>
-                            <Text style={[styles.tableHeaderText, { width: 50, textAlign: 'right' }]}>Malas</Text>
+                            <Text style={[styles.tableHeaderText, { flex: 1 }]}>{t('analytics_user')}</Text>
+                            <Text style={[styles.tableHeaderText, { width: 90, textAlign: 'center' }]}>{t('analytics_location')}</Text>
+                            <Text style={[styles.tableHeaderText, { width: 50, textAlign: 'right' }]}>{t('analytics_malas')}</Text>
                         </View>
                         {top200Users.map((user, index) => (
                             <View
                                 key={user.rank}
-                                style={[
-                                    styles.tableRow,
-                                    index < top200Users.length - 1 && styles.tableRowBorder,
-                                ]}
+                                style={[styles.tableRow, index < top200Users.length - 1 && styles.tableRowBorder]}
                             >
                                 <Text style={[styles.tableCell, { width: 24 }]}>{user.rank}.</Text>
-                                <Text style={[styles.tableCellName, { flex: 1 }]} numberOfLines={1}>
-                                    {user.name}
-                                </Text>
-                                <Text style={[styles.tableCell, { width: 90, textAlign: 'center', fontSize: 11 }]} numberOfLines={1}>
-                                    {user.location}
-                                </Text>
-                                <Text style={[styles.tableCellMalas, { width: 50, textAlign: 'right' }]}>
-                                    {user.malas}
-                                </Text>
+                                <Text style={[styles.tableCellName, { flex: 1 }]} numberOfLines={1}>{user.name}</Text>
+                                <Text style={[styles.tableCell, { width: 90, textAlign: 'center', fontSize: 11 }]} numberOfLines={1}>{user.location}</Text>
+                                <Text style={[styles.tableCellMalas, { width: 50, textAlign: 'right' }]}>{user.malas}</Text>
                             </View>
                         ))}
-                        <Text style={styles.lastUpdated}>Last updated: 07 Feb at 6:15 PM</Text>
+                        <Text style={styles.lastUpdated}>{t('analytics_last_updated')}: 07 Feb at 6:15 PM</Text>
                         <TouchableOpacity style={styles.viewMoreBtn}>
-                            <Text style={styles.viewMoreText}>View More</Text>
+                            <Text style={styles.viewMoreText}>{t('analytics_view_more')}</Text>
                         </TouchableOpacity>
                     </View>
 
-                    {/* My Passbook */}
-                    <Text style={styles.sectionTitle}>My नाम जप Passbook</Text>
+                    <Text style={styles.sectionTitle}>{t('analytics_passbook')}</Text>
                     <View style={styles.passbookCard}>
                         <View style={styles.passbookHighlight}>
                             <Text style={styles.fireEmoji}>🔥</Text>
-                            <Text style={styles.passbookHighlightText}>My Highest Mala Count In A Day</Text>
+                            <Text style={styles.passbookHighlightText}>{t('analytics_highest_mala')}</Text>
                         </View>
                         <Text style={styles.passbookHighlightValue}>1</Text>
 
-                        {/* Tabs */}
                         <View style={styles.tabRow}>
-                            {(['Daily', 'Weekly', 'Monthly'] as const).map((tab) => (
+                            {tabKeys.map((tab) => (
                                 <TouchableOpacity
-                                    key={tab}
-                                    style={[styles.tab, activeTab === tab && styles.tabActive]}
-                                    onPress={() => setActiveTab(tab)}
+                                    key={tab.id}
+                                    style={[styles.tab, activeTab === tab.id && styles.tabActive]}
+                                    onPress={() => setActiveTab(tab.id)}
                                 >
-                                    {activeTab === tab && (
+                                    {activeTab === tab.id && (
                                         <Ionicons name="checkmark" size={14} color={GREEN_BG} style={{ marginRight: 4 }} />
                                     )}
-                                    <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
-                                        {tab}
+                                    <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextActive]}>
+                                        {t(tab.key as any)}
                                     </Text>
                                 </TouchableOpacity>
                             ))}
@@ -151,23 +143,16 @@ export default function AnalyticsSheet({ visible, onClose }: AnalyticsSheetProps
                             </TouchableOpacity>
                         </View>
 
-                        {/* Entry */}
                         <View style={styles.entryRow}>
                             <View style={styles.entryLeft}>
                                 <MaterialCommunityIcons name="meditation" size={20} color={TEXT_DARK} />
-                                <Text style={styles.entryText}>2 mala</Text>
+                                <Text style={styles.entryText}>2 {t('analytics_mala_unit')}</Text>
                             </View>
                             <Text style={styles.entryDate}>02 Feb - 08 Feb</Text>
                         </View>
                     </View>
 
-                    {/* Disclaimer */}
-                    <Text style={styles.disclaimer}>
-                        **Your mala count data will be deleted if you uninstall the app or clear app data.
-                    </Text>
-                    <Text style={styles.disclaimer}>
-                        **यदि आप ऐप को अनइंस्टॉल करते हैं या ऐप डेटा क्लियर/डिलीट करते हैं, तो आपकी माला संख्या का डेटा डिलीट हो जाएगा।
-                    </Text>
+                    <Text style={styles.disclaimer}>{t('analytics_disclaimer')}</Text>
                 </ScrollView>
             </View>
         </Modal>
@@ -177,10 +162,8 @@ export default function AnalyticsSheet({ visible, onClose }: AnalyticsSheetProps
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: YELLOW_LIGHT,
     },
     header: {
-        backgroundColor: YELLOW_BG,
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',

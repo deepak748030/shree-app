@@ -1,3 +1,4 @@
+import { useLanguage } from '@/contexts/language-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -28,6 +29,8 @@ export default function MenuDropdown({
     onSettings,
     anchorY,
 }: MenuDropdownProps) {
+    const { t } = useLanguage();
+
     if (!visible) return null;
 
     return (
@@ -36,17 +39,17 @@ export default function MenuDropdown({
                 <View style={[styles.menu, { top: anchorY }]}>
                     <TouchableOpacity style={styles.menuItem} onPress={() => { onClose(); onPickImage(); }}>
                         <Ionicons name="image-outline" size={22} color={TEXT_DARK} />
-                        <Text style={styles.menuText}>Pick Image</Text>
+                        <Text style={styles.menuText}>{t('menu_pick_image')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.menuItem} onPress={() => { onClose(); onAnalytics(); }}>
                         <MaterialIcons name="bar-chart" size={22} color={TEXT_DARK} />
-                        <Text style={styles.menuText}>Analytics</Text>
+                        <Text style={styles.menuText}>{t('menu_analytics')}</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.menuItem} onPress={() => { onClose(); onSettings(); }}>
                         <Ionicons name="settings-outline" size={22} color={TEXT_DARK} />
-                        <Text style={styles.menuText}>Settings</Text>
+                        <Text style={styles.menuText}>{t('menu_settings')}</Text>
                     </TouchableOpacity>
                 </View>
             </Pressable>

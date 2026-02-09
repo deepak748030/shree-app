@@ -33,7 +33,6 @@ function AppContent() {
         <Stack.Screen name="language-settings" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
-      <StatusBar style="light" backgroundColor="#1a1a1a" translucent={false} />
       <LanguagePickerModal
         visible={shouldShowPicker}
         onDone={async () => {

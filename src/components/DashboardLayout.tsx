@@ -3,34 +3,18 @@ import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
     LayoutDashboard,
-    Users,
-    FolderOpen,
-    Image,
-    Truck,
     Menu,
     X,
     LogOut,
     ChevronLeft,
     ChevronRight,
-    ShoppingBag,
-    Ticket,
     Settings,
-    Package,
-    Wallet,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
-    { to: '/orders', icon: ShoppingBag, label: 'Orders' },
-    { to: '/products', icon: Package, label: 'Products' },
-    { to: '/users', icon: Users, label: 'Users' },
-    { to: '/categories', icon: FolderOpen, label: 'Categories' },
-    { to: '/coupons', icon: Ticket, label: 'Coupons' },
-    { to: '/banners', icon: Image, label: 'Banners' },
-    { to: '/delivery-partners', icon: Truck, label: 'Delivery Partners' },
-    { to: '/withdrawals', icon: Wallet, label: 'Withdrawals' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -65,8 +49,8 @@ export function DashboardLayout() {
                 )}>
                     {sidebarOpen && (
                         <div>
-                            <h1 className="text-lg font-bold text-foreground leading-tight">The Art Of</h1>
-                            <p className="text-xl font-bold text-primary leading-tight">भ ओ जन</p>
+                            <h1 className="text-xl font-bold text-primary leading-tight">श्री जी</h1>
+                            <p className="text-xs text-sidebar-foreground/60 leading-tight">Shree Jii Admin</p>
                         </div>
                     )}
                     <button

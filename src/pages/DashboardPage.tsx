@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react'
 import {
     Users, UserCheck, UserX, TrendingUp, Filter, RefreshCw,
-    ShoppingBag, Truck, Ticket, FolderOpen, Image, IndianRupee,
-    Clock, CheckCircle, XCircle, Wifi
+    ShoppingBag, Clock, CheckCircle, XCircle, IndianRupee, Truck, Wifi
 } from 'lucide-react'
 import { getDashboardAnalytics } from '../lib/api'
 import { cn } from '../lib/utils'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, Legend, PieChart, Pie, Cell, BarChart, Bar, Line, ComposedChart
+    ResponsiveContainer, Legend, PieChart, Pie, Cell, ComposedChart, Line
 } from 'recharts'
 
 type FilterType = 'today' | 'weekly' | 'monthly' | 'yearly'
@@ -21,7 +20,6 @@ interface StatCardProps {
     isLoading: boolean
     prefix?: string
     suffix?: string
-    trend?: number
 }
 
 function StatCardSkeleton() {
@@ -40,7 +38,6 @@ function StatCardSkeleton() {
 
 function StatCard({ title, value, icon: Icon, color, isLoading, prefix = '', suffix = '' }: StatCardProps) {
     if (isLoading) return <StatCardSkeleton />
-
     const displayValue = typeof value === 'number' ? value.toLocaleString('en-IN') : value
 
     return (
@@ -71,7 +68,6 @@ function ChartSkeleton({ height = 300 }: { height?: number }) {
 
 function PieChartCard({ title, data, isLoading }: { title: string; data: any[]; isLoading: boolean }) {
     if (isLoading) return <ChartSkeleton height={250} />
-
     const hasData = data.some(d => d.value > 0)
 
     return (
@@ -80,15 +76,7 @@ function PieChartCard({ title, data, isLoading }: { title: string; data: any[]; 
             {hasData ? (
                 <ResponsiveContainer width="100%" height={220}>
                     <PieChart>
-                        <Pie
-                            data={data}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={50}
-                            outerRadius={80}
-                            paddingAngle={2}
-                            dataKey="value"
-                        >
+                        <Pie data={data} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2} dataKey="value">
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}
@@ -107,18 +95,11 @@ function PieChartCard({ title, data, isLoading }: { title: string; data: any[]; 
                                 return null
                             }}
                         />
-                        <Legend
-                            layout="horizontal"
-                            verticalAlign="bottom"
-                            align="center"
-                            wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }}
-                        />
+                        <Legend layout="horizontal" verticalAlign="bottom" align="center" wrapperStyle={{ fontSize: '12px', paddingTop: '8px' }} />
                     </PieChart>
                 </ResponsiveContainer>
             ) : (
-                <div className="h-[220px] flex items-center justify-center text-muted-foreground">
-                    No data available
-                </div>
+                <div className="h-[220px] flex items-center justify-center text-muted-foreground">No data available</div>
             )}
         </div>
     )
@@ -181,7 +162,6 @@ export function DashboardPage() {
         return null
     }
 
-    // Stats sections
     const userStats = [
         { title: 'Total Users', value: analytics?.overview.totalUsers || 0, icon: Users, color: 'bg-primary/10 text-primary' },
         { title: 'Active Users', value: analytics?.overview.activeUsers || 0, icon: UserCheck, color: 'bg-green-500/10 text-green-500' },
@@ -199,8 +179,6 @@ export function DashboardPage() {
     const revenueStats = [
         { title: 'Total Revenue', value: `₹${(analytics?.overview.totalRevenue || 0).toLocaleString('en-IN')}`, icon: IndianRupee, color: 'bg-emerald-500/10 text-emerald-500' },
         { title: `Revenue (${filter})`, value: `₹${(analytics?.periodStats.revenue || 0).toLocaleString('en-IN')}`, icon: TrendingUp, color: 'bg-teal-500/10 text-teal-500' },
-        { title: 'Active Coupons', value: analytics?.overview.activeCoupons || 0, icon: Ticket, color: 'bg-pink-500/10 text-pink-500' },
-        { title: 'Active Banners', value: analytics?.overview.activeBanners || 0, icon: Image, color: 'bg-orange-500/10 text-orange-500' },
     ]
 
     const deliveryStats = [
@@ -210,13 +188,6 @@ export function DashboardPage() {
         { title: 'Pending KYC', value: analytics?.overview.pendingKycPartners || 0, icon: Clock, color: 'bg-yellow-500/10 text-yellow-500' },
     ]
 
-    const otherStats = [
-        { title: 'Categories', value: analytics?.overview.totalCategories || 0, icon: FolderOpen, color: 'bg-cyan-500/10 text-cyan-500' },
-        { title: 'Active Categories', value: analytics?.overview.activeCategories || 0, icon: CheckCircle, color: 'bg-green-500/10 text-green-500' },
-        { title: 'Total Coupons', value: analytics?.overview.totalCoupons || 0, icon: Ticket, color: 'bg-violet-500/10 text-violet-500' },
-        { title: 'Total Banners', value: analytics?.overview.totalBanners || 0, icon: Image, color: 'bg-rose-500/10 text-rose-500' },
-    ]
-
     return (
         <div className="animate-fade-in space-y-6">
             {/* Header */}
@@ -224,7 +195,7 @@ export function DashboardPage() {
                 <div>
                     <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
                     <p className="text-muted-foreground text-sm mt-0.5">
-                        Welcome to The Art Of भ ओ जन Admin Panel
+                        Welcome to Shree Jii Admin Panel
                     </p>
                 </div>
 
@@ -284,8 +255,8 @@ export function DashboardPage() {
 
             {/* Revenue Section */}
             <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Revenue & Promotions</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Revenue</h2>
+                <div className="grid grid-cols-2 gap-3">
                     {revenueStats.map((stat) => (
                         <StatCard key={stat.title} {...stat} isLoading={isLoading} />
                     ))}
@@ -302,34 +273,19 @@ export function DashboardPage() {
                 </div>
             </div>
 
-            {/* Other Stats */}
-            <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Content Management</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {otherStats.map((stat) => (
-                        <StatCard key={stat.title} {...stat} isLoading={isLoading} />
-                    ))}
-                </div>
-            </div>
-
-            {/* Charts Row 1 - Growth & Revenue Trends */}
+            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {/* Monthly Growth Chart */}
                 {isLoading ? (
                     <ChartSkeleton />
                 ) : (
                     <div className="bg-card border border-border rounded-xl p-5">
                         <h3 className="text-base font-semibold text-foreground mb-4">Monthly Growth Trend</h3>
                         <ResponsiveContainer width="100%" height={280}>
-                            <ComposedChart data={analytics?.charts.monthlyGrowth || []}>
+                            <ComposedChart data={analytics?.charts?.monthlyGrowth || []}>
                                 <defs>
                                     <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.3} />
                                         <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                                    </linearGradient>
-                                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor={CHART_COLORS.secondary} stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor={CHART_COLORS.secondary} stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -344,14 +300,13 @@ export function DashboardPage() {
                     </div>
                 )}
 
-                {/* Revenue Trend */}
                 {isLoading ? (
                     <ChartSkeleton />
                 ) : (
                     <div className="bg-card border border-border rounded-xl p-5">
                         <h3 className="text-base font-semibold text-foreground mb-4">Revenue Trend (₹)</h3>
                         <ResponsiveContainer width="100%" height={280}>
-                            <AreaChart data={analytics?.charts.monthlyGrowth || []}>
+                            <AreaChart data={analytics?.charts?.monthlyGrowth || []}>
                                 <defs>
                                     <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor={CHART_COLORS.success} stopOpacity={0.3} />
@@ -360,7 +315,7 @@ export function DashboardPage() {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                                 <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
                                 <Tooltip content={<CustomTooltip />} />
                                 <Area type="monotone" dataKey="revenue" name="Revenue" stroke={CHART_COLORS.success} strokeWidth={2} fillOpacity={1} fill="url(#colorRevenue)" />
                             </AreaChart>
@@ -369,86 +324,20 @@ export function DashboardPage() {
                 )}
             </div>
 
-            {/* Charts Row 2 - Daily Orders Bar Chart */}
+            {/* Pie Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {isLoading ? (
-                    <ChartSkeleton />
-                ) : (
-                    <div className="bg-card border border-border rounded-xl p-5">
-                        <h3 className="text-base font-semibold text-foreground mb-4">Daily Orders (Last 7 Days)</h3>
-                        <ResponsiveContainer width="100%" height={280}>
-                            <BarChart data={analytics?.charts.dailyOrders || []}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="orders" name="Orders" fill={CHART_COLORS.primary} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-
-                {isLoading ? (
-                    <ChartSkeleton />
-                ) : (
-                    <div className="bg-card border border-border rounded-xl p-5">
-                        <h3 className="text-base font-semibold text-foreground mb-4">Daily Revenue (Last 7 Days)</h3>
-                        <ResponsiveContainer width="100%" height={280}>
-                            <BarChart data={analytics?.charts.dailyOrders || []}>
-                                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                                <Tooltip content={<CustomTooltip />} />
-                                <Bar dataKey="revenue" name="Revenue" fill={CHART_COLORS.success} radius={[4, 4, 0, 0]} />
-                            </BarChart>
-                        </ResponsiveContainer>
-                    </div>
-                )}
-            </div>
-
-            {/* Charts Row 3 - Pie Charts */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <PieChartCard
-                    title="Order Status"
-                    data={analytics?.charts.orderStatusDistribution || []}
+                    title="Order Status Distribution"
+                    data={analytics?.charts?.orderStatusDistribution || []}
                     isLoading={isLoading}
                 />
                 <PieChartCard
-                    title="Payment Methods"
-                    data={analytics?.charts.paymentMethodDistribution || []}
-                    isLoading={isLoading}
-                />
-                <PieChartCard
-                    title="Delivery Partners"
-                    data={analytics?.charts.deliveryPartnerStatus || []}
-                    isLoading={isLoading}
-                />
-                <PieChartCard
-                    title="Coupon Status"
-                    data={analytics?.charts.couponStatus || []}
+                    title="Vendor KYC Distribution"
+                    data={analytics?.charts?.vendorKycDistribution || []}
                     isLoading={isLoading}
                 />
             </div>
-
-            {/* Top Categories */}
-            {analytics?.charts.topCategories?.length > 0 && (
-                <div className="bg-card border border-border rounded-xl p-5">
-                    <h3 className="text-base font-semibold text-foreground mb-4">Top Categories by Orders</h3>
-                    <ResponsiveContainer width="100%" height={250}>
-                        <BarChart data={analytics.charts.topCategories} layout="vertical">
-                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                            <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} />
-                            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} tickLine={false} axisLine={false} width={100} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="value" name="Orders" radius={[0, 4, 4, 0]}>
-                                {analytics.charts.topCategories.map((entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Bar>
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            )}
         </div>
     )
 }
+a

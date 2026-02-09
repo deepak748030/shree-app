@@ -8,18 +8,16 @@ const STORAGE_KEYS = {
     DISPLAY_MODE: '@naam_jap_display_mode',
     SELECTED_IMAGE: '@naam_jap_selected_image',
     TEXT_STYLE: '@naam_jap_text_style',
+    TODAY_DATE: '@naam_jap_today_date',
+    TODAY_COUNT: '@naam_jap_today_count',
+    TODAY_MALAS: '@naam_jap_today_malas',
 };
 
 const TEXT_DARK = '#333333';
 
-interface PersistedState {
-    count: number;
-    malaCount: number;
-    vibrationEnabled: boolean;
-    displayMode: 'text' | 'image';
-    selectedImage: any;
-    selectedTextStyle: { color: string };
-    isLoaded: boolean;
+function getTodayString(): string {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
 export function usePersistedCounter() {
@@ -29,6 +27,8 @@ export function usePersistedCounter() {
     const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
     const [selectedImage, setSelectedImage] = useState<any>(null);
     const [selectedTextStyle, setSelectedTextStyle] = useState<{ color: string }>({ color: TEXT_DARK });
+    const [todayCount, setTodayCount] = useState(0);
+    const [todayMalas, setTodayMalas] = useState(0);
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Load persisted data on mount
@@ -42,6 +42,9 @@ export function usePersistedCounter() {
                     savedDisplayMode,
                     savedImage,
                     savedTextStyle,
+                    savedTodayDate,
+                    savedTodayCount,
+                    savedTodayMalas,
                 ] = await Promise.all([
                     AsyncStorage.getItem(STORAGE_KEYS.COUNT),
                     AsyncStorage.getItem(STORAGE_KEYS.MALA_COUNT),
@@ -49,6 +52,9 @@ export function usePersistedCounter() {
                     AsyncStorage.getItem(STORAGE_KEYS.DISPLAY_MODE),
                     AsyncStorage.getItem(STORAGE_KEYS.SELECTED_IMAGE),
                     AsyncStorage.getItem(STORAGE_KEYS.TEXT_STYLE),
+                    AsyncStorage.getItem(STORAGE_KEYS.TODAY_DATE),
+                    AsyncStorage.getItem(STORAGE_KEYS.TODAY_COUNT),
+                    AsyncStorage.getItem(STORAGE_KEYS.TODAY_MALAS),
                 ]);
 
                 if (savedCount !== null) setCount(parseInt(savedCount, 10));
@@ -57,6 +63,20 @@ export function usePersistedCounter() {
                 if (savedDisplayMode !== null) setDisplayMode(savedDisplayMode as 'text' | 'image');
                 if (savedImage !== null) setSelectedImage(JSON.parse(savedImage));
                 if (savedTextStyle !== null) setSelectedTextStyle(JSON.parse(savedTextStyle));
+
+                // Check if today's date matches - if not, reset daily counters
+                const today = getTodayString();
+                if (savedTodayDate === today) {
+                    if (savedTodayCount !== null) setTodayCount(parseInt(savedTodayCount, 10));
+                    if (savedTodayMalas !== null) setTodayMalas(parseInt(savedTodayMalas, 10));
+                } else {
+                    // New day - reset daily counters and save new date
+                    await Promise.all([
+                        AsyncStorage.setItem(STORAGE_KEYS.TODAY_DATE, today),
+                        AsyncStorage.setItem(STORAGE_KEYS.TODAY_COUNT, '0'),
+                        AsyncStorage.setItem(STORAGE_KEYS.TODAY_MALAS, '0'),
+                    ]);
+                }
             } catch (error) {
                 console.warn('Failed to load persisted counter data:', error);
             } finally {
@@ -80,6 +100,24 @@ export function usePersistedCounter() {
         setMalaCount((prev) => {
             const newVal = updater(prev);
             AsyncStorage.setItem(STORAGE_KEYS.MALA_COUNT, String(newVal));
+            return newVal;
+        });
+    }, []);
+
+    // Persist today count
+    const updateTodayCount = useCallback((updater: (prev: number) => number) => {
+        setTodayCount((prev) => {
+            const newVal = updater(prev);
+            AsyncStorage.setItem(STORAGE_KEYS.TODAY_COUNT, String(newVal));
+            return newVal;
+        });
+    }, []);
+
+    // Persist today malas
+    const updateTodayMalas = useCallback((updater: (prev: number) => number) => {
+        setTodayMalas((prev) => {
+            const newVal = updater(prev);
+            AsyncStorage.setItem(STORAGE_KEYS.TODAY_MALAS, String(newVal));
             return newVal;
         });
     }, []);
@@ -111,8 +149,15 @@ export function usePersistedCounter() {
     // Reset helpers
     const resetCurrentMala = useCallback(() => {
         setCount((prev) => {
-            const newVal = prev - (prev % 108);
+            const remainder = prev % 108;
+            const newVal = prev - remainder;
             AsyncStorage.setItem(STORAGE_KEYS.COUNT, String(newVal));
+            // Also subtract remainder from today's count
+            setTodayCount((tc) => {
+                const newTc = Math.max(0, tc - remainder);
+                AsyncStorage.setItem(STORAGE_KEYS.TODAY_COUNT, String(newTc));
+                return newTc;
+            });
             return newVal;
         });
     }, []);
@@ -120,8 +165,14 @@ export function usePersistedCounter() {
     const resetAllMalas = useCallback(() => {
         setCount(0);
         setMalaCount(0);
-        AsyncStorage.setItem(STORAGE_KEYS.COUNT, '0');
-        AsyncStorage.setItem(STORAGE_KEYS.MALA_COUNT, '0');
+        setTodayCount(0);
+        setTodayMalas(0);
+        AsyncStorage.multiSet([
+            [STORAGE_KEYS.COUNT, '0'],
+            [STORAGE_KEYS.MALA_COUNT, '0'],
+            [STORAGE_KEYS.TODAY_COUNT, '0'],
+            [STORAGE_KEYS.TODAY_MALAS, '0'],
+        ]);
     }, []);
 
     return {
@@ -131,9 +182,13 @@ export function usePersistedCounter() {
         displayMode,
         selectedImage,
         selectedTextStyle,
+        todayCount,
+        todayMalas,
         isLoaded,
         updateCount,
         updateMalaCount,
+        updateTodayCount,
+        updateTodayMalas,
         updateVibration,
         updateDisplayMode,
         updateSelectedImage,

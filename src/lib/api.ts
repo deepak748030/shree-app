@@ -43,36 +43,30 @@ export interface Admin {
 }
 
 export interface DashboardAnalytics {
-    overview: {
+    naamJap: {
         totalUsers: number
-        activeUsers: number
-        blockedUsers: number
-        totalVendors: number
-        activeVendors: number
-        blockedVendors: number
-        pendingKYC: number
-        verifiedVendors: number
-        totalOrders: number
-        pendingOrders: number
-        deliveredOrders: number
-        cancelledOrders: number
-        totalRevenue: number
-        totalDeliveryPartners: number
-        activeDeliveryPartners: number
-        onlineDeliveryPartners: number
-        pendingKycPartners: number
+        totalMalas: number
+        totalCount: number
+        todayActiveUsers: number
+        newUsersThisWeek: number
     }
-    periodStats: {
+    dailyQuotes: {
+        total: number
+        active: number
+    }
+    topUsers: {
+        rank: number
+        name: string
+        city: string
+        malas: number
+        count: number
+    }[]
+    dailyActivity: {
+        name: string
+        malas: number
         users: number
-        vendors: number
-        revenue: number
-        filter: string
-    }
-    charts: {
-        monthlyGrowth: { name: string; users?: number; orders?: number; revenue?: number }[]
-        orderStatusDistribution: { name: string; value: number; color: string }[]
-        vendorKycDistribution: { name: string; value: number; color: string }[]
-    }
+        count: number
+    }[]
 }
 
 // Auth APIs
@@ -92,8 +86,8 @@ export const setupAdmin = async () => {
 }
 
 // Dashboard APIs
-export const getDashboardAnalytics = async (filter: 'today' | 'weekly' | 'monthly' | 'yearly' = 'monthly') => {
-    const response = await api.get('/admin/analytics', { params: { filter } })
+export const getDashboardAnalytics = async () => {
+    const response = await api.get('/admin/analytics')
     return response.data as { success: boolean; response: DashboardAnalytics }
 }
 
@@ -127,6 +121,91 @@ export const updateAdminPassword = async (currentPassword: string, newPassword: 
 export const getAdminActivity = async () => {
     const response = await api.get('/admin/activity')
     return response.data
+}
+
+// Daily Quotes APIs (image-only)
+export interface DailyQuoteData {
+    _id: string
+    imageUrl: string
+    date: string
+    isActive: boolean
+    createdAt: string
+    updatedAt: string
+}
+
+export const getDailyQuotes = async (page: number = 1) => {
+    const response = await api.get('/daily-quotes', { params: { page, limit: 20 } })
+    return response.data as {
+        success: boolean
+        response: {
+            quotes: DailyQuoteData[]
+            pagination: { page: number; limit: number; total: number; pages: number }
+        }
+    }
+}
+
+export const uploadDailyQuoteImage = async (file: File) => {
+    const formData = new FormData()
+    formData.append('image', file)
+    const response = await api.post('/daily-quotes/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data as { success: boolean; response: { imageUrl: string; publicId: string } }
+}
+
+export const createDailyQuote = async (data: { imageUrl: string; date: string }) => {
+    const response = await api.post('/daily-quotes', data)
+    return response.data
+}
+
+export const updateDailyQuote = async (id: string, data: Partial<DailyQuoteData>) => {
+    const response = await api.put(`/daily-quotes/${id}`, data)
+    return response.data
+}
+
+export const deleteDailyQuote = async (id: string) => {
+    const response = await api.delete(`/daily-quotes/${id}`)
+    return response.data
+}
+
+export const getTodayQuote = async () => {
+    const response = await api.get('/daily-quotes/today')
+    return response.data as { success: boolean; response: DailyQuoteData | null }
+}
+
+// Naam Jap Admin APIs
+export interface NaamJapUserData {
+    _id: string
+    name: string
+    city: string
+    totalCount: number
+    totalMalas: number
+    lastSyncAt: string
+    createdAt: string
+}
+
+export interface NaamJapAdminStats {
+    totalUsers: number
+    totalMalas: number
+    totalCount: number
+    todayActiveUsers: number
+    newUsersThisWeek: number
+}
+
+export const getNaamJapUsers = async (page: number = 1, search: string = '', sortBy: string = 'totalMalas', sortOrder: string = 'desc') => {
+    const response = await api.get('/naam-jap/admin/users', { params: { page, limit: 50, search, sortBy, sortOrder } })
+    return response.data as {
+        success: boolean
+        response: {
+            users: NaamJapUserData[]
+            pagination: { page: number; limit: number; total: number; pages: number }
+        }
+    }
+}
+
+export const getNaamJapAdminStats = async () => {
+    const response = await api.get('/naam-jap/admin/stats')
+    return response.data as { success: boolean; response: NaamJapAdminStats }
 }
 
 export default api

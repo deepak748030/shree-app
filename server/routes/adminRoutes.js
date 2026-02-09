@@ -1,7 +1,15 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
+const NaamJapUser = require('../models/NaamJapUser');
+const DailyQuote = require('../models/DailyQuote');
 const router = express.Router();
+
+// Helper: get today's date string YYYY-MM-DD
+const getTodayString = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 // Auth middleware
 const authMiddleware = async (req, res, next) => {
@@ -183,45 +191,97 @@ router.get('/activity', authMiddleware, async (req, res) => {
     }
 });
 
-// GET /api/admin/analytics - Dashboard analytics
+// GET /api/admin/analytics - Dashboard analytics (real Naam Jap data)
 router.get('/analytics', authMiddleware, async (req, res) => {
     try {
+        // Naam Jap stats
+        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
+        const totals = await NaamJapUser.aggregate([
+            { $match: { isActive: true } },
+            { $group: { _id: null, totalMalas: { $sum: '$totalMalas' }, totalCount: { $sum: '$totalCount' } } },
+        ]);
+
+        const today = getTodayString();
+        const todayActive = await NaamJapUser.countDocuments({
+            isActive: true,
+            'dailyLogs.date': today,
+        });
+
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const newThisWeek = await NaamJapUser.countDocuments({
+            createdAt: { $gte: weekAgo },
+        });
+
+        // Daily Quotes stats
+        const totalQuotes = await DailyQuote.countDocuments();
+        const activeQuotes = await DailyQuote.countDocuments({ isActive: true });
+
+        // Top 10 users
+        const topUsersRaw = await NaamJapUser.find({ isActive: true })
+            .sort({ totalMalas: -1 })
+            .limit(10)
+            .select('name city totalMalas totalCount lastSyncAt');
+
+        // Daily activity for last 7 days
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            last7Days.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+        }
+
+        const dailyActivityRaw = await NaamJapUser.aggregate([
+            { $match: { isActive: true } },
+            { $unwind: '$dailyLogs' },
+            { $match: { 'dailyLogs.date': { $in: last7Days } } },
+            {
+                $group: {
+                    _id: '$dailyLogs.date',
+                    malas: { $sum: '$dailyLogs.malas' },
+                    count: { $sum: '$dailyLogs.count' },
+                    users: { $addToSet: '$_id' },
+                },
+            },
+            { $project: { date: '$_id', malas: 1, count: 1, users: { $size: '$users' } } },
+            { $sort: { date: 1 } },
+        ]);
+
         res.json({
             success: true,
             response: {
-                overview: {
-                    totalUsers: 0,
-                    activeUsers: 0,
-                    blockedUsers: 0,
-                    totalVendors: 0,
-                    activeVendors: 0,
-                    blockedVendors: 0,
-                    pendingKYC: 0,
-                    verifiedVendors: 0,
-                    totalOrders: 0,
-                    pendingOrders: 0,
-                    deliveredOrders: 0,
-                    cancelledOrders: 0,
-                    totalRevenue: 0,
-                    totalDeliveryPartners: 0,
-                    activeDeliveryPartners: 0,
-                    onlineDeliveryPartners: 0,
-                    pendingKycPartners: 0,
+                naamJap: {
+                    totalUsers,
+                    totalMalas: totals[0]?.totalMalas || 0,
+                    totalCount: totals[0]?.totalCount || 0,
+                    todayActiveUsers: todayActive,
+                    newUsersThisWeek: newThisWeek,
                 },
-                periodStats: {
-                    users: 0,
-                    vendors: 0,
-                    revenue: 0,
-                    filter: req.query.filter || 'monthly',
+                dailyQuotes: {
+                    total: totalQuotes,
+                    active: activeQuotes,
                 },
-                charts: {
-                    monthlyGrowth: [],
-                    orderStatusDistribution: [],
-                    vendorKycDistribution: [],
-                },
+                topUsers: topUsersRaw.map((u, i) => ({
+                    rank: i + 1,
+                    name: u.name,
+                    city: u.city,
+                    malas: u.totalMalas,
+                    count: u.totalCount,
+                })),
+                dailyActivity: last7Days.map((date) => {
+                    const found = dailyActivityRaw.find((d) => d.date === date);
+                    const shortDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
+                    return {
+                        name: shortDate,
+                        malas: found?.malas || 0,
+                        users: found?.users || 0,
+                        count: found?.count || 0,
+                    };
+                }),
             },
         });
     } catch (error) {
+        console.error('Analytics error:', error);
         res.status(500).json({ success: false, message: 'Failed to get analytics' });
     }
 });

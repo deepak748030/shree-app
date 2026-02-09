@@ -5,6 +5,8 @@ import { LoginPage } from './pages/LoginPage'
 import { DashboardLayout } from './components/DashboardLayout'
 import { DashboardPage } from './pages/DashboardPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { DailyQuotesPage } from './pages/DailyQuotesPage'
+import { NaamJapUsersPage } from './pages/NaamJapUsersPage'
 
 function App() {
     return (
@@ -21,6 +23,8 @@ function App() {
                         }
                     >
                         <Route index element={<DashboardPage />} />
+                        <Route path="daily-quotes" element={<DailyQuotesPage />} />
+                        <Route path="naam-jap-users" element={<NaamJapUsersPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

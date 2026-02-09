@@ -9,12 +9,16 @@ import {
     ChevronLeft,
     ChevronRight,
     Settings,
+    Quote,
+    Users,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/daily-quotes', icon: Quote, label: 'Daily Quotes' },
+    { to: '/naam-jap-users', icon: Users, label: 'Naam Jap Users' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

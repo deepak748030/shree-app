@@ -5,13 +5,17 @@ import SettingsSheet from '@/components/naam-jap/settings-sheet';
 import UserInfoModal from '@/components/naam-jap/user-info-modal';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { useDeviceId } from '@/hooks/use-device-id';
+import { useNaamJapSync } from '@/hooks/use-naam-jap-sync';
+import { useNotifications } from '@/hooks/use-notifications';
+import { usePersistedCounter } from '@/hooks/use-persisted-counter';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
     Dimensions,
     Pressable,
@@ -41,16 +45,44 @@ export default function NaamJapCounterScreen() {
     const router = useRouter();
     const { theme } = useAppTheme();
     const { t } = useLanguage();
-    const [count, setCount] = useState(0);
-    const [malaCount, setMalaCount] = useState(0);
+    const deviceId = useDeviceId();
+
+    // Initialize notifications
+    useNotifications();
+
+    // Persisted state (survives app restarts)
+    const {
+        count,
+        malaCount,
+        vibrationEnabled,
+        displayMode,
+        selectedImage,
+        selectedTextStyle,
+        todayCount,
+        todayMalas,
+        isLoaded,
+        updateCount,
+        updateMalaCount,
+        updateTodayCount,
+        updateTodayMalas,
+        updateVibration,
+        updateDisplayMode,
+        updateSelectedImage,
+        updateSelectedTextStyle,
+        resetCurrentMala,
+        resetAllMalas,
+    } = usePersistedCounter();
 
     const [menuVisible, setMenuVisible] = useState(false);
     const [settingsVisible, setSettingsVisible] = useState(false);
     const [pickImageVisible, setPickImageVisible] = useState(false);
     const [analyticsVisible, setAnalyticsVisible] = useState(false);
-    const [vibrationEnabled, setVibrationEnabled] = useState(true);
     const [userInfoVisible, setUserInfoVisible] = useState(false);
 
+    const [rank, setRank] = useState<number | null>(null);
+    const [totalUsers, setTotalUsers] = useState<number | null>(null);
+
+    // Check if user info exists
     useEffect(() => {
         AsyncStorage.getItem(USER_NAAM_JAP_KEY).then((val) => {
             if (!val) {
@@ -59,10 +91,24 @@ export default function NaamJapCounterScreen() {
         });
     }, []);
 
-    const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
-    const [selectedImage, setSelectedImage] = useState<any>(null);
-    const [selectedTextStyle, setSelectedTextStyle] = useState<{ color: string }>({ color: TEXT_DARK });
+    // Sync state object for the hook (memoized to prevent unnecessary re-renders)
+    const syncState = useMemo(() => ({
+        count,
+        malaCount,
+        todayCount,
+        todayMalas,
+    }), [count, malaCount, todayCount, todayMalas]);
 
+    // Handle sync results
+    const handleSyncResult = useCallback((result: { rank: number | null; totalUsers: number | null }) => {
+        setRank(result.rank);
+        setTotalUsers(result.totalUsers);
+    }, []);
+
+    // Debounced sync with refs (no stale closures)
+    const { syncNow } = useNaamJapSync(deviceId, syncState, handleSyncResult);
+
+    // Computed values
     const currentInMala = count % MALA_COUNT;
     const progress = currentInMala / MALA_COUNT;
     const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
@@ -72,24 +118,37 @@ export default function NaamJapCounterScreen() {
         if (vibrationEnabled) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
-        setCount((prev) => {
+
+        updateCount((prev) => {
             const newCount = prev + 1;
             if (newCount % MALA_COUNT === 0 && newCount > 0) {
-                setMalaCount((m) => m + 1);
+                updateMalaCount((m) => m + 1);
+                updateTodayMalas((m) => m + 1);
                 if (vibrationEnabled) Vibration.vibrate(1000);
             }
             return newCount;
         });
-    }, [vibrationEnabled]);
 
-    const handleResetCurrentMala = useCallback(() => {
-        setCount((prev) => prev - (prev % MALA_COUNT));
-    }, []);
+        updateTodayCount((prev) => prev + 1);
+    }, [vibrationEnabled, updateCount, updateMalaCount, updateTodayCount, updateTodayMalas]);
 
-    const handleResetAllMalas = useCallback(() => {
-        setCount(0);
-        setMalaCount(0);
-    }, []);
+    const handleUserSaved = useCallback(() => {
+        setUserInfoVisible(false);
+        // Sync immediately after registration
+        setTimeout(() => syncNow(), 1000);
+    }, [syncNow]);
+
+    const rankDisplay = rank && totalUsers
+        ? `${rank.toLocaleString('en-IN')} / ${totalUsers.toLocaleString('en-IN')}`
+        : '-- / --';
+
+    if (!isLoaded) {
+        return (
+            <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
+                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            </View>
+        );
+    }
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
@@ -129,7 +188,7 @@ export default function NaamJapCounterScreen() {
                     <MaterialIcons name="bar-chart" size={28} color={theme.headerBg} style={styles.rankIcon} />
                     <View>
                         <Text style={styles.rankLabel}>{t('naam_jap_my_rank')}</Text>
-                        <Text style={styles.rankValue}>1,20,477 / 1,30,183</Text>
+                        <Text style={styles.rankValue}>{rankDisplay}</Text>
                     </View>
                 </View>
             </Pressable>
@@ -147,23 +206,23 @@ export default function NaamJapCounterScreen() {
                 visible={settingsVisible}
                 onClose={() => setSettingsVisible(false)}
                 vibrationEnabled={vibrationEnabled}
-                onToggleVibration={setVibrationEnabled}
-                onResetCurrentMala={handleResetCurrentMala}
-                onResetAllMalas={handleResetAllMalas}
+                onToggleVibration={updateVibration}
+                onResetCurrentMala={resetCurrentMala}
+                onResetAllMalas={resetAllMalas}
             />
 
             <PickImageSheet
                 visible={pickImageVisible}
                 onClose={() => setPickImageVisible(false)}
                 onSelectTextStyle={(index) => {
-                    setDisplayMode('text');
+                    updateDisplayMode('text');
                     const textStyles = [{ color: TEXT_DARK }, { color: theme.headerBg }, { color: '#E53935' }];
-                    setSelectedTextStyle(textStyles[index]);
+                    updateSelectedTextStyle(textStyles[index]);
                     setPickImageVisible(false);
                 }}
                 onSelectImage={(img) => {
-                    setDisplayMode('image');
-                    setSelectedImage(img);
+                    updateDisplayMode('image');
+                    updateSelectedImage(img);
                     setPickImageVisible(false);
                 }}
             />
@@ -171,12 +230,14 @@ export default function NaamJapCounterScreen() {
             <AnalyticsSheet
                 visible={analyticsVisible}
                 onClose={() => setAnalyticsVisible(false)}
+                deviceId={deviceId}
             />
 
             <UserInfoModal
                 visible={userInfoVisible}
                 onClose={() => setUserInfoVisible(false)}
-                onSave={() => setUserInfoVisible(false)}
+                onSave={handleUserSaved}
+                deviceId={deviceId}
             />
         </View>
     );

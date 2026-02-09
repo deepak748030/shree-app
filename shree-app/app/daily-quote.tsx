@@ -1,11 +1,11 @@
-import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { useLanguage } from '@/contexts/language-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     ActivityIndicator,
     ScrollView,
@@ -17,68 +17,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
+import { fetchTodayImage } from '@/services/api';
 
 const TEXT_DARK = '#333333';
 
-interface Quote {
-    hi: string;
-    en: string;
-    author_hi: string;
-    author_en: string;
-}
-
-const DAILY_QUOTES: Quote[] = [
-    {
-        hi: 'राधा नाम सुधा रस पीजै,\nताते अमृत रस बरसे नित्य।',
-        en: 'Drink the nectar of Radha\'s name,\nand divine bliss shall shower upon you eternally.',
-        author_hi: 'श्री हित हरिवंश महाप्रभु',
-        author_en: 'Shri Hit Harivansh Mahaprabhu',
-    },
-    {
-        hi: 'प्रेम भक्ति का मार्ग सरल है,\nबस मन को प्रभु चरणों में लगाओ।',
-        en: 'The path of devotional love is simple,\njust surrender your mind at the Lord\'s feet.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-    {
-        hi: 'नाम जप से मन पवित्र होता है,\nऔर पवित्र मन में भगवान् वास करते हैं।',
-        en: 'Chanting purifies the mind,\nand the Lord resides in a pure heart.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-    {
-        hi: 'संसार में रहकर भी प्रभु का स्मरण करो,\nयही सच्ची साधना है।',
-        en: 'Remember the Lord even while living in the world,\nthis is true spiritual practice.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-    {
-        hi: 'श्री राधे-कृष्ण के चरणों में जो भी समर्पित हो,\nवह सदा सुखी रहता है।',
-        en: 'Whoever surrenders at the feet of Shri Radhe-Krishna,\nremains forever blissful.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-    {
-        hi: 'भगवान् की कृपा सबके लिए समान है,\nबस हमें पात्र बनना है।',
-        en: 'God\'s grace is equal for all,\nwe just need to become worthy.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-    {
-        hi: 'सत्संग में बैठने मात्र से मन शुद्ध होता है,\nजैसे सूर्य के तेज से अंधकार दूर होता है।',
-        en: 'Just by sitting in satsang the mind is purified,\nas darkness is dispelled by the sun\'s radiance.',
-        author_hi: 'पूज्य महाराज जी',
-        author_en: 'Pujya Maharaj Ji',
-    },
-];
-
-function getDailyQuote(): Quote {
-    const today = new Date();
-    const dayOfYear = Math.floor(
-        (today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000
-    );
-    return DAILY_QUOTES[dayOfYear % DAILY_QUOTES.length];
-}
+// Fallback image when server is unavailable
+const FALLBACK_IMAGE = require('@/assets/images/shree-ji-logo.png');
 
 export default function DailyQuoteScreen() {
     const insets = useSafeAreaInsets();
@@ -86,6 +30,8 @@ export default function DailyQuoteScreen() {
     const { theme } = useAppTheme();
     const { language, t } = useLanguage();
     const [sharing, setSharing] = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [imageUrl, setImageUrl] = useState<string | null>(null);
 
     const [sheetVisible, setSheetVisible] = useState(false);
     const [sheetConfig, setSheetConfig] = useState({
@@ -94,14 +40,30 @@ export default function DailyQuoteScreen() {
         message: '',
     });
 
-    const quote = getDailyQuote();
-    const quoteText = language === 'hi' ? quote.hi : quote.en;
-    const authorText = language === 'hi' ? quote.author_hi : quote.author_en;
+    useEffect(() => {
+        loadTodayImage();
+    }, []);
+
+    const loadTodayImage = async () => {
+        setLoading(true);
+        try {
+            const data = await fetchTodayImage();
+            if (data?.imageUrl) {
+                setImageUrl(data.imageUrl);
+            } else {
+                setImageUrl(null);
+            }
+        } catch {
+            setImageUrl(null);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const handleShare = async () => {
         setSharing(true);
         try {
-            const shareText = `${quoteText}\n\n— ${authorText}\n\n🙏 ${t('app_name')} | ${t('daily_quote_share_via')}`;
+            const shareText = `🙏 ${t('app_name')} | ${t('daily_quote_share_via')}`;
             const available = await Sharing.isAvailableAsync();
             if (available) {
                 await Sharing.shareAsync('', { dialogTitle: shareText, mimeType: 'text/plain' });
@@ -132,28 +94,29 @@ export default function DailyQuoteScreen() {
                 </View>
             </View>
 
-            <ScrollView
-                contentContainerStyle={styles.scrollContent}
-                showsVerticalScrollIndicator={false}
-            >
-                <View style={styles.imageContainer}>
-                    <Image
-                        source={require('@/assets/images/shree-ji-logo.png')}
-                        style={styles.quoteImage}
-                        contentFit="contain"
-                    />
+            {loading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.accent} />
                 </View>
+            ) : (
+                <ScrollView
+                    contentContainerStyle={styles.scrollContent}
+                    showsVerticalScrollIndicator={false}
+                >
+                    <View style={[styles.imageCard, { borderColor: theme.cardBorder }]}>
+                        <Image
+                            source={imageUrl ? { uri: imageUrl } : FALLBACK_IMAGE}
+                            style={styles.quoteImage}
+                            contentFit="contain"
+                            transition={300}
+                        />
+                    </View>
 
-                <View style={[styles.quoteCard, { borderColor: theme.cardBorder }]}>
-                    <Ionicons name="chatbubble-ellipses-outline" size={28} color={theme.accent} style={styles.quoteIcon} />
-                    <Text style={[styles.quoteText, { color: TEXT_DARK }]}>{quoteText}</Text>
-                    <Text style={[styles.authorText, { color: theme.accent }]}>— {authorText}</Text>
-                </View>
-
-                <Text style={[styles.dateText, { color: theme.accent }]}>
-                    {t('daily_quote_today')} • {new Date().toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </Text>
-            </ScrollView>
+                    <Text style={[styles.dateText, { color: theme.accent }]}>
+                        {t('daily_quote_today')} • {new Date().toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                    </Text>
+                </ScrollView>
+            )}
 
             <View style={[styles.shareButtonContainer, { paddingBottom: insets.bottom + 6 }]}>
                 <TouchableOpacity
@@ -188,6 +151,11 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
     headerBg: {},
     header: {
         flexDirection: 'row',
@@ -211,36 +179,16 @@ const styles = StyleSheet.create({
         paddingTop: 6,
         paddingBottom: 80,
     },
-    imageContainer: {
-        alignItems: 'center',
-        marginBottom: 6,
-    },
-    quoteImage: {
-        width: 100,
-        height: 100,
-    },
-    quoteCard: {
+    imageCard: {
         backgroundColor: '#FFFFFF',
         borderRadius: 12,
         borderWidth: 1,
-        padding: 16,
-        marginBottom: 6,
+        overflow: 'hidden',
+        marginBottom: 10,
     },
-    quoteIcon: {
-        alignSelf: 'center',
-        marginBottom: 6,
-    },
-    quoteText: {
-        fontSize: 18,
-        lineHeight: 30,
-        textAlign: 'center',
-        fontStyle: 'italic',
-        marginBottom: 6,
-    },
-    authorText: {
-        fontSize: 14,
-        fontWeight: '600',
-        textAlign: 'center',
+    quoteImage: {
+        width: '100%',
+        height: 400,
     },
     dateText: {
         fontSize: 13,

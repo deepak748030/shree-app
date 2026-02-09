@@ -1,5 +1,6 @@
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { registerNaamJapUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
@@ -25,9 +26,10 @@ interface UserInfoModalProps {
     visible: boolean;
     onClose: () => void;
     onSave: (name: string, city: string) => void;
+    deviceId: string | null;
 }
 
-export default function UserInfoModal({ visible, onClose, onSave }: UserInfoModalProps) {
+export default function UserInfoModal({ visible, onClose, onSave, deviceId }: UserInfoModalProps) {
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     const [name, setName] = useState('');
@@ -77,10 +79,20 @@ export default function UserInfoModal({ visible, onClose, onSave }: UserInfoModa
 
         setSaving(true);
         try {
+            // Save locally
             await AsyncStorage.setItem(
                 USER_NAAM_JAP_KEY,
                 JSON.stringify({ name: name.trim(), city: city.trim() })
             );
+
+            // Register with server
+            if (deviceId) {
+                const result = await registerNaamJapUser(deviceId, name.trim(), city.trim());
+                if (!result.success) {
+                    console.warn('Server registration failed, saved locally');
+                }
+            }
+
             onSave(name.trim(), city.trim());
         } catch {
             setSheetConfig({

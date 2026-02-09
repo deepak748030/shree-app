@@ -1,5 +1,6 @@
 import AnimatedSplash from '@/components/animated-splash';
-import { LanguageProvider } from '@/contexts/language-context';
+import LanguagePickerModal from '@/components/language-picker-modal';
+import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { AppThemeProvider } from '@/contexts/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -12,14 +13,45 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function AppContent() {
   const colorScheme = useColorScheme();
+  const { loading, hasChosenLanguage, markLanguageChosen } = useLanguage();
+  const [showLangPicker, setShowLangPicker] = useState(true);
+
+  const shouldShowPicker = !loading && !hasChosenLanguage && showLangPicker;
+
+  return (
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <Stack initialRouteName="(tabs)">
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="naam-jap-counter" options={{ headerShown: false }} />
+        <Stack.Screen name="daily-quote" options={{ headerShown: false }} />
+        <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+        <Stack.Screen name="terms-conditions" options={{ headerShown: false }} />
+        <Stack.Screen name="share-app" options={{ headerShown: false }} />
+        <Stack.Screen name="theme-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="language-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+      </Stack>
+      <StatusBar style="light" backgroundColor="#1a1a1a" translucent={false} />
+      <LanguagePickerModal
+        visible={shouldShowPicker}
+        onDone={async () => {
+          await markLanguageChosen();
+          setShowLangPicker(false);
+        }}
+      />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
   if (showSplash) {
     return (
       <>
-        <StatusBar style="dark" backgroundColor="#FFFDE7" translucent={false} />
+        <StatusBar style="light" backgroundColor="#1a1a1a" translucent={false} />
         <AnimatedSplash onFinish={() => setShowSplash(false)} />
       </>
     );
@@ -28,20 +60,7 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <LanguageProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <Stack initialRouteName="(tabs)">
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="naam-jap-counter" options={{ headerShown: false }} />
-            <Stack.Screen name="daily-quote" options={{ headerShown: false }} />
-            <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
-            <Stack.Screen name="terms-conditions" options={{ headerShown: false }} />
-            <Stack.Screen name="share-app" options={{ headerShown: false }} />
-            <Stack.Screen name="theme-settings" options={{ headerShown: false }} />
-            <Stack.Screen name="language-settings" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="dark" translucent={false} />
-        </ThemeProvider>
+        <AppContent />
       </LanguageProvider>
     </AppThemeProvider>
   );

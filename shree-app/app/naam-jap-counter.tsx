@@ -168,7 +168,7 @@ export default function NaamJapCounterScreen() {
 
             <Pressable style={styles.content} onPress={handleTap}>
                 {displayMode === 'image' && selectedImage ? (
-                    <Image source={selectedImage} style={styles.displayImage} contentFit="cover" />
+                    <Image source={typeof selectedImage === 'object' && selectedImage?.uri ? { uri: selectedImage.uri } : selectedImage} style={styles.displayImage} contentFit="cover" />
                 ) : (
                     <Text style={[styles.radhaText, { color: selectedTextStyle.color }]}>राधा</Text>
                 )}

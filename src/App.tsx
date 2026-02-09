@@ -7,6 +7,8 @@ import { DashboardPage } from './pages/DashboardPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { DailyQuotesPage } from './pages/DailyQuotesPage'
 import { NaamJapUsersPage } from './pages/NaamJapUsersPage'
+import { HomeContentPage } from './pages/HomeContentPage'
+import { PushNotificationsPage } from './pages/PushNotificationsPage'
 
 function App() {
     return (
@@ -23,8 +25,10 @@ function App() {
                         }
                     >
                         <Route index element={<DashboardPage />} />
+                        <Route path="home-content" element={<HomeContentPage />} />
                         <Route path="daily-quotes" element={<DailyQuotesPage />} />
                         <Route path="naam-jap-users" element={<NaamJapUsersPage />} />
+                        <Route path="push-notifications" element={<PushNotificationsPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

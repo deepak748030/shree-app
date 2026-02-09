@@ -133,6 +133,28 @@ export interface DailyQuoteData {
     updatedAt: string
 }
 
+// Home Content APIs
+export interface HomeContentData {
+    _id?: string
+    title_hi: string
+    title_en: string
+    subtitle_hi: string
+    subtitle_en: string
+    paragraphs_hi: string[]
+    paragraphs_en: string[]
+    updatedAt?: string
+}
+
+export const getHomeContent = async () => {
+    const response = await api.get('/home-content')
+    return response.data as { success: boolean; response: HomeContentData | null }
+}
+
+export const saveHomeContent = async (data: Omit<HomeContentData, '_id' | 'updatedAt'>) => {
+    const response = await api.post('/home-content', data)
+    return response.data
+}
+
 export const getDailyQuotes = async (page: number = 1) => {
     const response = await api.get('/daily-quotes', { params: { page, limit: 20 } })
     return response.data as {
@@ -206,6 +228,12 @@ export const getNaamJapUsers = async (page: number = 1, search: string = '', sor
 export const getNaamJapAdminStats = async () => {
     const response = await api.get('/naam-jap/admin/stats')
     return response.data as { success: boolean; response: NaamJapAdminStats }
+}
+
+// Push Notification APIs
+export const sendPushNotification = async (title: string, body: string) => {
+    const response = await api.post('/notifications/send', { title, body })
+    return response.data as { success: boolean; message?: string; response: { sent: number; failed: number; total: number } }
 }
 
 export default api

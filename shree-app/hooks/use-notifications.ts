@@ -9,42 +9,57 @@ Notifications.setNotificationHandler({
         shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
     }),
 });
 
 const DAILY_REMINDER_ID = 'naam-jap-daily-reminder';
 
 export function useNotifications() {
-    const notificationListener = useRef<Notifications.EventSubscription>();
-    const responseListener = useRef<Notifications.EventSubscription>();
+    const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+    const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
     useEffect(() => {
         registerForPushNotifications();
         scheduleDailyReminder();
 
-        // Listen for incoming notifications
         notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-            // Handle notification received while app is open
             console.log('Notification received:', notification.request.content.title);
         });
 
-        // Listen for notification taps
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-            // Handle notification tap - could navigate to Naam Jap counter
             console.log('Notification tapped:', response.notification.request.content.title);
         });
 
         return () => {
             if (notificationListener.current) {
-                Notifications.removeNotificationSubscription(notificationListener.current);
+                notificationListener.current.remove();
             }
             if (responseListener.current) {
-                Notifications.removeNotificationSubscription(responseListener.current);
+                responseListener.current.remove();
             }
         };
     }, []);
 
-    return { scheduleDailyReminder, cancelDailyReminder };
+    return { scheduleDailyReminder, cancelDailyReminder, getExpoPushToken };
+}
+
+async function getExpoPushToken(): Promise<string | null> {
+    try {
+        if (Platform.OS === 'web') return null;
+        if (!Device.isDevice) return null;
+
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== 'granted') return null;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync({
+            projectId: '871acfb5-6e9c-44d0-87d3-f5d921051c6d',
+        });
+        return tokenData.data;
+    } catch {
+        return null;
+    }
 }
 
 async function registerForPushNotifications() {
@@ -69,7 +84,6 @@ async function registerForPushNotifications() {
             return;
         }
 
-        // Set notification channel for Android
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('daily-reminder', {
                 name: 'Daily Naam Jap Reminder',
@@ -88,10 +102,8 @@ async function scheduleDailyReminder() {
     try {
         if (Platform.OS === 'web') return;
 
-        // Cancel existing reminder to avoid duplicates
         await cancelDailyReminder();
 
-        // Schedule daily reminder at 7:00 AM
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'श्री जी 🙏',
@@ -107,7 +119,6 @@ async function scheduleDailyReminder() {
             identifier: DAILY_REMINDER_ID,
         });
 
-        // Also schedule an evening reminder at 7:00 PM
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: 'श्री जी 🙏',
@@ -132,6 +143,6 @@ async function cancelDailyReminder() {
         await Notifications.cancelScheduledNotificationAsync(DAILY_REMINDER_ID);
         await Notifications.cancelScheduledNotificationAsync(`${DAILY_REMINDER_ID}-evening`);
     } catch {
-        // Ignore - notification might not exist
+        // Ignore
     }
 }

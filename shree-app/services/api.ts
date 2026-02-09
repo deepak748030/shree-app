@@ -1,5 +1,31 @@
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-server-url.vercel.app/api';
 
+// ============ HOME CONTENT APIs ============
+
+export interface HomeContentResponse {
+    _id: string;
+    title_hi: string;
+    title_en: string;
+    subtitle_hi: string;
+    subtitle_en: string;
+    paragraphs_hi: string[];
+    paragraphs_en: string[];
+    updatedAt: string;
+}
+
+export async function fetchHomeContent(): Promise<HomeContentResponse | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/home-content`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 // ============ DAILY QUOTE APIs ============
 
 export interface DailyQuoteResponse {
@@ -80,13 +106,14 @@ export interface SyncResponse {
 export async function registerNaamJapUser(
     deviceId: string,
     name: string,
-    city: string
+    city: string,
+    pushToken?: string
 ): Promise<{ success: boolean; response?: any }> {
     try {
         const response = await fetch(`${API_BASE_URL}/naam-jap/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId, name, city }),
+            body: JSON.stringify({ deviceId, name, city, pushToken }),
         });
         return await response.json();
     } catch {

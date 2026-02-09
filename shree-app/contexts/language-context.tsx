@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const LANGUAGE_KEY = '@app_language';
+const LANGUAGE_CHOSEN_KEY = '@app_language_chosen';
 
 export type Language = 'hi' | 'en';
 
@@ -11,6 +12,8 @@ interface LanguageContextType {
     setLanguage: (lang: Language) => Promise<void>;
     t: (key: TranslationKeys) => string;
     loading: boolean;
+    hasChosenLanguage: boolean;
+    markLanguageChosen: () => Promise<void>;
 }
 
 const LanguageContext = createContext<LanguageContextType>({
@@ -18,16 +21,23 @@ const LanguageContext = createContext<LanguageContextType>({
     setLanguage: async () => { },
     t: (key) => key,
     loading: true,
+    hasChosenLanguage: false,
+    markLanguageChosen: async () => { },
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
     const [language, setLangState] = useState<Language>('hi');
     const [loading, setLoading] = useState(true);
+    const [hasChosenLanguage, setHasChosenLanguage] = useState(false);
 
     useEffect(() => {
-        AsyncStorage.getItem(LANGUAGE_KEY)
-            .then((saved) => {
+        Promise.all([
+            AsyncStorage.getItem(LANGUAGE_KEY),
+            AsyncStorage.getItem(LANGUAGE_CHOSEN_KEY),
+        ])
+            .then(([saved, chosen]) => {
                 if (saved === 'en' || saved === 'hi') setLangState(saved);
+                if (chosen === 'true') setHasChosenLanguage(true);
             })
             .catch(() => { })
             .finally(() => setLoading(false));
@@ -38,12 +48,17 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
         setLangState(lang);
     };
 
+    const markLanguageChosen = async () => {
+        await AsyncStorage.setItem(LANGUAGE_CHOSEN_KEY, 'true');
+        setHasChosenLanguage(true);
+    };
+
     const t = (key: TranslationKeys): string => {
         return translations[language]?.[key] || key;
     };
 
     return (
-        <LanguageContext.Provider value={{ language, setLanguage, t, loading }}>
+        <LanguageContext.Provider value={{ language, setLanguage, t, loading, hasChosenLanguage, markLanguageChosen }}>
             {children}
         </LanguageContext.Provider>
     );

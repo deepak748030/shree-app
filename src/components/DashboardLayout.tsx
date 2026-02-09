@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Outlet, NavLink, useLocation } from 'react-router-dom'
 import {
     LayoutDashboard,
+    FileText,
     Menu,
     X,
     LogOut,
@@ -11,14 +12,18 @@ import {
     Settings,
     Quote,
     Users,
+    Bell,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
+import shreeJiLogo from '../assets/favicon.png'
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/home-content', icon: FileText, label: 'Home Content' },
     { to: '/daily-quotes', icon: Quote, label: 'Daily Quotes' },
     { to: '/naam-jap-users', icon: Users, label: 'Naam Jap Users' },
+    { to: '/push-notifications', icon: Bell, label: 'Push Notifications' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 
@@ -51,11 +56,16 @@ export function DashboardLayout() {
                     'h-16 flex items-center border-b border-border/30 px-4',
                     sidebarOpen ? 'justify-between' : 'justify-center'
                 )}>
-                    {sidebarOpen && (
-                        <div>
-                            <h1 className="text-xl font-bold text-primary leading-tight">श्री जी</h1>
-                            <p className="text-xs text-sidebar-foreground/60 leading-tight">Shree Jii Admin</p>
+                    {sidebarOpen ? (
+                        <div className="flex items-center gap-2">
+                            <img src={shreeJiLogo} alt="श्री जी" className="w-9 h-9 object-contain" />
+                            <div>
+                                <h1 className="text-lg font-bold text-primary leading-tight">श्री जी</h1>
+                                <p className="text-[10px] text-sidebar-foreground/60 leading-tight">Admin Panel</p>
+                            </div>
                         </div>
+                    ) : (
+                        <img src={shreeJiLogo} alt="श्री जी" className="w-8 h-8 object-contain" />
                     )}
                     <button
                         onClick={() => setSidebarOpen(!sidebarOpen)}

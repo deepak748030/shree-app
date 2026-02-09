@@ -45,6 +45,9 @@ const hi = {
     lang_changed: 'भाषा बदली गई',
     lang_changed_msg: 'नई भाषा सफलतापूर्वक लागू हो गई है।',
     lang_error_msg: 'भाषा बदलने में समस्या हुई। कृपया पुनः प्रयास करें।',
+    lang_picker_title: 'भाषा चुनें',
+    lang_picker_subtitle: 'कृपया अपनी पसंदीदा भाषा चुनें',
+    lang_continue: 'जारी रखें',
 
     // Daily Quote
     daily_quote_header: 'आज का विचार',
@@ -85,7 +88,11 @@ const hi = {
 
     // Pick image sheet
     pick_image_header: 'एक छवि चुनें',
-    pick_image_upload: 'अपनी छवि अपलोड करें',
+    pick_image_upload: 'गैलरी से छवि अपलोड करें',
+    pick_image_my_uploads: 'मेरी अपलोड की गई छवियाँ',
+    pick_image_presets: 'पहले से उपलब्ध छवियाँ',
+    pick_image_delete: 'हटाएं',
+    pick_image_no_uploads: 'अभी तक कोई छवि अपलोड नहीं की गई',
 
     // Analytics
     analytics_header: 'विश्लेषण',
@@ -170,6 +177,9 @@ const en: typeof hi = {
     lang_changed: 'Language Changed',
     lang_changed_msg: 'New language has been applied successfully.',
     lang_error_msg: 'Failed to change language. Please try again.',
+    lang_picker_title: 'Choose Language',
+    lang_picker_subtitle: 'Please select your preferred language',
+    lang_continue: 'Continue',
 
     // Daily Quote
     daily_quote_header: 'Daily Quote',
@@ -210,7 +220,11 @@ const en: typeof hi = {
 
     // Pick image sheet
     pick_image_header: 'Select an Image',
-    pick_image_upload: 'Upload your own image',
+    pick_image_upload: 'Upload from Gallery',
+    pick_image_my_uploads: 'My Uploaded Images',
+    pick_image_presets: 'Preset Images',
+    pick_image_delete: 'Delete',
+    pick_image_no_uploads: 'No images uploaded yet',
 
     // Analytics
     analytics_header: 'Analytics',

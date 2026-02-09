@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff, AlertCircle, Loader2, ArrowRight, Sparkles } from 'lucide-react'
+import { Eye, EyeOff, AlertCircle, Loader2, ArrowRight } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { setupAdmin } from '../lib/api'
+import shreeJiLogo from '../assets/favicon.png'
 
 export function LoginPage() {
     const [email, setEmail] = useState('')
@@ -65,8 +66,8 @@ export function LoginPage() {
 
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
                     <div className="flex items-center gap-3">
-                        <div className="p-3 bg-white/20 backdrop-blur-sm rounded-2xl">
-                            <Sparkles className="w-8 h-8 text-white" />
+                        <div className="p-2 bg-white/20 backdrop-blur-sm rounded-2xl">
+                            <img src={shreeJiLogo} alt="Shree Ji" className="w-12 h-12 object-contain" />
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">श्री जी</h1>
@@ -107,8 +108,8 @@ export function LoginPage() {
                 <div className="w-full max-w-md animate-fade-in">
                     {/* Mobile Logo */}
                     <div className="lg:hidden text-center mb-8">
-                        <div className="inline-flex items-center justify-center p-4 bg-primary rounded-2xl mb-4">
-                            <Sparkles className="w-10 h-10 text-primary-foreground" />
+                        <div className="inline-flex items-center justify-center p-3 bg-primary rounded-2xl mb-4">
+                            <img src={shreeJiLogo} alt="Shree Ji" className="w-12 h-12 object-contain" />
                         </div>
                         <h1 className="text-2xl font-bold text-primary">श्री जी</h1>
                         <p className="text-sm text-muted-foreground">Shree Jii Admin</p>

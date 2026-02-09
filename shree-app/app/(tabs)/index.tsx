@@ -4,10 +4,12 @@ import TextSizeSlider from '@/components/text-size-slider';
 import { homeContent } from '@/constants/translations';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { fetchHomeContent, type HomeContentResponse } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Dimensions,
   ScrollView,
   StyleSheet,
@@ -28,8 +30,36 @@ export default function HomeScreen() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [fontSize, setFontSize] = useState(15);
   const [scrollEnabled, setScrollEnabled] = useState(true);
+  const [remoteContent, setRemoteContent] = useState<HomeContentResponse | null>(null);
+  const [loadingContent, setLoadingContent] = useState(true);
 
-  const content = homeContent[language];
+  useEffect(() => {
+    loadContent();
+  }, []);
+
+  const loadContent = async () => {
+    setLoadingContent(true);
+    try {
+      const data = await fetchHomeContent();
+      if (data) {
+        setRemoteContent(data);
+      }
+    } catch {
+      // fallback to local
+    } finally {
+      setLoadingContent(false);
+    }
+  };
+
+  // Use remote content if available and non-empty, else fallback to local
+  const fallback = homeContent[language];
+  const remoteTitle = remoteContent ? (language === 'hi' ? remoteContent.title_hi : remoteContent.title_en) : '';
+  const remoteSubtitle = remoteContent ? (language === 'hi' ? remoteContent.subtitle_hi : remoteContent.subtitle_en) : '';
+  const remoteParagraphs = remoteContent ? (language === 'hi' ? remoteContent.paragraphs_hi : remoteContent.paragraphs_en) : [];
+
+  const displayTitle = remoteTitle?.trim() ? remoteTitle : fallback.title;
+  const displaySubtitle = remoteSubtitle?.trim() ? remoteSubtitle : fallback.subtitle;
+  const displayParagraphs = remoteParagraphs?.length && remoteParagraphs.some(p => p.trim()) ? remoteParagraphs.filter(p => p.trim()) : fallback.paragraphs;
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
@@ -68,20 +98,26 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <Text style={[styles.contentTitle, { color: theme.accent }]}>{content.title}</Text>
-          <Text style={styles.contentSubtitle}>{content.subtitle}</Text>
+          {loadingContent ? (
+            <ActivityIndicator size="small" color={theme.accent} style={{ marginTop: 20 }} />
+          ) : (
+            <>
+              <Text style={[styles.contentTitle, { color: theme.accent }]}>{displayTitle}</Text>
+              <Text style={styles.contentSubtitle}>{displaySubtitle}</Text>
 
-          {content.paragraphs.map((para, index) => (
-            <Text
-              key={index}
-              style={[
-                styles.paragraph,
-                { fontSize: fontSize, lineHeight: fontSize * 1.75 },
-              ]}
-            >
-              {para}
-            </Text>
-          ))}
+              {displayParagraphs.map((para, index) => (
+                <Text
+                  key={index}
+                  style={[
+                    styles.paragraph,
+                    { fontSize: fontSize, lineHeight: fontSize * 1.75 },
+                  ]}
+                >
+                  {para}
+                </Text>
+              ))}
+            </>
+          )}
         </View>
       </ScrollView>
 

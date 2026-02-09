@@ -1,8 +1,11 @@
 import { useLanguage } from '@/contexts/language-context';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
-import React from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+    Alert,
     Dimensions,
     Modal,
     Pressable,
@@ -17,6 +20,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TEXT_DARK = '#333333';
 const YELLOW_BG = '#FFEB3B';
 const IMAGE_SIZE = (SCREEN_WIDTH - 60) / 3;
+const STORAGE_KEY = '@naam_jap_user_images';
 
 const textStyles = [
     { label: 'राधा', color: TEXT_DARK, bg: '#FFFFFF', borderColor: '#ccc' },
@@ -45,6 +49,56 @@ export default function PickImageSheet({
     onSelectImage,
 }: PickImageSheetProps) {
     const { t } = useLanguage();
+    const [userImages, setUserImages] = useState<string[]>([]);
+
+    // Load user images from AsyncStorage on mount / when visible
+    useEffect(() => {
+        if (!visible) return;
+        AsyncStorage.getItem(STORAGE_KEY).then((val) => {
+            if (val) {
+                try {
+                    setUserImages(JSON.parse(val));
+                } catch {
+                    setUserImages([]);
+                }
+            }
+        });
+    }, [visible]);
+
+    const saveImages = useCallback(async (images: string[]) => {
+        setUserImages(images);
+        await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(images));
+    }, []);
+
+    const handleUpload = useCallback(async () => {
+        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+        if (status !== 'granted') {
+            Alert.alert(t('error'), 'Gallery permission is required to upload images.');
+            return;
+        }
+
+        const result = await ImagePicker.launchImageLibraryAsync({
+            mediaTypes: ['images'],
+            quality: 0.7,
+            base64: false,
+            allowsEditing: false,
+        });
+
+        if (!result.canceled && result.assets?.[0]?.uri) {
+            const uri = result.assets[0].uri;
+            const updated = [uri, ...userImages];
+            await saveImages(updated);
+        }
+    }, [userImages, saveImages, t]);
+
+    const handleDeleteImage = useCallback((index: number) => {
+        const updated = userImages.filter((_, i) => i !== index);
+        saveImages(updated);
+    }, [userImages, saveImages]);
+
+    const handleSelectUserImage = useCallback((uri: string) => {
+        onSelectImage({ uri });
+    }, [onSelectImage]);
 
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -57,8 +111,8 @@ export default function PickImageSheet({
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.uploadRow}>
-                    <Ionicons name="image-outline" size={24} color={TEXT_DARK} />
+                <TouchableOpacity style={styles.uploadRow} onPress={handleUpload}>
+                    <Ionicons name="cloud-upload-outline" size={24} color={TEXT_DARK} />
                     <Text style={styles.uploadText}>{t('pick_image_upload')}</Text>
                 </TouchableOpacity>
 
@@ -66,6 +120,7 @@ export default function PickImageSheet({
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={styles.scrollContent}
                 >
+                    {/* Text styles */}
                     <View style={styles.textStyleRow}>
                         {textStyles.map((item, index) => (
                             <TouchableOpacity
@@ -78,10 +133,38 @@ export default function PickImageSheet({
                         ))}
                     </View>
 
+                    {/* User uploaded images */}
+                    {userImages.length > 0 && (
+                        <>
+                            <Text style={styles.sectionTitle}>{t('pick_image_my_uploads')}</Text>
+                            <View style={styles.imageGrid}>
+                                {userImages.map((uri, index) => (
+                                    <View key={`user-${index}`} style={styles.imageCard}>
+                                        <TouchableOpacity
+                                            style={styles.imageCardInner}
+                                            onPress={() => handleSelectUserImage(uri)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Image source={{ uri }} style={styles.gridImage} contentFit="cover" />
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.deleteBtn}
+                                            onPress={() => handleDeleteImage(index)}
+                                        >
+                                            <Ionicons name="trash-outline" size={14} color="#FFF" />
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        </>
+                    )}
+
+                    {/* Preset images */}
+                    <Text style={styles.sectionTitle}>{t('pick_image_presets')}</Text>
                     <View style={styles.imageGrid}>
                         {presetImages.map((img, index) => (
                             <TouchableOpacity
-                                key={index}
+                                key={`preset-${index}`}
                                 style={styles.imageCard}
                                 onPress={() => onSelectImage(img)}
                             >
@@ -97,22 +180,23 @@ export default function PickImageSheet({
 
 const styles = StyleSheet.create({
     overlay: {
-        flex: 0.3,
+        flex: 0.25,
         backgroundColor: 'rgba(0,0,0,0.3)',
     },
     sheet: {
-        flex: 0.7,
+        flex: 0.75,
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
-        paddingHorizontal: 20,
+        paddingHorizontal: 6,
         paddingTop: 16,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 16,
+        marginBottom: 12,
+        paddingHorizontal: 14,
     },
     headerTitle: {
         fontSize: 20,
@@ -123,15 +207,31 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
-        marginBottom: 12,
+        paddingHorizontal: 14,
+        marginBottom: 8,
+        backgroundColor: '#F5F5F5',
+        borderRadius: 10,
+        marginHorizontal: 14,
     },
     uploadText: {
         fontSize: 15,
+        fontWeight: '600',
         color: TEXT_DARK,
         marginLeft: 12,
     },
     scrollContent: {
-        paddingBottom: 30,
+        paddingBottom: 40,
+        paddingHorizontal: 14,
+    },
+    sectionTitle: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        color: TEXT_DARK,
+        opacity: 0.6,
+        marginBottom: 10,
+        marginTop: 8,
+        textTransform: 'uppercase',
+        letterSpacing: 0.5,
     },
     textStyleRow: {
         flexDirection: 'row',
@@ -154,17 +254,32 @@ const styles = StyleSheet.create({
     imageGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
-        justifyContent: 'space-between',
+        justifyContent: 'flex-start',
+        gap: 8,
     },
     imageCard: {
         width: IMAGE_SIZE,
         height: IMAGE_SIZE,
         borderRadius: 8,
         overflow: 'hidden',
-        marginBottom: 10,
+    },
+    imageCardInner: {
+        width: '100%',
+        height: '100%',
     },
     gridImage: {
         width: '100%',
         height: '100%',
+    },
+    deleteBtn: {
+        position: 'absolute',
+        top: 4,
+        right: 4,
+        backgroundColor: 'rgba(229,57,53,0.85)',
+        borderRadius: 12,
+        width: 24,
+        height: 24,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
 });

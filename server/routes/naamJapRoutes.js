@@ -30,7 +30,7 @@ const getTodayString = () => {
 // POST /api/naam-jap/register - Register or update user info
 router.post('/register', async (req, res) => {
     try {
-        const { deviceId, name, city } = req.body;
+        const { deviceId, name, city, pushToken } = req.body;
 
         if (!deviceId || !name || !city) {
             return res.status(400).json({
@@ -54,12 +54,14 @@ router.post('/register', async (req, res) => {
         if (user) {
             user.name = trimmedName;
             user.city = trimmedCity;
+            if (pushToken) user.pushToken = pushToken;
             await user.save();
         } else {
             user = new NaamJapUser({
                 deviceId,
                 name: trimmedName,
                 city: trimmedCity,
+                pushToken: pushToken || null,
             });
             await user.save();
         }

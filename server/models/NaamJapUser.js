@@ -40,6 +40,10 @@ const naamJapUserSchema = new mongoose.Schema({
         type: [dailyLogSchema],
         default: [],
     },
+    pushToken: {
+        type: String,
+        default: null,
+    },
     lastSyncAt: {
         type: Date,
         default: Date.now,

@@ -8,6 +8,7 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
 import {
     ActivityIndicator,
+    RefreshControl,
     ScrollView,
     StyleSheet,
     Text,
@@ -31,6 +32,7 @@ export default function DailyQuoteScreen() {
     const { language, t } = useLanguage();
     const [sharing, setSharing] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [refreshing, setRefreshing] = useState(false);
     const [imageUrl, setImageUrl] = useState<string | null>(null);
 
     const [sheetVisible, setSheetVisible] = useState(false);
@@ -58,6 +60,12 @@ export default function DailyQuoteScreen() {
         } finally {
             setLoading(false);
         }
+    };
+
+    const onRefresh = async () => {
+        setRefreshing(true);
+        await loadTodayImage();
+        setRefreshing(false);
     };
 
     const handleShare = async () => {
@@ -102,6 +110,14 @@ export default function DailyQuoteScreen() {
                 <ScrollView
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
+                    refreshControl={
+                        <RefreshControl
+                            refreshing={refreshing}
+                            onRefresh={onRefresh}
+                            colors={[theme.accent]}
+                            tintColor={theme.accent}
+                        />
+                    }
                 >
                     <View style={[styles.imageCard, { borderColor: theme.cardBorder }]}>
                         <Image

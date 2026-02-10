@@ -11,6 +11,7 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Dimensions,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -32,6 +33,7 @@ export default function HomeScreen() {
   const [scrollEnabled, setScrollEnabled] = useState(true);
   const [remoteContent, setRemoteContent] = useState<HomeContentResponse | null>(null);
   const [loadingContent, setLoadingContent] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     loadContent();
@@ -49,6 +51,12 @@ export default function HomeScreen() {
     } finally {
       setLoadingContent(false);
     }
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadContent();
+    setRefreshing(false);
   };
 
   // Use remote content if available and non-empty, else fallback to local
@@ -83,6 +91,14 @@ export default function HomeScreen() {
         scrollEnabled={scrollEnabled}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[theme.accent]}
+            tintColor={theme.accent}
+          />
+        }
       >
         <ImageSlider />
 

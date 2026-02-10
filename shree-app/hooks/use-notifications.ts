@@ -52,7 +52,7 @@ export function useNotifications() {
         }
 
         if (!Device.isDevice) {
-            console.log('Push notifications require a physical device');
+            // console.log('Push notifications require a physical device');
             setError('Push notifications require a physical device');
             return null;
         }
@@ -67,7 +67,7 @@ export function useNotifications() {
 
         if (finalStatus !== 'granted') {
             setError('Permission not granted for push notifications');
-            console.log('Push notification permission not granted');
+            // console.log('Push notification permission not granted');
             return null;
         }
 
@@ -77,13 +77,13 @@ export function useNotifications() {
                 (Constants as any).easConfig?.projectId ??
                 '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
 
-            console.log('EAS projectId:', projectId);
+            // console.log('EAS projectId:', projectId);
 
             const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-            console.log('Got real push token:', pushTokenData.data);
+            // console.log('Got real push token:', pushTokenData.data);
             return pushTokenData.data;
         } catch (e: any) {
-            console.error('Failed to get push token:', e?.message);
+            // console.error('Failed to get push token:', e?.message);
             setError('Failed to get push token: ' + e?.message);
             return null;
         }
@@ -91,23 +91,23 @@ export function useNotifications() {
 
     async function updatePushTokenOnServer(token: string) {
         try {
-            console.log('=== updatePushTokenOnServer START ===');
-            console.log('Token to save:', token);
+            // console.log('=== updatePushTokenOnServer START ===');
+            // console.log('Token to save:', token);
 
             // Store token locally so it's available during registration
             await AsyncStorage.setItem('@naam_jap_push_token', token);
-            console.log('Token saved to AsyncStorage');
+            // console.log('Token saved to AsyncStorage');
 
             const deviceId = await AsyncStorage.getItem('@naam_jap_device_id');
-            console.log('Device ID from AsyncStorage:', deviceId);
+            // console.log('Device ID from AsyncStorage:', deviceId);
 
             if (!deviceId) {
-                console.log('No deviceId yet — token saved locally, will sync during registration');
+                // console.log('No deviceId yet — token saved locally, will sync during registration');
                 return;
             }
 
-            const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-server-url.vercel.app/api';
-            console.log('Calling update-push-token API:', `${API_BASE_URL}/naam-jap/update-push-token`);
+            const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
+            // console.log('Calling update-push-token API:', `${API_BASE_URL}/naam-jap/update-push-token`);
 
             const response = await fetch(`${API_BASE_URL}/naam-jap/update-push-token`, {
                 method: 'POST',
@@ -115,17 +115,17 @@ export function useNotifications() {
                 body: JSON.stringify({ deviceId, pushToken: token }),
             });
             const result = await response.json();
-            console.log('Server response:', JSON.stringify(result));
+            // console.log('Server response:', JSON.stringify(result));
 
             if (result.success) {
-                console.log('Push token updated on server successfully');
+                // console.log('Push token updated on server successfully');
             } else {
-                console.warn('Failed to update push token on server:', result.message);
+                // console.warn('Failed to update push token on server:', result.message);
             }
         } catch (err) {
-            console.error('Error updating push token on server:', err);
+            // console.error('Error updating push token on server:', err);
         }
-        console.log('=== updatePushTokenOnServer END ===');
+        // console.log('=== updatePushTokenOnServer END ===');
     }
 
     useEffect(() => {
@@ -139,12 +139,12 @@ export function useNotifications() {
         })();
 
         notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
-            console.log('Notification received:', notif.request.content.title);
+            // console.log('Notification received:', notif.request.content.title);
             setNotification(notif);
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-            console.log('Notification tapped:', response.notification.request.content.title);
+            // console.log('Notification tapped:', response.notification.request.content.title);
         });
 
         return () => {
@@ -218,9 +218,9 @@ async function scheduleDailyReminder() {
             identifier: `${DAILY_REMINDER_ID}-evening`,
         });
 
-        console.log('Daily reminders scheduled');
+        // console.log('Daily reminders scheduled');
     } catch (error) {
-        console.warn('Failed to schedule daily reminder:', error);
+        // console.warn('Failed to schedule daily reminder:', error);
     }
 }
 

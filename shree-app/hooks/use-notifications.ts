@@ -32,8 +32,6 @@ export function useNotifications() {
     const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
     async function registerForPushNotificationsAsync(): Promise<string | null> {
-        let token: string | null = null;
-
         if (Platform.OS === 'web') return null;
 
         if (Platform.OS === 'android') {
@@ -53,74 +51,86 @@ export function useNotifications() {
             });
         }
 
-        if (Device.isDevice) {
-            const { status: existingStatus } = await Notifications.getPermissionsAsync();
-            let finalStatus = existingStatus;
+        if (!Device.isDevice) {
+            console.log('Push notifications require a physical device');
+            setError('Push notifications require a physical device');
+            return null;
+        }
 
-            if (existingStatus !== 'granted') {
-                const { status } = await Notifications.requestPermissionsAsync();
-                finalStatus = status;
-            }
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
 
-            if (finalStatus !== 'granted') {
-                setError('Permission not granted for push notifications');
-                console.log('Push notification permission not granted');
+        if (existingStatus !== 'granted') {
+            const { status } = await Notifications.requestPermissionsAsync();
+            finalStatus = status;
+        }
+
+        if (finalStatus !== 'granted') {
+            setError('Permission not granted for push notifications');
+            console.log('Push notification permission not granted');
+            return null;
+        }
+
+        try {
+            const projectId =
+                Constants.expoConfig?.extra?.eas?.projectId ??
+                (Constants as any).easConfig?.projectId;
+
+            console.log('EAS projectId:', projectId);
+
+            if (!projectId) {
+                console.warn('No EAS projectId found — cannot get real push token');
+                setError('No EAS projectId configured');
                 return null;
             }
 
-            try {
-                const projectId =
-                    Constants.expoConfig?.extra?.eas?.projectId ??
-                    (Constants as any).easConfig?.projectId;
-
-                if (!projectId) {
-                    console.warn('No EAS projectId found, using fallback token');
-                    token = `ExponentPushToken[dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
-                } else {
-                    const pushTokenData = await Notifications.getExpoPushTokenAsync({
-                        projectId,
-                    });
-                    token = pushTokenData.data;
-                    console.log('Got push token:', token);
-                }
-            } catch (e: any) {
-                console.warn('Failed to get push token, using fallback:', e?.message);
-                token = `ExponentPushToken[dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
-            }
-        } else {
-            console.log('Not a physical device, using simulator token');
-            token = `ExponentPushToken[simulator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
+            const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+            console.log('Got real push token:', pushTokenData.data);
+            return pushTokenData.data;
+        } catch (e: any) {
+            console.error('Failed to get push token:', e?.message);
+            setError('Failed to get push token: ' + e?.message);
+            return null;
         }
-
-        return token;
     }
 
     async function updatePushTokenOnServer(token: string) {
         try {
+            console.log('=== updatePushTokenOnServer START ===');
+            console.log('Token to save:', token);
+
             // Store token locally so it's available during registration
             await AsyncStorage.setItem('@naam_jap_push_token', token);
+            console.log('Token saved to AsyncStorage');
 
             const deviceId = await AsyncStorage.getItem('@naam_jap_device_id');
+            console.log('Device ID from AsyncStorage:', deviceId);
+
             if (!deviceId) {
-                console.log('No deviceId yet, push token saved locally for registration');
+                console.log('No deviceId yet — token saved locally, will sync during registration');
                 return;
             }
 
             const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-server-url.vercel.app/api';
+            console.log('Calling update-push-token API:', `${API_BASE_URL}/naam-jap/update-push-token`);
+
             const response = await fetch(`${API_BASE_URL}/naam-jap/update-push-token`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ deviceId, pushToken: token }),
             });
             const result = await response.json();
+            console.log('Server response:', JSON.stringify(result));
+
             if (result.success) {
-                console.log('Push token updated on server');
+                console.log('Push token updated on server successfully');
             } else {
                 console.warn('Failed to update push token on server:', result.message);
             }
         } catch (err) {
-            console.warn('Error updating push token on server:', err);
+            console.error('Error updating push token on server:', err);
         }
+        console.log('=== updatePushTokenOnServer END ===');
     }
 
     useEffect(() => {

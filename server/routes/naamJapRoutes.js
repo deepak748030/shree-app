@@ -31,6 +31,11 @@ const getTodayString = () => {
 router.post('/register', async (req, res) => {
     try {
         const { deviceId, name, city, pushToken } = req.body;
+        console.log('=== NAAM JAP REGISTER ===');
+        console.log('deviceId:', deviceId);
+        console.log('name:', name);
+        console.log('city:', city);
+        console.log('pushToken:', pushToken);
 
         if (!deviceId || !name || !city) {
             return res.status(400).json({
@@ -56,6 +61,7 @@ router.post('/register', async (req, res) => {
             user.city = trimmedCity;
             if (pushToken) user.pushToken = pushToken;
             await user.save();
+            console.log('User updated, pushToken saved:', user.pushToken);
         } else {
             user = new NaamJapUser({
                 deviceId,
@@ -64,8 +70,10 @@ router.post('/register', async (req, res) => {
                 pushToken: pushToken || null,
             });
             await user.save();
+            console.log('New user created, pushToken saved:', user.pushToken);
         }
 
+        console.log('=== REGISTER COMPLETE ===');
         res.json({ success: true, response: user });
     } catch (error) {
         console.error('NaamJap register error:', error);

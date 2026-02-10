@@ -89,10 +89,21 @@ export default function UserInfoModal({ visible, onClose, onSave, deviceId }: Us
             // Register with server (include push token from stored or fresh)
             if (deviceId) {
                 let pushToken = await AsyncStorage.getItem('@naam_jap_push_token');
+                console.log('Registration: cached push token:', pushToken);
+
                 if (!pushToken) {
                     pushToken = await getExpoPushToken();
+                    console.log('Registration: fresh push token:', pushToken);
                 }
+
+                if (pushToken) {
+                    await AsyncStorage.setItem('@naam_jap_push_token', pushToken);
+                }
+
+                console.log('Registering with server: deviceId=', deviceId, 'pushToken=', pushToken);
                 const result = await registerNaamJapUser(deviceId, name.trim(), city.trim(), pushToken || undefined);
+                console.log('Registration result:', JSON.stringify(result));
+
                 if (!result.success) {
                     console.warn('Server registration failed, saved locally');
                 }

@@ -339,6 +339,35 @@ router.get('/user/:deviceId', async (req, res) => {
     }
 });
 
+// POST /api/naam-jap/update-push-token - Update push token for a device
+router.post('/update-push-token', async (req, res) => {
+    try {
+        const { deviceId, pushToken } = req.body;
+
+        if (!deviceId || !pushToken) {
+            return res.status(400).json({
+                success: false,
+                message: 'deviceId and pushToken are required',
+            });
+        }
+
+        const user = await NaamJapUser.findOne({ deviceId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        user.pushToken = pushToken;
+        await user.save();
+
+        console.log(`Push token updated for ${user.name} (${deviceId}): ${pushToken}`);
+
+        res.json({ success: true, message: 'Push token updated' });
+    } catch (error) {
+        console.error('Update push token error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update push token' });
+    }
+});
+
 // ============ ADMIN ROUTES ============
 
 // GET /api/naam-jap/admin/users - List all users (admin)

@@ -3,6 +3,7 @@ import LanguagePickerModal from '@/components/language-picker-modal';
 import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { AppThemeProvider } from '@/contexts/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { useNotifications } from '@/hooks/use-notifications';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -17,6 +18,9 @@ function AppContent() {
   const colorScheme = useColorScheme();
   const { loading, hasChosenLanguage, markLanguageChosen } = useLanguage();
   const [showLangPicker, setShowLangPicker] = useState(true);
+
+  // Initialize notifications & permissions at app startup
+  useNotifications();
 
   const shouldShowPicker = !loading && !hasChosenLanguage && showLangPicker;
 

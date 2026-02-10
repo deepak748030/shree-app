@@ -1,14 +1,16 @@
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
-import { useEffect, useRef } from 'react';
+import Constants from 'expo-constants';
+import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
         shouldShowAlert: true,
         shouldPlaySound: true,
-        shouldSetBadge: false,
+        shouldSetBadge: true,
         shouldShowBanner: true,
         shouldShowList: true,
     }),
@@ -16,16 +18,124 @@ Notifications.setNotificationHandler({
 
 const DAILY_REMINDER_ID = 'naam-jap-daily-reminder';
 
+export interface PushNotificationState {
+    expoPushToken: string | null;
+    notification: Notifications.Notification | null;
+    error: string | null;
+}
+
 export function useNotifications() {
+    const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+    const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+    const [error, setError] = useState<string | null>(null);
     const notificationListener = useRef<Notifications.EventSubscription | null>(null);
     const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
-    useEffect(() => {
-        registerForPushNotifications();
-        scheduleDailyReminder();
+    async function registerForPushNotificationsAsync(): Promise<string | null> {
+        let token: string | null = null;
 
-        notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
-            console.log('Notification received:', notification.request.content.title);
+        if (Platform.OS === 'web') return null;
+
+        if (Platform.OS === 'android') {
+            await Notifications.setNotificationChannelAsync('default', {
+                name: 'Default',
+                importance: Notifications.AndroidImportance.MAX,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FFD700',
+            });
+
+            await Notifications.setNotificationChannelAsync('daily-reminder', {
+                name: 'Daily Naam Jap Reminder',
+                importance: Notifications.AndroidImportance.HIGH,
+                vibrationPattern: [0, 250, 250, 250],
+                lightColor: '#FFD700',
+                sound: 'default',
+            });
+        }
+
+        if (Device.isDevice) {
+            const { status: existingStatus } = await Notifications.getPermissionsAsync();
+            let finalStatus = existingStatus;
+
+            if (existingStatus !== 'granted') {
+                const { status } = await Notifications.requestPermissionsAsync();
+                finalStatus = status;
+            }
+
+            if (finalStatus !== 'granted') {
+                setError('Permission not granted for push notifications');
+                console.log('Push notification permission not granted');
+                return null;
+            }
+
+            try {
+                const projectId =
+                    Constants.expoConfig?.extra?.eas?.projectId ??
+                    (Constants as any).easConfig?.projectId;
+
+                if (!projectId) {
+                    console.warn('No EAS projectId found, using fallback token');
+                    token = `ExponentPushToken[dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
+                } else {
+                    const pushTokenData = await Notifications.getExpoPushTokenAsync({
+                        projectId,
+                    });
+                    token = pushTokenData.data;
+                    console.log('Got push token:', token);
+                }
+            } catch (e: any) {
+                console.warn('Failed to get push token, using fallback:', e?.message);
+                token = `ExponentPushToken[dev_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
+            }
+        } else {
+            console.log('Not a physical device, using simulator token');
+            token = `ExponentPushToken[simulator_${Date.now()}_${Math.random().toString(36).substr(2, 9)}]`;
+        }
+
+        return token;
+    }
+
+    async function updatePushTokenOnServer(token: string) {
+        try {
+            // Store token locally so it's available during registration
+            await AsyncStorage.setItem('@naam_jap_push_token', token);
+
+            const deviceId = await AsyncStorage.getItem('@naam_jap_device_id');
+            if (!deviceId) {
+                console.log('No deviceId yet, push token saved locally for registration');
+                return;
+            }
+
+            const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-server-url.vercel.app/api';
+            const response = await fetch(`${API_BASE_URL}/naam-jap/update-push-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId, pushToken: token }),
+            });
+            const result = await response.json();
+            if (result.success) {
+                console.log('Push token updated on server');
+            } else {
+                console.warn('Failed to update push token on server:', result.message);
+            }
+        } catch (err) {
+            console.warn('Error updating push token on server:', err);
+        }
+    }
+
+    useEffect(() => {
+        (async () => {
+            const token = await registerForPushNotificationsAsync();
+            if (token) {
+                setExpoPushToken(token);
+                await updatePushTokenOnServer(token);
+            }
+            await scheduleDailyReminder();
+        })();
+
+        notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
+            console.log('Notification received:', notif.request.content.title);
+            setNotification(notif);
         });
 
         responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
@@ -42,10 +152,10 @@ export function useNotifications() {
         };
     }, []);
 
-    return { scheduleDailyReminder, cancelDailyReminder, getExpoPushToken };
+    return { expoPushToken, notification, error, updatePushTokenOnServer, scheduleDailyReminder, cancelDailyReminder };
 }
 
-async function getExpoPushToken(): Promise<string | null> {
+export async function getExpoPushToken(): Promise<string | null> {
     try {
         if (Platform.OS === 'web') return null;
         if (!Device.isDevice) return null;
@@ -53,48 +163,16 @@ async function getExpoPushToken(): Promise<string | null> {
         const { status } = await Notifications.getPermissionsAsync();
         if (status !== 'granted') return null;
 
-        const tokenData = await Notifications.getExpoPushTokenAsync({
-            projectId: '871acfb5-6e9c-44d0-87d3-f5d921051c6d',
-        });
+        const projectId =
+            Constants.expoConfig?.extra?.eas?.projectId ??
+            (Constants as any).easConfig?.projectId;
+
+        if (!projectId) return null;
+
+        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         return tokenData.data;
     } catch {
         return null;
-    }
-}
-
-async function registerForPushNotifications() {
-    try {
-        if (Platform.OS === 'web') return;
-
-        if (!Device.isDevice) {
-            console.log('Push notifications require a physical device');
-            return;
-        }
-
-        const { status: existingStatus } = await Notifications.getPermissionsAsync();
-        let finalStatus = existingStatus;
-
-        if (existingStatus !== 'granted') {
-            const { status } = await Notifications.requestPermissionsAsync();
-            finalStatus = status;
-        }
-
-        if (finalStatus !== 'granted') {
-            console.log('Notification permission not granted');
-            return;
-        }
-
-        if (Platform.OS === 'android') {
-            await Notifications.setNotificationChannelAsync('daily-reminder', {
-                name: 'Daily Naam Jap Reminder',
-                importance: Notifications.AndroidImportance.HIGH,
-                vibrationPattern: [0, 250, 250, 250],
-                lightColor: '#FFD700',
-                sound: 'default',
-            });
-        }
-    } catch (error) {
-        console.warn('Failed to register for push notifications:', error);
     }
 }
 
@@ -133,6 +211,8 @@ async function scheduleDailyReminder() {
             },
             identifier: `${DAILY_REMINDER_ID}-evening`,
         });
+
+        console.log('Daily reminders scheduled');
     } catch (error) {
         console.warn('Failed to schedule daily reminder:', error);
     }
@@ -145,4 +225,19 @@ async function cancelDailyReminder() {
     } catch {
         // Ignore
     }
+}
+
+export async function sendLocalNotification(
+    title: string,
+    body: string,
+    data?: Record<string, unknown>
+) {
+    await Notifications.scheduleNotificationAsync({
+        content: {
+            title,
+            body,
+            data: data || {},
+        },
+        trigger: null,
+    });
 }

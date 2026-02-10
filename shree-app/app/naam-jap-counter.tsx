@@ -7,7 +7,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { useDeviceId } from '@/hooks/use-device-id';
 import { useNaamJapSync } from '@/hooks/use-naam-jap-sync';
-import { useNotifications } from '@/hooks/use-notifications';
+import { getExpoPushToken } from '@/hooks/use-notifications';
 import { usePersistedCounter } from '@/hooks/use-persisted-counter';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -47,8 +47,7 @@ export default function NaamJapCounterScreen() {
     const { t } = useLanguage();
     const deviceId = useDeviceId();
 
-    // Initialize notifications
-    useNotifications();
+
 
     // Persisted state (survives app restarts)
     const {

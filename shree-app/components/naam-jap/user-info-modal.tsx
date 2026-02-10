@@ -1,5 +1,6 @@
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { getExpoPushToken } from '@/hooks/use-notifications';
 import { registerNaamJapUser } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -85,9 +86,13 @@ export default function UserInfoModal({ visible, onClose, onSave, deviceId }: Us
                 JSON.stringify({ name: name.trim(), city: city.trim() })
             );
 
-            // Register with server
+            // Register with server (include push token from stored or fresh)
             if (deviceId) {
-                const result = await registerNaamJapUser(deviceId, name.trim(), city.trim());
+                let pushToken = await AsyncStorage.getItem('@naam_jap_push_token');
+                if (!pushToken) {
+                    pushToken = await getExpoPushToken();
+                }
+                const result = await registerNaamJapUser(deviceId, name.trim(), city.trim(), pushToken || undefined);
                 if (!result.success) {
                     console.warn('Server registration failed, saved locally');
                 }

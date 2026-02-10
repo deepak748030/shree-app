@@ -74,15 +74,10 @@ export function useNotifications() {
         try {
             const projectId =
                 Constants.expoConfig?.extra?.eas?.projectId ??
-                (Constants as any).easConfig?.projectId;
+                (Constants as any).easConfig?.projectId ??
+                '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
 
             console.log('EAS projectId:', projectId);
-
-            if (!projectId) {
-                console.warn('No EAS projectId found — cannot get real push token');
-                setError('No EAS projectId configured');
-                return null;
-            }
 
             const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
             console.log('Got real push token:', pushTokenData.data);
@@ -175,7 +170,8 @@ export async function getExpoPushToken(): Promise<string | null> {
 
         const projectId =
             Constants.expoConfig?.extra?.eas?.projectId ??
-            (Constants as any).easConfig?.projectId;
+            (Constants as any).easConfig?.projectId ??
+            '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
 
         if (!projectId) return null;
 

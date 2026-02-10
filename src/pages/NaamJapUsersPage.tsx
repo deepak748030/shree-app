@@ -87,17 +87,17 @@ export function NaamJapUsersPage() {
     }
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
+        <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Naam Jap Users</h1>
-                    <p className="text-muted-foreground text-sm mt-1">
-                        Manage and monitor all naam jap users and their progress
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Naam Jap Users</h1>
+                    <p className="text-muted-foreground text-sm mt-0.5">
+                        Manage and monitor all naam jap users
                     </p>
                 </div>
                 <button
                     onClick={() => { fetchUsers(); fetchStats(); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm self-start sm:self-auto"
                 >
                     <RefreshCw className="w-4 h-4" />
                     Refresh
@@ -106,54 +106,34 @@ export function NaamJapUsersPage() {
 
             {/* Stats Cards */}
             {stats && (
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                    <div className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Users className="w-4 h-4" />
-                            <span className="text-xs font-medium">Total Users</span>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {[
+                        { icon: Users, label: 'Total Users', value: stats.totalUsers },
+                        { icon: Hash, label: 'Total Malas', value: stats.totalMalas },
+                        { icon: Trophy, label: 'Total Count', value: stats.totalCount },
+                        { icon: Activity, label: 'Active Today', value: stats.todayActiveUsers },
+                        { icon: Users, label: 'New This Week', value: stats.newUsersThisWeek },
+                    ].map((stat) => (
+                        <div key={stat.label} className="bg-card border border-border rounded-xl p-3 sm:p-4">
+                            <div className="flex items-center gap-1.5 text-muted-foreground mb-1">
+                                <stat.icon className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                <span className="text-[10px] sm:text-xs font-medium truncate">{stat.label}</span>
+                            </div>
+                            <p className="text-lg sm:text-2xl font-bold text-foreground">{formatNumber(stat.value)}</p>
                         </div>
-                        <p className="text-2xl font-bold text-foreground">{formatNumber(stats.totalUsers)}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Hash className="w-4 h-4" />
-                            <span className="text-xs font-medium">Total Malas</span>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{formatNumber(stats.totalMalas)}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Trophy className="w-4 h-4" />
-                            <span className="text-xs font-medium">Total Count</span>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{formatNumber(stats.totalCount)}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Activity className="w-4 h-4" />
-                            <span className="text-xs font-medium">Active Today</span>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{formatNumber(stats.todayActiveUsers)}</p>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4">
-                        <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                            <Users className="w-4 h-4" />
-                            <span className="text-xs font-medium">New This Week</span>
-                        </div>
-                        <p className="text-2xl font-bold text-foreground">{formatNumber(stats.newUsersThisWeek)}</p>
-                    </div>
+                    ))}
                 </div>
             )}
 
             {/* Search */}
-            <div className="relative max-w-md">
+            <div className="relative w-full sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input
                     type="text"
                     placeholder="Search by name or city..."
                     value={search}
                     onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                    className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full pl-10 pr-4 py-2.5 bg-card border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 text-sm"
                 />
             </div>
 
@@ -225,8 +205,8 @@ export function NaamJapUsersPage() {
                         </div>
 
                         {/* Pagination */}
-                        <div className="flex items-center justify-between px-4 py-3 border-t border-border">
-                            <p className="text-sm text-muted-foreground">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-2 px-3 sm:px-4 py-3 border-t border-border">
+                            <p className="text-xs sm:text-sm text-muted-foreground">
                                 Showing {(page - 1) * 50 + 1}-{Math.min(page * 50, total)} of {formatNumber(total)}
                             </p>
                             <div className="flex items-center gap-2">

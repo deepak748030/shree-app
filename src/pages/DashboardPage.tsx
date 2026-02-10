@@ -150,11 +150,11 @@ export function DashboardPage() {
     ]
 
     return (
-        <div className="animate-fade-in space-y-6">
+        <div className="animate-fade-in space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Dashboard</h1>
                     <p className="text-muted-foreground text-sm mt-0.5">
                         Welcome to Shree Jii Admin Panel
                     </p>
@@ -177,8 +177,8 @@ export function DashboardPage() {
 
             {/* Naam Jap Stats */}
             <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Naam Jap Overview</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2 sm:mb-3">Naam Jap Overview</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
                     {naamJapStats.map((stat) => (
                         <StatCard key={stat.title} {...stat} isLoading={isLoading} />
                     ))}
@@ -187,8 +187,8 @@ export function DashboardPage() {
 
             {/* Daily Quotes Stats */}
             <div>
-                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Daily Quotes</h2>
-                <div className="grid grid-cols-2 gap-3 max-w-md">
+                <h2 className="text-xs sm:text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-2 sm:mb-3">Daily Quotes</h2>
+                <div className="grid grid-cols-2 gap-2 sm:gap-3 max-w-md">
                     {quotesStats.map((stat) => (
                         <StatCard key={stat.title} {...stat} isLoading={isLoading} />
                     ))}
@@ -196,13 +196,13 @@ export function DashboardPage() {
             </div>
 
             {/* Charts & Top Users */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
                 {/* Daily Activity Chart */}
                 {isLoading ? (
                     <ChartSkeleton />
                 ) : (
-                    <div className="bg-card border border-border rounded-xl p-5">
-                        <h3 className="text-base font-semibold text-foreground mb-4">Daily Activity (Last 7 Days)</h3>
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-5">
+                        <h3 className="text-sm sm:text-base font-semibold text-foreground mb-3 sm:mb-4">Daily Activity (Last 7 Days)</h3>
                         {analytics?.dailyActivity && analytics.dailyActivity.length > 0 ? (
                             <ResponsiveContainer width="100%" height={280}>
                                 <BarChart data={analytics.dailyActivity}>
@@ -236,8 +236,8 @@ export function DashboardPage() {
                 {isLoading ? (
                     <ChartSkeleton />
                 ) : (
-                    <div className="bg-card border border-border rounded-xl p-5">
-                        <h3 className="text-base font-semibold text-foreground mb-4">Top 10 Users</h3>
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-5">
+                        <h3 className="text-sm sm:text-base font-semibold text-foreground mb-3 sm:mb-4">Top 10 Users</h3>
                         {analytics?.topUsers && analytics.topUsers.length > 0 ? (
                             <div className="overflow-auto max-h-[280px]">
                                 <table className="w-full">

@@ -34,37 +34,37 @@ export function PushNotificationsPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
             <div>
-                <h1 className="text-2xl font-bold text-foreground">Push Notifications</h1>
-                <p className="text-muted-foreground text-sm mt-1">Send push notifications to all app users</p>
+                <h1 className="text-xl sm:text-2xl font-bold text-foreground">Push Notifications</h1>
+                <p className="text-muted-foreground text-sm mt-0.5">Send push notifications to all app users</p>
             </div>
 
-            <div className="bg-card border border-border rounded-lg p-6 space-y-4 max-w-2xl">
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 space-y-4 max-w-2xl">
                 <div className="flex items-center gap-2 text-primary mb-2">
                     <Bell className="w-5 h-5" />
-                    <span className="font-semibold">Compose Notification</span>
+                    <span className="font-semibold text-sm sm:text-base">Compose Notification</span>
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Title</label>
+                    <label className="block text-xs sm:text-sm font-medium text-foreground mb-1.5">Title</label>
                     <input
                         type="text"
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
                         placeholder="e.g. श्री जी 🙏"
-                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm outline-none focus:border-primary"
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-foreground text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all"
                     />
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-foreground mb-1">Content</label>
+                    <label className="block text-xs sm:text-sm font-medium text-foreground mb-1.5">Content</label>
                     <textarea
                         value={body}
                         onChange={(e) => setBody(e.target.value)}
                         placeholder="e.g. जय श्री राधे! आज का नाम जप करना न भूलें।"
                         rows={4}
-                        className="w-full px-3 py-2 bg-background border border-border rounded-lg text-foreground text-sm outline-none focus:border-primary resize-none"
+                        className="w-full px-3 py-2.5 bg-background border border-border rounded-lg text-foreground text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none"
                     />
                 </div>
 
@@ -83,7 +83,7 @@ export function PushNotificationsPage() {
                 <button
                     onClick={handleSend}
                     disabled={sending}
-                    className="flex items-center justify-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 min-w-[160px]"
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 min-w-[160px] text-sm"
                 >
                     {sending ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -97,11 +97,11 @@ export function PushNotificationsPage() {
             </div>
 
             {/* Preview */}
-            <div className="bg-card border border-border rounded-lg p-6 max-w-2xl">
-                <h3 className="text-sm font-semibold text-foreground mb-3">Preview</h3>
-                <div className="bg-background border border-border rounded-lg p-4 flex items-start gap-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
-                        <Bell className="w-5 h-5 text-primary" />
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6 max-w-2xl">
+                <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-3">Preview</h3>
+                <div className="bg-background border border-border rounded-lg p-3 sm:p-4 flex items-start gap-3">
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-lg bg-primary/20 flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                     </div>
                     <div className="min-w-0">
                         <p className="font-semibold text-foreground text-sm truncate">

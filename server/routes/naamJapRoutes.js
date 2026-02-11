@@ -30,7 +30,7 @@ const getTodayString = () => {
 // POST /api/naam-jap/auth-mobile - Login or register by mobile number
 router.post('/auth-mobile', async (req, res) => {
     try {
-        const { mobile, deviceId } = req.body;
+        const { mobile, deviceId, pushToken } = req.body;
 
         if (!mobile || !deviceId) {
             return res.status(400).json({
@@ -54,8 +54,12 @@ router.post('/auth-mobile', async (req, res) => {
             // Update deviceId if different
             if (user.deviceId !== deviceId) {
                 user.deviceId = deviceId;
-                await user.save();
             }
+            // Update push token if provided
+            if (pushToken) {
+                user.pushToken = pushToken;
+            }
+            await user.save();
             return res.json({
                 success: true,
                 isNewUser: false,

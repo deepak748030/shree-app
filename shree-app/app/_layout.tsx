@@ -23,6 +23,13 @@ function AppContent() {
   const [showLangPicker, setShowLangPicker] = useState(true);
   const [showMobileAuth, setShowMobileAuth] = useState(true);
 
+  // Reset showMobileAuth when user logs out so auth screen shows again
+  React.useEffect(() => {
+    if (!isLoggedIn && !authLoading) {
+      setShowMobileAuth(true);
+    }
+  }, [isLoggedIn, authLoading]);
+
   useNotifications();
 
   const shouldShowLangPicker = !langLoading && !hasChosenLanguage && showLangPicker;

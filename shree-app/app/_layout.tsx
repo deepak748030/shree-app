@@ -5,11 +5,12 @@ import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { AppThemeProvider } from '@/contexts/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { useNotifications } from '@/hooks/use-notifications';
+import { useNotifications, requestNotificationPermission } from '@/hooks/use-notifications';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+import { Platform, PermissionsAndroid } from 'react-native';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
@@ -31,6 +32,29 @@ function AppContent() {
   }, [isLoggedIn, authLoading]);
 
   useNotifications();
+
+  // Request all permissions on app startup
+  useEffect(() => {
+    (async () => {
+      // 1. Notification permission
+      await requestNotificationPermission();
+
+      // 2. Activity Recognition permission (Android 10+)
+      if (Platform.OS === 'android' && Platform.Version >= 29) {
+        try {
+          await PermissionsAndroid.request(
+            'android.permission.ACTIVITY_RECOGNITION' as any,
+            {
+              title: 'Step Tracker Permission',
+              message: 'Allow step counting to track your daily steps.',
+              buttonPositive: 'Allow',
+              buttonNegative: 'Deny',
+            }
+          );
+        } catch { }
+      }
+    })();
+  }, []);
 
   const shouldShowLangPicker = !langLoading && !hasChosenLanguage && showLangPicker;
   const shouldShowMobileAuth = !langLoading && hasChosenLanguage && !authLoading && !isLoggedIn && showMobileAuth;

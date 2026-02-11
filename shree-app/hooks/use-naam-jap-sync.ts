@@ -66,8 +66,8 @@ export function useNaamJapSync(
                     totalUsers: result.response.totalUsers,
                 });
             }
-        } catch (e) {
-            console.warn('Sync failed:', e);
+        } catch {
+            // Silent fail
         }
     }, [deviceId]);
 

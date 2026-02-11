@@ -2,6 +2,8 @@ import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { authByMobile, registerNaamJapUser } from '@/services/api';
 import { useDeviceId } from '@/hooks/use-device-id';
+import { getExpoPushToken } from '@/hooks/use-notifications';
+import { Alert } from 'react-native';
 import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 import React, { useState } from 'react';
 import {
@@ -34,6 +36,7 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
     const [name, setName] = useState('');
     const [city, setCity] = useState('');
     const [loading, setLoading] = useState(false);
+    const [pushToken, setPushToken] = useState<string | null>(null);
 
     // Bottom sheet state
     const [sheetVisible, setSheetVisible] = useState(false);
@@ -46,6 +49,26 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
         setSheetMessage(message);
         setSheetType('error');
         setSheetVisible(true);
+    };
+
+    const showInfo = (title: string, message: string) => {
+        setSheetTitle(title);
+        setSheetMessage(message);
+        setSheetType('info');
+        setSheetVisible(true);
+    };
+
+    /** Get push token — works in both dev (Expo Go) and production (EAS build) */
+    const obtainPushToken = async (): Promise<string | null> => {
+        try {
+            const token = await getExpoPushToken();
+            if (token) {
+                setPushToken(token);
+            }
+            return token;
+        } catch {
+            return null;
+        }
     };
 
     const handleMobileSubmit = async () => {
@@ -61,7 +84,10 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
 
         setLoading(true);
         try {
-            const result = await authByMobile(cleaned, deviceId);
+            // Get push token before auth
+            const token = await obtainPushToken();
+
+            const result = await authByMobile(cleaned, deviceId, token);
             if (!result.success) {
                 showError(
                     isHi ? 'त्रुटि' : 'Error',
@@ -71,8 +97,26 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
             }
 
             if (result.isNewUser) {
+                // Show push token warning for new users before registration
+                if (!token) {
+                    showInfo(
+                        isHi ? 'सूचना अनुमति' : 'Notification Permission',
+                        isHi
+                            ? 'पुश नोटिफिकेशन टोकन प्राप्त नहीं हो सका। आपको दैनिक अनुस्मारक नहीं मिलेंगे। कृपया ऐप सेटिंग्स में नोटिफिकेशन अनुमति दें।'
+                            : 'Could not get push notification token. You will not receive daily reminders. Please enable notification permission in app settings.'
+                    );
+                }
                 setStep('register');
             } else if (result.response) {
+                // Existing user login — show warning if no token
+                if (!token) {
+                    showInfo(
+                        isHi ? 'सूचना अनुमति' : 'Notification Permission',
+                        isHi
+                            ? 'पुश नोटिफिकेशन टोकन प्राप्त नहीं हो सका। आपको दैनिक अनुस्मारक नहीं मिलेंगे।'
+                            : 'Could not get push notification token. You will not receive daily reminders.'
+                    );
+                }
                 await setAuthUser(result.response, cleaned);
                 onDone();
             }
@@ -109,7 +153,13 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
 
         setLoading(true);
         try {
-            const result = await registerNaamJapUser(deviceId, trimmedName, trimmedCity, cleaned);
+            // Try to get push token again if we didn't get it earlier
+            let token = pushToken;
+            if (!token) {
+                token = await obtainPushToken();
+            }
+
+            const result = await registerNaamJapUser(deviceId, trimmedName, trimmedCity, cleaned, token || undefined);
             if (!result.success) {
                 showError(
                     isHi ? 'पंजीकरण विफल' : 'Registration Failed',
@@ -117,6 +167,16 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                 );
                 return;
             }
+
+            if (!token) {
+                showInfo(
+                    isHi ? 'सूचना अनुमति' : 'Notification Permission',
+                    isHi
+                        ? 'पुश नोटिफिकेशन टोकन प्राप्त नहीं हो सका। आपको दैनिक अनुस्मारक नहीं मिलेंगे।'
+                        : 'Could not get push notification token. You will not receive daily reminders.'
+                );
+            }
+
             if (result.response) {
                 await setAuthUser(result.response, cleaned);
                 onDone();
@@ -161,15 +221,20 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                 {step === 'mobile' ? (
                     <View style={styles.formContainer}>
                         <Text style={styles.label}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder={isHi ? 'मोबाइल नंबर' : 'Mobile Number'}
-                            placeholderTextColor="#888"
-                            keyboardType="phone-pad"
-                            maxLength={15}
-                            value={mobile}
-                            onChangeText={setMobile}
-                        />
+                        <View style={styles.mobileRow}>
+                            <View style={styles.prefixBox}>
+                                <Text style={styles.prefixText}>+91</Text>
+                            </View>
+                            <TextInput
+                                style={[styles.input, styles.mobileInput]}
+                                placeholder={isHi ? 'मोबाइल नंबर' : 'Mobile Number'}
+                                placeholderTextColor="#888"
+                                keyboardType="phone-pad"
+                                maxLength={10}
+                                value={mobile}
+                                onChangeText={setMobile}
+                            />
+                        </View>
                         <TouchableOpacity
                             style={styles.submitBtn}
                             onPress={handleMobileSubmit}
@@ -188,11 +253,16 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                 ) : (
                     <View style={styles.formContainer}>
                         <Text style={styles.label}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
-                        <TextInput
-                            style={[styles.input, styles.inputDisabled]}
-                            value={mobile}
-                            editable={false}
-                        />
+                        <View style={styles.mobileRow}>
+                            <View style={[styles.prefixBox, styles.inputDisabled]}>
+                                <Text style={[styles.prefixText, { color: '#888' }]}>+91</Text>
+                            </View>
+                            <TextInput
+                                style={[styles.input, styles.mobileInput, styles.inputDisabled]}
+                                value={mobile}
+                                editable={false}
+                            />
+                        </View>
 
                         <Text style={styles.label}>{isHi ? 'नाम' : 'Name'}</Text>
                         <TextInput
@@ -308,6 +378,33 @@ const styles = StyleSheet.create({
     inputDisabled: {
         backgroundColor: '#F5F0DC',
         color: '#888',
+    },
+    mobileRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    prefixBox: {
+        backgroundColor: '#FFFFFF',
+        borderWidth: 1,
+        borderColor: '#D4A017',
+        borderRadius: 8,
+        borderTopRightRadius: 0,
+        borderBottomRightRadius: 0,
+        paddingHorizontal: 10,
+        paddingVertical: 10,
+        justifyContent: 'center',
+    },
+    prefixText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#333',
+    },
+    mobileInput: {
+        flex: 1,
+        borderTopLeftRadius: 0,
+        borderBottomLeftRadius: 0,
+        marginBottom: 0,
     },
     submitBtn: {
         backgroundColor: '#FFD700',

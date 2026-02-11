@@ -9,6 +9,7 @@ import { DailyQuotesPage } from './pages/DailyQuotesPage'
 import { NaamJapUsersPage } from './pages/NaamJapUsersPage'
 import { HomeContentPage } from './pages/HomeContentPage'
 import { PushNotificationsPage } from './pages/PushNotificationsPage'
+import { PresetImagesPage } from './pages/PresetImagesPage'
 
 function App() {
     return (
@@ -29,6 +30,7 @@ function App() {
                         <Route path="daily-quotes" element={<DailyQuotesPage />} />
                         <Route path="naam-jap-users" element={<NaamJapUsersPage />} />
                         <Route path="push-notifications" element={<PushNotificationsPage />} />
+                        <Route path="preset-images" element={<PresetImagesPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

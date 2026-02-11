@@ -8,7 +8,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // Configure notification behavior
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
-        shouldShowAlert: true,
         shouldPlaySound: true,
         shouldSetBadge: true,
         shouldShowBanner: true,
@@ -24,16 +23,29 @@ export interface PushNotificationState {
     error: string | null;
 }
 
-export function useNotifications() {
-    const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-    const [notification, setNotification] = useState<Notifications.Notification | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const notificationListener = useRef<Notifications.EventSubscription | null>(null);
-    const responseListener = useRef<Notifications.EventSubscription | null>(null);
+/** Request notification permission early (call at app start) */
+export async function requestNotificationPermission(): Promise<boolean> {
+    try {
+        if (Platform.OS === 'web') return false;
+        if (!Device.isDevice) return false;
 
-    async function registerForPushNotificationsAsync(): Promise<string | null> {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        if (existingStatus === 'granted') return true;
+
+        const { status } = await Notifications.requestPermissionsAsync();
+        return status === 'granted';
+    } catch {
+        return false;
+    }
+}
+
+/** Get Expo push token — requests permission if not granted */
+export async function getExpoPushToken(): Promise<string | null> {
+    try {
         if (Platform.OS === 'web') return null;
+        if (!Device.isDevice) return null;
 
+        // Setup Android channels
         if (Platform.OS === 'android') {
             await Notifications.setNotificationChannelAsync('default', {
                 name: 'Default',
@@ -41,7 +53,6 @@ export function useNotifications() {
                 vibrationPattern: [0, 250, 250, 250],
                 lightColor: '#FFD700',
             });
-
             await Notifications.setNotificationChannelAsync('daily-reminder', {
                 name: 'Daily Naam Jap Reminder',
                 importance: Notifications.AndroidImportance.HIGH,
@@ -51,12 +62,7 @@ export function useNotifications() {
             });
         }
 
-        if (!Device.isDevice) {
-            // console.log('Push notifications require a physical device');
-            setError('Push notifications require a physical device');
-            return null;
-        }
-
+        // Check and request permission
         const { status: existingStatus } = await Notifications.getPermissionsAsync();
         let finalStatus = existingStatus;
 
@@ -65,127 +71,78 @@ export function useNotifications() {
             finalStatus = status;
         }
 
-        if (finalStatus !== 'granted') {
-            setError('Permission not granted for push notifications');
-            // console.log('Push notification permission not granted');
-            return null;
-        }
+        if (finalStatus !== 'granted') return null;
 
-        try {
-            const projectId =
-                Constants.expoConfig?.extra?.eas?.projectId ??
-                (Constants as any).easConfig?.projectId ??
-                '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
-
-            // console.log('EAS projectId:', projectId);
-
-            const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-            // console.log('Got real push token:', pushTokenData.data);
-            return pushTokenData.data;
-        } catch (e: any) {
-            // console.error('Failed to get push token:', e?.message);
-            setError('Failed to get push token: ' + e?.message);
-            return null;
-        }
-    }
-
-    async function updatePushTokenOnServer(token: string) {
-        try {
-            // console.log('=== updatePushTokenOnServer START ===');
-            // console.log('Token to save:', token);
-
-            // Store token locally so it's available during registration
-            await AsyncStorage.setItem('@naam_jap_push_token', token);
-            // console.log('Token saved to AsyncStorage');
-
-            const deviceId = await AsyncStorage.getItem('@naam_jap_device_id');
-            // console.log('Device ID from AsyncStorage:', deviceId);
-
-            if (!deviceId) {
-                // console.log('No deviceId yet — token saved locally, will sync during registration');
-                return;
-            }
-
-            const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
-            // console.log('Calling update-push-token API:', `${API_BASE_URL}/naam-jap/update-push-token`);
-
-            const response = await fetch(`${API_BASE_URL}/naam-jap/update-push-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ deviceId, pushToken: token }),
-            });
-            const result = await response.json();
-            // console.log('Server response:', JSON.stringify(result));
-
-            if (result.success) {
-                // console.log('Push token updated on server successfully');
-            } else {
-                // console.warn('Failed to update push token on server:', result.message);
-            }
-        } catch (err) {
-            // console.error('Error updating push token on server:', err);
-        }
-        // console.log('=== updatePushTokenOnServer END ===');
-    }
-
-    useEffect(() => {
-        (async () => {
-            const token = await registerForPushNotificationsAsync();
-            if (token) {
-                setExpoPushToken(token);
-                await updatePushTokenOnServer(token);
-            }
-            await scheduleDailyReminder();
-        })();
-
-        notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
-            // console.log('Notification received:', notif.request.content.title);
-            setNotification(notif);
-        });
-
-        responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
-            // console.log('Notification tapped:', response.notification.request.content.title);
-        });
-
-        return () => {
-            if (notificationListener.current) {
-                notificationListener.current.remove();
-            }
-            if (responseListener.current) {
-                responseListener.current.remove();
-            }
-        };
-    }, []);
-
-    return { expoPushToken, notification, error, updatePushTokenOnServer, scheduleDailyReminder, cancelDailyReminder };
-}
-
-export async function getExpoPushToken(): Promise<string | null> {
-    try {
-        if (Platform.OS === 'web') return null;
-        if (!Device.isDevice) return null;
-
-        const { status } = await Notifications.getPermissionsAsync();
-        if (status !== 'granted') return null;
-
+        // Get project ID
         const projectId =
             Constants.expoConfig?.extra?.eas?.projectId ??
             (Constants as any).easConfig?.projectId ??
-            '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
+            'bbfa5676-9e76-4883-9994-bf76401876d2';
 
-        if (!projectId) return null;
-
-        const tokenData = await Notifications.getExpoPushTokenAsync({ projectId });
-        return tokenData.data;
+        const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
+        return pushTokenData.data;
     } catch {
         return null;
     }
 }
 
+export function useNotifications() {
+    const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
+    const [notification, setNotification] = useState<Notifications.Notification | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+    const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+    async function updatePushTokenOnServer(token: string) {
+        try {
+            await AsyncStorage.setItem('@naam_jap_push_token', token);
+
+            const deviceId = await AsyncStorage.getItem('@naam_jap_device_id');
+            if (!deviceId) return;
+
+            const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
+            await fetch(`${API_BASE_URL}/naam-jap/update-push-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ deviceId, pushToken: token }),
+            });
+        } catch {
+            // Silent fail
+        }
+    }
+
+    useEffect(() => {
+        // Request permission at app start
+        requestNotificationPermission();
+
+        // Also try to get token at app start
+        getExpoPushToken().then((token) => {
+            if (token) {
+                setExpoPushToken(token);
+            }
+        });
+
+        // Schedule daily reminders
+        scheduleDailyReminder();
+
+        notificationListener.current = Notifications.addNotificationReceivedListener((notif) => {
+            setNotification(notif);
+        });
+
+        responseListener.current = Notifications.addNotificationResponseReceivedListener(() => { });
+
+        return () => {
+            if (notificationListener.current) notificationListener.current.remove();
+            if (responseListener.current) responseListener.current.remove();
+        };
+    }, []);
+
+    return { expoPushToken, notification, error, getExpoPushToken, updatePushTokenOnServer, scheduleDailyReminder, cancelDailyReminder };
+}
+
 async function scheduleDailyReminder() {
     try {
         if (Platform.OS === 'web') return;
-
         await cancelDailyReminder();
 
         await Notifications.scheduleNotificationAsync({
@@ -217,10 +174,8 @@ async function scheduleDailyReminder() {
             },
             identifier: `${DAILY_REMINDER_ID}-evening`,
         });
-
-        // console.log('Daily reminders scheduled');
-    } catch (error) {
-        // console.warn('Failed to schedule daily reminder:', error);
+    } catch {
+        // Silent fail
     }
 }
 
@@ -239,11 +194,7 @@ export async function sendLocalNotification(
     data?: Record<string, unknown>
 ) {
     await Notifications.scheduleNotificationAsync({
-        content: {
-            title,
-            body,
-            data: data || {},
-        },
+        content: { title, body, data: data || {} },
         trigger: null,
     });
 }

@@ -9,15 +9,16 @@ export interface ThemeColors {
     bgCream: string;
     accent: string;
     cardBorder: string;
+    primary: string;
 }
 
 export const THEME_OPTIONS: ThemeColors[] = [
-    { id: 'yellow', headerBg: '#FFEB3B', bgCream: '#FFFDE7', accent: '#B8860B', cardBorder: '#FFD54F' },
-    { id: 'saffron', headerBg: '#FF9800', bgCream: '#FFF3E0', accent: '#E65100', cardBorder: '#FFB74D' },
-    { id: 'lotus', headerBg: '#F48FB1', bgCream: '#FCE4EC', accent: '#C2185B', cardBorder: '#F48FB1' },
-    { id: 'peacock', headerBg: '#4FC3F7', bgCream: '#E1F5FE', accent: '#0277BD', cardBorder: '#4FC3F7' },
-    { id: 'tulsi', headerBg: '#81C784', bgCream: '#E8F5E9', accent: '#2E7D32', cardBorder: '#81C784' },
-    { id: 'sandal', headerBg: '#D7CCC8', bgCream: '#EFEBE9', accent: '#5D4037', cardBorder: '#BCAAA4' },
+    { id: 'yellow', headerBg: '#FFEB3B', bgCream: '#FFFDE7', accent: '#B8860B', cardBorder: '#FFD54F', primary: '#D4A017' },
+    { id: 'saffron', headerBg: '#FF9800', bgCream: '#FFF3E0', accent: '#E65100', cardBorder: '#FFB74D', primary: '#FF9800' },
+    { id: 'lotus', headerBg: '#F48FB1', bgCream: '#FCE4EC', accent: '#C2185B', cardBorder: '#F48FB1', primary: '#E91E63' },
+    { id: 'peacock', headerBg: '#4FC3F7', bgCream: '#E1F5FE', accent: '#0277BD', cardBorder: '#4FC3F7', primary: '#0288D1' },
+    { id: 'tulsi', headerBg: '#81C784', bgCream: '#E8F5E9', accent: '#2E7D32', cardBorder: '#81C784', primary: '#388E3C' },
+    { id: 'sandal', headerBg: '#D7CCC8', bgCream: '#EFEBE9', accent: '#5D4037', cardBorder: '#BCAAA4', primary: '#795548' },
 ];
 
 interface ThemeContextType {

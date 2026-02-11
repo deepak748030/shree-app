@@ -13,6 +13,7 @@ import {
     Quote,
     Users,
     Bell,
+    ImageIcon,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -24,6 +25,7 @@ const navItems = [
     { to: '/daily-quotes', icon: Quote, label: 'Daily Quotes' },
     { to: '/naam-jap-users', icon: Users, label: 'Naam Jap Users' },
     { to: '/push-notifications', icon: Bell, label: 'Push Notifications' },
+    { to: '/preset-images', icon: ImageIcon, label: 'Preset Images' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

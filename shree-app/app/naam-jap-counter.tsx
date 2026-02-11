@@ -3,19 +3,21 @@ import MenuDropdown from '@/components/naam-jap/menu-dropdown';
 import PickImageSheet from '@/components/naam-jap/pick-image-sheet';
 import SettingsSheet from '@/components/naam-jap/settings-sheet';
 import UserInfoModal from '@/components/naam-jap/user-info-modal';
+import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { useDeviceId } from '@/hooks/use-device-id';
 import { useNaamJapSync } from '@/hooks/use-naam-jap-sync';
 import { getExpoPushToken } from '@/hooks/use-notifications';
 import { usePersistedCounter } from '@/hooks/use-persisted-counter';
+import { fetchPresetImages, fetchUserData, PresetImageData } from '@/services/api';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
     Dimensions,
     Pressable,
@@ -46,10 +48,8 @@ export default function NaamJapCounterScreen() {
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     const deviceId = useDeviceId();
+    const { isLoggedIn } = useAuth();
 
-
-
-    // Persisted state (survives app restarts)
     const {
         count,
         malaCount,
@@ -59,6 +59,7 @@ export default function NaamJapCounterScreen() {
         selectedTextStyle,
         todayCount,
         todayMalas,
+        autoChangeImage,
         isLoaded,
         updateCount,
         updateMalaCount,
@@ -68,8 +69,10 @@ export default function NaamJapCounterScreen() {
         updateDisplayMode,
         updateSelectedImage,
         updateSelectedTextStyle,
+        updateAutoChangeImage,
         resetCurrentMala,
         resetAllMalas,
+        restoreFromServer,
     } = usePersistedCounter();
 
     const [menuVisible, setMenuVisible] = useState(false);
@@ -81,16 +84,59 @@ export default function NaamJapCounterScreen() {
     const [rank, setRank] = useState<number | null>(null);
     const [totalUsers, setTotalUsers] = useState<number | null>(null);
 
-    // Check if user info exists
+    // Preset images for auto-change
+    const [presetImages, setPresetImages] = useState<PresetImageData[]>([]);
+    const imageIndexRef = useRef(0);
+
+    // Fetch preset images on mount
     useEffect(() => {
+        fetchPresetImages().then((imgs) => {
+            setPresetImages(imgs);
+            // Set first preset image as default if no image selected and images exist
+            if (imgs.length > 0 && !selectedImage && displayMode === 'image') {
+                updateSelectedImage({ uri: imgs[0].imageUrl });
+            }
+        });
+    }, []);
+
+    // Check if user info exists — skip if already logged in via auth screen
+    useEffect(() => {
+        if (isLoggedIn) return;
         AsyncStorage.getItem(USER_NAAM_JAP_KEY).then((val) => {
             if (!val) {
                 setUserInfoVisible(true);
             }
         });
-    }, []);
+    }, [isLoggedIn]);
 
-    // Sync state object for the hook (memoized to prevent unnecessary re-renders)
+    // Restore counts from server when logged in (handles cache clear / re-login)
+    const restoredRef = useRef(false);
+    useEffect(() => {
+        if (!isLoggedIn || !deviceId || !isLoaded) return;
+        // If local data exists, skip but allow future restore if reset to 0
+        if (count > 0 || malaCount > 0) {
+            restoredRef.current = false;
+            return;
+        }
+        // Prevent duplicate fetches at 0
+        if (restoredRef.current) return;
+        restoredRef.current = true;
+
+        fetchUserData(deviceId).then((data) => {
+            if (data && data.user) {
+                const today = new Date().toISOString().slice(0, 10);
+                const todayLog = data.recentLogs?.find((l) => l.date === today);
+                restoreFromServer(
+                    data.user.totalCount || 0,
+                    data.user.totalMalas || 0,
+                    todayLog?.count || 0,
+                    todayLog?.malas || 0
+                );
+            }
+        }).catch(() => { });
+    }, [isLoggedIn, deviceId, isLoaded, count, malaCount]);
+
+    // Sync state object for the hook
     const syncState = useMemo(() => ({
         count,
         malaCount,
@@ -98,13 +144,11 @@ export default function NaamJapCounterScreen() {
         todayMalas,
     }), [count, malaCount, todayCount, todayMalas]);
 
-    // Handle sync results
     const handleSyncResult = useCallback((result: { rank: number | null; totalUsers: number | null }) => {
         setRank(result.rank);
         setTotalUsers(result.totalUsers);
     }, []);
 
-    // Debounced sync with refs (no stale closures)
     const { syncNow } = useNaamJapSync(deviceId, syncState, handleSyncResult);
 
     // Computed values
@@ -118,6 +162,12 @@ export default function NaamJapCounterScreen() {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
 
+        // Auto-change image on each tap
+        if (autoChangeImage && presetImages.length > 0 && displayMode === 'image') {
+            imageIndexRef.current = (imageIndexRef.current + 1) % presetImages.length;
+            updateSelectedImage({ uri: presetImages[imageIndexRef.current].imageUrl });
+        }
+
         updateCount((prev) => {
             const newCount = prev + 1;
             if (newCount % MALA_COUNT === 0 && newCount > 0) {
@@ -129,11 +179,10 @@ export default function NaamJapCounterScreen() {
         });
 
         updateTodayCount((prev) => prev + 1);
-    }, [vibrationEnabled, updateCount, updateMalaCount, updateTodayCount, updateTodayMalas]);
+    }, [vibrationEnabled, autoChangeImage, presetImages, displayMode, updateCount, updateMalaCount, updateTodayCount, updateTodayMalas, updateSelectedImage]);
 
     const handleUserSaved = useCallback(() => {
         setUserInfoVisible(false);
-        // Sync immediately after registration
         setTimeout(() => syncNow(), 1000);
     }, [syncNow]);
 
@@ -206,6 +255,8 @@ export default function NaamJapCounterScreen() {
                 onClose={() => setSettingsVisible(false)}
                 vibrationEnabled={vibrationEnabled}
                 onToggleVibration={updateVibration}
+                autoChangeImage={autoChangeImage}
+                onToggleAutoChange={updateAutoChangeImage}
                 onResetCurrentMala={resetCurrentMala}
                 onResetAllMalas={resetAllMalas}
             />

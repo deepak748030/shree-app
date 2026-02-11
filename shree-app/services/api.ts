@@ -108,13 +108,14 @@ export interface SyncResponse {
 // Auth by mobile number
 export async function authByMobile(
     mobile: string,
-    deviceId: string
+    deviceId: string,
+    pushToken?: string | null
 ): Promise<{ success: boolean; isNewUser?: boolean; response?: NaamJapUser | null; message?: string }> {
     try {
         const response = await fetch(`${API_BASE_URL}/naam-jap/auth-mobile`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobile, deviceId }),
+            body: JSON.stringify({ mobile, deviceId, pushToken: pushToken || undefined }),
         });
         return await response.json();
     } catch {
@@ -199,6 +200,64 @@ export async function fetchNaamJapStats(): Promise<NaamJapStats | null> {
 export async function fetchUserData(deviceId: string): Promise<UserRankData | null> {
     try {
         const response = await fetch(`${API_BASE_URL}/naam-jap/user/${deviceId}`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+// ============ PRESET IMAGES APIs ============
+
+export interface PresetImageData {
+    _id: string;
+    imageUrl: string;
+    publicId: string;
+    isActive: boolean;
+    order: number;
+}
+
+export async function fetchPresetImages(): Promise<PresetImageData[]> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/preset-images`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return [];
+    } catch {
+        return [];
+    }
+}
+
+// ============ STEP TRACKER APIs ============
+
+export async function syncStepData(
+    deviceId: string,
+    mobile: string,
+    todaySteps: number,
+    todayDistance: number,
+    todayCalories: number,
+    dailyGoal: number
+): Promise<any> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/step-tracker/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, mobile, todaySteps, todayDistance, todayCalories, dailyGoal }),
+        });
+        return await response.json();
+    } catch {
+        return { success: false };
+    }
+}
+
+export async function fetchStepData(deviceId: string): Promise<any> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/step-tracker/user/${deviceId}`);
         const data = await response.json();
         if (data.success && data.response) {
             return data.response;

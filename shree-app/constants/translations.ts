@@ -80,6 +80,8 @@ const hi = {
     settings_reset_current_sub: 'वर्तमान 108 गणना रीसेट करें',
     settings_reset_all: 'आज की सभी माला रीसेट करें',
     settings_reset_all_sub: 'गणना और माला 0 पर रीसेट करें',
+    settings_auto_change_image: 'क्लिक पर छवि बदलें',
+    settings_auto_change_image_sub: 'हर क्लिक पर छवि स्वतः बदलें',
 
     // Menu dropdown
     menu_pick_image: 'छवि चुनें',
@@ -139,6 +141,14 @@ const hi = {
     // Terms
     terms_header: 'नियम और शर्तें',
     terms_last_updated: 'अंतिम अपडेट: फरवरी 2026',
+
+    // Step Tracker
+    sidebar_step_tracker: 'स्टेप ट्रैकर',
+    step_tracker_header: 'स्टेप ट्रैकर',
+    step_tracker_steps: 'कदम',
+    step_tracker_daily_goal: 'आज का लक्ष्य',
+    step_tracker_completed: 'पूर्ण',
+    step_tracker_not_available: 'इस डिवाइस पर पेडोमीटर उपलब्ध नहीं है। कदम मैन्युअल रूप से ट्रैक नहीं हो पाएंगे।',
 };
 
 const en: typeof hi = {
@@ -212,6 +222,8 @@ const en: typeof hi = {
     settings_reset_current_sub: 'Reset the current 108 count',
     settings_reset_all: 'Reset All Malas Done Today',
     settings_reset_all_sub: 'Reset count and malas to 0',
+    settings_auto_change_image: 'Change Image on Click',
+    settings_auto_change_image_sub: 'Auto-change image on every tap',
 
     // Menu dropdown
     menu_pick_image: 'Pick Image',
@@ -271,6 +283,14 @@ const en: typeof hi = {
     // Terms
     terms_header: 'Terms & Conditions',
     terms_last_updated: 'Last updated: February 2026',
+
+    // Step Tracker
+    sidebar_step_tracker: 'Step Tracker',
+    step_tracker_header: 'Step Tracker',
+    step_tracker_steps: 'steps',
+    step_tracker_daily_goal: 'Daily Goal',
+    step_tracker_completed: 'completed',
+    step_tracker_not_available: 'Pedometer is not available on this device. Steps cannot be tracked automatically.',
 };
 
 export type TranslationKeys = keyof typeof hi;

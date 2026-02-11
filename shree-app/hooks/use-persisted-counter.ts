@@ -11,6 +11,7 @@ const STORAGE_KEYS = {
     TODAY_DATE: '@naam_jap_today_date',
     TODAY_COUNT: '@naam_jap_today_count',
     TODAY_MALAS: '@naam_jap_today_malas',
+    AUTO_CHANGE_IMAGE: '@naam_jap_auto_change_image',
 };
 
 const TEXT_DARK = '#333333';
@@ -24,11 +25,12 @@ export function usePersistedCounter() {
     const [count, setCount] = useState(0);
     const [malaCount, setMalaCount] = useState(0);
     const [vibrationEnabled, setVibrationEnabled] = useState(true);
-    const [displayMode, setDisplayMode] = useState<'text' | 'image'>('text');
+    const [displayMode, setDisplayMode] = useState<'text' | 'image'>('image');
     const [selectedImage, setSelectedImage] = useState<any>(null);
     const [selectedTextStyle, setSelectedTextStyle] = useState<{ color: string }>({ color: TEXT_DARK });
     const [todayCount, setTodayCount] = useState(0);
     const [todayMalas, setTodayMalas] = useState(0);
+    const [autoChangeImage, setAutoChangeImage] = useState(true);
     const [isLoaded, setIsLoaded] = useState(false);
 
     // Load persisted data on mount
@@ -57,12 +59,15 @@ export function usePersistedCounter() {
                     AsyncStorage.getItem(STORAGE_KEYS.TODAY_MALAS),
                 ]);
 
+                const savedAutoChange = await AsyncStorage.getItem(STORAGE_KEYS.AUTO_CHANGE_IMAGE);
+
                 if (savedCount !== null) setCount(parseInt(savedCount, 10));
                 if (savedMalaCount !== null) setMalaCount(parseInt(savedMalaCount, 10));
                 if (savedVibration !== null) setVibrationEnabled(savedVibration === 'true');
                 if (savedDisplayMode !== null) setDisplayMode(savedDisplayMode as 'text' | 'image');
                 if (savedImage !== null) setSelectedImage(JSON.parse(savedImage));
                 if (savedTextStyle !== null) setSelectedTextStyle(JSON.parse(savedTextStyle));
+                if (savedAutoChange !== null) setAutoChangeImage(savedAutoChange === 'true');
 
                 // Check if today's date matches - if not, reset daily counters
                 const today = getTodayString();
@@ -77,8 +82,8 @@ export function usePersistedCounter() {
                         AsyncStorage.setItem(STORAGE_KEYS.TODAY_MALAS, '0'),
                     ]);
                 }
-            } catch (error) {
-                console.warn('Failed to load persisted counter data:', error);
+            } catch {
+                // Silent fail
             } finally {
                 setIsLoaded(true);
             }
@@ -128,6 +133,12 @@ export function usePersistedCounter() {
         AsyncStorage.setItem(STORAGE_KEYS.VIBRATION, String(value));
     }, []);
 
+    // Persist auto change image
+    const updateAutoChangeImage = useCallback((value: boolean) => {
+        setAutoChangeImage(value);
+        AsyncStorage.setItem(STORAGE_KEYS.AUTO_CHANGE_IMAGE, String(value));
+    }, []);
+
     // Persist display mode
     const updateDisplayMode = useCallback((mode: 'text' | 'image') => {
         setDisplayMode(mode);
@@ -175,6 +186,22 @@ export function usePersistedCounter() {
         ]);
     }, []);
 
+    // Restore counts from server data (after login / cache clear)
+    const restoreFromServer = useCallback((totalCount: number, totalMalas: number, dailyCount: number, dailyMalas: number) => {
+        setCount(totalCount);
+        setMalaCount(totalMalas);
+        setTodayCount(dailyCount);
+        setTodayMalas(dailyMalas);
+        const today = getTodayString();
+        AsyncStorage.multiSet([
+            [STORAGE_KEYS.COUNT, String(totalCount)],
+            [STORAGE_KEYS.MALA_COUNT, String(totalMalas)],
+            [STORAGE_KEYS.TODAY_COUNT, String(dailyCount)],
+            [STORAGE_KEYS.TODAY_MALAS, String(dailyMalas)],
+            [STORAGE_KEYS.TODAY_DATE, today],
+        ]);
+    }, []);
+
     return {
         count,
         malaCount,
@@ -184,6 +211,7 @@ export function usePersistedCounter() {
         selectedTextStyle,
         todayCount,
         todayMalas,
+        autoChangeImage,
         isLoaded,
         updateCount,
         updateMalaCount,
@@ -193,7 +221,9 @@ export function usePersistedCounter() {
         updateDisplayMode,
         updateSelectedImage,
         updateSelectedTextStyle,
+        updateAutoChangeImage,
         resetCurrentMala,
         resetAllMalas,
+        restoreFromServer,
     };
 }

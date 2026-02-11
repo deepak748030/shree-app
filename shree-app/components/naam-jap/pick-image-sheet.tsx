@@ -1,10 +1,12 @@
 import { useLanguage } from '@/contexts/language-context';
+import { fetchPresetImages, PresetImageData } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
+    ActivityIndicator,
     Alert,
     Dimensions,
     Modal,
@@ -28,13 +30,6 @@ const textStyles = [
     { label: 'राधा', color: '#E53935', bg: '#FFFFFF', borderColor: '#ccc' },
 ];
 
-const presetImages = [
-    require('@/assets/images/slider-1.png'),
-    require('@/assets/images/slider-2.png'),
-    require('@/assets/images/slider-3.png'),
-    require('@/assets/images/slider-4.png'),
-];
-
 interface PickImageSheetProps {
     visible: boolean;
     onClose: () => void;
@@ -50,19 +45,21 @@ export default function PickImageSheet({
 }: PickImageSheetProps) {
     const { t } = useLanguage();
     const [userImages, setUserImages] = useState<string[]>([]);
+    const [presetImages, setPresetImages] = useState<PresetImageData[]>([]);
+    const [loadingPresets, setLoadingPresets] = useState(false);
 
-    // Load user images from AsyncStorage on mount / when visible
+    // Load user images + preset images from server
     useEffect(() => {
         if (!visible) return;
         AsyncStorage.getItem(STORAGE_KEY).then((val) => {
             if (val) {
-                try {
-                    setUserImages(JSON.parse(val));
-                } catch {
-                    setUserImages([]);
-                }
+                try { setUserImages(JSON.parse(val)); } catch { setUserImages([]); }
             }
         });
+        setLoadingPresets(true);
+        fetchPresetImages().then((imgs) => {
+            setPresetImages(imgs);
+        }).finally(() => setLoadingPresets(false));
     }, [visible]);
 
     const saveImages = useCallback(async (images: string[]) => {
@@ -76,14 +73,12 @@ export default function PickImageSheet({
             Alert.alert(t('error'), 'Gallery permission is required to upload images.');
             return;
         }
-
         const result = await ImagePicker.launchImageLibraryAsync({
             mediaTypes: ['images'],
             quality: 0.7,
             base64: false,
             allowsEditing: false,
         });
-
         if (!result.canceled && result.assets?.[0]?.uri) {
             const uri = result.assets[0].uri;
             const updated = [uri, ...userImages];
@@ -116,10 +111,7 @@ export default function PickImageSheet({
                     <Text style={styles.uploadText}>{t('pick_image_upload')}</Text>
                 </TouchableOpacity>
 
-                <ScrollView
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.scrollContent}
-                >
+                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
                     {/* Text styles */}
                     <View style={styles.textStyleRow}>
                         {textStyles.map((item, index) => (
@@ -159,19 +151,25 @@ export default function PickImageSheet({
                         </>
                     )}
 
-                    {/* Preset images */}
+                    {/* Preset images from server */}
                     <Text style={styles.sectionTitle}>{t('pick_image_presets')}</Text>
-                    <View style={styles.imageGrid}>
-                        {presetImages.map((img, index) => (
-                            <TouchableOpacity
-                                key={`preset-${index}`}
-                                style={styles.imageCard}
-                                onPress={() => onSelectImage(img)}
-                            >
-                                <Image source={img} style={styles.gridImage} contentFit="cover" />
-                            </TouchableOpacity>
-                        ))}
-                    </View>
+                    {loadingPresets ? (
+                        <ActivityIndicator size="small" color={TEXT_DARK} style={{ marginVertical: 20 }} />
+                    ) : presetImages.length === 0 ? (
+                        <Text style={styles.emptyText}>{t('pick_image_no_uploads')}</Text>
+                    ) : (
+                        <View style={styles.imageGrid}>
+                            {presetImages.map((img) => (
+                                <TouchableOpacity
+                                    key={img._id}
+                                    style={styles.imageCard}
+                                    onPress={() => onSelectImage({ uri: img.imageUrl })}
+                                >
+                                    <Image source={{ uri: img.imageUrl }} style={styles.gridImage} contentFit="cover" />
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    )}
                 </ScrollView>
             </View>
         </Modal>
@@ -232,6 +230,13 @@ const styles = StyleSheet.create({
         marginTop: 8,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: TEXT_DARK,
+        opacity: 0.5,
+        textAlign: 'center',
+        marginVertical: 20,
     },
     textStyleRow: {
         flexDirection: 'row',

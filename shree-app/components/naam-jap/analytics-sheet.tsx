@@ -7,12 +7,15 @@ import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     Modal,
+    Platform,
     ScrollView,
+    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TEXT_DARK = '#333333';
 const GREEN_BG = '#4CAF50';
@@ -60,8 +63,8 @@ export default function AnalyticsSheet({ visible, onClose, deviceId }: Analytics
             if (statsData) setStats(statsData);
             if (userData_) setUserData(userData_);
             await loadLeaderboard();
-        } catch (e) {
-            console.warn('Failed to load analytics:', e);
+        } catch {
+            // Silent fail
         } finally {
             setLoading(false);
         }
@@ -95,7 +98,7 @@ export default function AnalyticsSheet({ visible, onClose, deviceId }: Analytics
 
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-            <View style={[styles.container, { backgroundColor: YELLOW_LIGHT }]}>
+            <SafeAreaView style={[styles.container, { backgroundColor: YELLOW_LIGHT }]}>
                 <View style={[styles.header, { backgroundColor: YELLOW_BG }]}>
                     <TouchableOpacity onPress={onClose} style={styles.backBtn}>
                         <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
@@ -234,7 +237,7 @@ export default function AnalyticsSheet({ visible, onClose, deviceId }: Analytics
                         <Text style={styles.disclaimer}>{t('analytics_disclaimer')}</Text>
                     </ScrollView>
                 )}
-            </View>
+            </SafeAreaView>
         </Modal>
     );
 }

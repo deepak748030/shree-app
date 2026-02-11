@@ -3,7 +3,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import * as Sharing from 'expo-sharing';
+import { Share } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import React, { useState, useEffect } from 'react';
 import {
@@ -72,10 +72,11 @@ export default function DailyQuoteScreen() {
         setSharing(true);
         try {
             const shareText = `🙏 ${t('app_name')} | ${t('daily_quote_share_via')}`;
-            const available = await Sharing.isAvailableAsync();
-            if (available) {
-                await Sharing.shareAsync('', { dialogTitle: shareText, mimeType: 'text/plain' });
-            }
+            const shareContent: { message: string; url?: string } = {
+                message: imageUrl ? `${shareText}\n${imageUrl}` : shareText,
+            };
+            if (imageUrl) shareContent.url = imageUrl;
+            await Share.share(shareContent);
         } catch {
             setSheetConfig({
                 type: 'error',

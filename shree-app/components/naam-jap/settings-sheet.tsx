@@ -19,6 +19,8 @@ interface SettingsSheetProps {
     onClose: () => void;
     vibrationEnabled: boolean;
     onToggleVibration: (value: boolean) => void;
+    autoChangeImage: boolean;
+    onToggleAutoChange: (value: boolean) => void;
     onResetCurrentMala: () => void;
     onResetAllMalas: () => void;
 }
@@ -28,6 +30,8 @@ export default function SettingsSheet({
     onClose,
     vibrationEnabled,
     onToggleVibration,
+    autoChangeImage,
+    onToggleAutoChange,
     onResetCurrentMala,
     onResetAllMalas,
 }: SettingsSheetProps) {
@@ -46,6 +50,24 @@ export default function SettingsSheet({
                     <Switch
                         value={vibrationEnabled}
                         onValueChange={onToggleVibration}
+                        trackColor={{ false: '#ccc', true: TEXT_DARK }}
+                        thumbColor="#FFFFFF"
+                    />
+                </View>
+
+                <View style={styles.divider} />
+
+                <View style={styles.row}>
+                    <View style={styles.rowLeft}>
+                        <MaterialCommunityIcons name="image-auto-adjust" size={24} color={TEXT_DARK} />
+                        <View style={styles.rowTextGroup}>
+                            <Text style={styles.rowLabel}>{t('settings_auto_change_image')}</Text>
+                            <Text style={styles.rowSubLabel}>{t('settings_auto_change_image_sub')}</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={autoChangeImage}
+                        onValueChange={onToggleAutoChange}
                         trackColor={{ false: '#ccc', true: TEXT_DARK }}
                         thumbColor="#FFFFFF"
                     />

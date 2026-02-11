@@ -2,9 +2,6 @@ import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { getExpoPushToken } from '@/hooks/use-notifications';
 import { registerNaamJapUser } from '@/services/api';
-import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
-import * as Device from 'expo-device';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
@@ -91,43 +88,25 @@ export default function UserInfoModal({ visible, onClose, onSave, deviceId }: Us
 
             // Register with server (include push token from stored or fresh)
             if (deviceId) {
-                // Debug: check why token might be null
-                console.log('=== PUSH TOKEN DEBUG ===');
-                console.log('Platform:', Platform.OS);
-                console.log('isDevice:', Device.isDevice);
-                const projectId = Constants.expoConfig?.extra?.eas?.projectId ?? (Constants as any).easConfig?.projectId ?? '871acfb5-6e9c-44d0-87d3-f5d921051c6d';
-                console.log('projectId:', projectId);
-                const { status } = await Notifications.getPermissionsAsync();
-                console.log('Notification permission:', status);
-
                 // Try cached token first
                 let pushToken = await AsyncStorage.getItem('@naam_jap_push_token');
-                console.log('Registration: cached push token:', pushToken);
 
                 // If no cached token, try getting fresh one with retry
                 if (!pushToken) {
                     pushToken = await getExpoPushToken();
-                    console.log('Registration: fresh push token attempt 1:', pushToken);
                 }
 
                 // Retry after short delay if still null
                 if (!pushToken) {
                     await new Promise(resolve => setTimeout(resolve, 2000));
                     pushToken = await getExpoPushToken();
-                    console.log('Registration: fresh push token attempt 2:', pushToken);
                 }
 
                 if (pushToken) {
                     await AsyncStorage.setItem('@naam_jap_push_token', pushToken);
                 }
 
-                console.log('Registering with server: deviceId=', deviceId, 'pushToken=', pushToken);
-                const result = await registerNaamJapUser(deviceId, name.trim(), city.trim(), pushToken || undefined);
-                console.log('Registration result:', JSON.stringify(result));
-
-                if (!result.success) {
-                    console.warn('Server registration failed, saved locally');
-                }
+                await registerNaamJapUser(deviceId, name.trim(), city.trim(), pushToken || undefined);
             }
 
             onSave(name.trim(), city.trim());

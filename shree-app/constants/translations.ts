@@ -149,6 +149,12 @@ const hi = {
     step_tracker_daily_goal: 'आज का लक्ष्य',
     step_tracker_completed: 'पूर्ण',
     step_tracker_not_available: 'इस डिवाइस पर पेडोमीटर उपलब्ध नहीं है। कदम मैन्युअल रूप से ट्रैक नहीं हो पाएंगे।',
+
+    // Logout
+    sidebar_logout: 'लॉगआउट',
+    logout_confirm_title: 'लॉगआउट',
+    logout_confirm_msg: 'क्या आप लॉगआउट करना चाहते हैं?',
+    logout_success: 'सफलतापूर्वक लॉगआउट हो गया',
 };
 
 const en: typeof hi = {
@@ -291,6 +297,12 @@ const en: typeof hi = {
     step_tracker_daily_goal: 'Daily Goal',
     step_tracker_completed: 'completed',
     step_tracker_not_available: 'Pedometer is not available on this device. Steps cannot be tracked automatically.',
+
+    // Logout
+    sidebar_logout: 'Logout',
+    logout_confirm_title: 'Logout',
+    logout_confirm_msg: 'Are you sure you want to logout?',
+    logout_success: 'Logged out successfully',
 };
 
 export type TranslationKeys = keyof typeof hi;

@@ -1,9 +1,11 @@
+import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
+import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
     Animated,
     Dimensions,
@@ -48,8 +50,10 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     const insets = useSafeAreaInsets();
     const { theme } = useAppTheme();
     const { t } = useLanguage();
+    const { isLoggedIn, logout, user } = useAuth();
     const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const overlayAnim = useRef(new Animated.Value(0)).current;
+    const [logoutSheetVisible, setLogoutSheetVisible] = useState(false);
 
     useEffect(() => {
         if (visible) {
@@ -66,6 +70,12 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     }, [visible]);
 
     const [shouldRender, setShouldRender] = React.useState(false);
+
+    const handleLogout = async () => {
+        onClose();
+        await logout();
+        setLogoutSheetVisible(false);
+    };
 
     useEffect(() => {
         if (visible) setShouldRender(true);
@@ -123,8 +133,38 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
                             <Text style={styles.menuLabel}>{t(item.labelKey as any)}</Text>
                         </TouchableOpacity>
                     ))}
+
+                    {isLoggedIn && (
+                        <TouchableOpacity
+                            style={[styles.menuItem, styles.logoutItem]}
+                            onPress={() => setLogoutSheetVisible(true)}
+                            activeOpacity={0.6}
+                        >
+                            <View style={styles.menuIconContainer}>
+                                <Ionicons name="log-out-outline" size={22} color="#D32F2F" />
+                            </View>
+                            <Text style={[styles.menuLabel, { color: '#D32F2F' }]}>{t('sidebar_logout' as any)}</Text>
+                        </TouchableOpacity>
+                    )}
                 </ScrollView>
+
+                {isLoggedIn && user && (
+                    <View style={[styles.userInfo, { borderTopColor: 'rgba(0,0,0,0.1)' }]}>
+                        <Ionicons name="person-circle-outline" size={28} color={TEXT_DARK} />
+                        <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+                    </View>
+                )}
             </Animated.View>
+
+            <BottomSheetMessage
+                visible={logoutSheetVisible}
+                onClose={() => setLogoutSheetVisible(false)}
+                type="confirm"
+                title={t('logout_confirm_title' as any)}
+                message={t('logout_confirm_msg' as any)}
+                confirmLabel={t('sidebar_logout' as any)}
+                onConfirm={handleLogout}
+            />
         </View>
     );
 }
@@ -175,6 +215,11 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: 'rgba(0,0,0,0.06)',
     },
+    logoutItem: {
+        marginTop: 6,
+        borderTopWidth: 1,
+        borderTopColor: 'rgba(0,0,0,0.1)',
+    },
     menuIconContainer: {
         width: 32,
         alignItems: 'center',
@@ -185,5 +230,19 @@ const styles = StyleSheet.create({
         marginLeft: 12,
         flex: 1,
         fontWeight: '500',
+    },
+    userInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingVertical: 10,
+        paddingHorizontal: 6,
+        borderTopWidth: 1,
+        gap: 8,
+    },
+    userName: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: TEXT_DARK,
+        flex: 1,
     },
 });

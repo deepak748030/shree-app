@@ -10,10 +10,17 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.shreejii.app"
+      "bundleIdentifier": "com.shreejii.app",
+      "infoPlist": {
+        "NSMotionUsageDescription": "This app uses motion sensors to track your daily steps."
+      }
     },
     "android": {
       "package": "com.shreejii.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.ACTIVITY_RECOGNITION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/app-icon.png",
@@ -33,6 +40,7 @@
     },
     "plugins": [
       "expo-router",
+      "expo-sensors",
       [
         "expo-notifications",
         {

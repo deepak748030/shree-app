@@ -77,7 +77,7 @@ export async function getExpoPushToken(): Promise<string | null> {
         const projectId =
             Constants.expoConfig?.extra?.eas?.projectId ??
             (Constants as any).easConfig?.projectId ??
-            'bbfa5676-9e76-4883-9994-bf76401876d2';
+            '9c4fa1b8-042b-43f9-8ce7-25289f027c6e';
 
         const pushTokenData = await Notifications.getExpoPushTokenAsync({ projectId });
         return pushTokenData.data;

@@ -9,12 +9,12 @@ import {
     Modal,
     Platform,
     ScrollView,
-    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const TEXT_DARK = '#333333';
@@ -99,6 +99,7 @@ export default function AnalyticsSheet({ visible, onClose, deviceId }: Analytics
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <SafeAreaView style={[styles.container, { backgroundColor: YELLOW_LIGHT }]}>
+                <StatusBar style="dark" backgroundColor={YELLOW_BG} translucent={false} />
                 <View style={[styles.header, { backgroundColor: YELLOW_BG }]}>
                     <TouchableOpacity onPress={onClose} style={styles.backBtn}>
                         <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />

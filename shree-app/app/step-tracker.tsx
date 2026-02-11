@@ -12,12 +12,12 @@ import {
     Animated,
     Dimensions,
     ScrollView,
-    StatusBar,
     StyleSheet,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
+import { StatusBar } from 'expo-status-bar';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
@@ -113,7 +113,7 @@ export default function StepTrackerScreen() {
     if (loading) {
         return (
             <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-                <StatusBar barStyle="dark-content" />
+                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
                 <ActivityIndicator size="large" color={accentColor} />
             </View>
         );
@@ -121,7 +121,7 @@ export default function StepTrackerScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-            <StatusBar barStyle="dark-content" />
+            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
 
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.headerBg }]}>

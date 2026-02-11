@@ -27,20 +27,64 @@ const getTodayString = () => {
 
 // ============ PUBLIC ROUTES (for mobile app) ============
 
+// POST /api/naam-jap/auth-mobile - Login or register by mobile number
+router.post('/auth-mobile', async (req, res) => {
+    try {
+        const { mobile, deviceId } = req.body;
+
+        if (!mobile || !deviceId) {
+            return res.status(400).json({
+                success: false,
+                message: 'mobile and deviceId are required',
+            });
+        }
+
+        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        if (trimmedMobile.length < 10 || trimmedMobile.length > 15) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid mobile number',
+            });
+        }
+
+        // Check if user exists with this mobile number
+        let user = await NaamJapUser.findOne({ mobile: trimmedMobile });
+
+        if (user) {
+            // Update deviceId if different
+            if (user.deviceId !== deviceId) {
+                user.deviceId = deviceId;
+                await user.save();
+            }
+            return res.json({
+                success: true,
+                isNewUser: false,
+                response: user,
+            });
+        }
+
+        // New user - return that registration is needed
+        return res.json({
+            success: true,
+            isNewUser: true,
+            response: null,
+        });
+    } catch (error) {
+        console.error('Auth mobile error:', error);
+        res.status(500).json({ success: false, message: 'Failed to authenticate' });
+    }
+});
+
 // POST /api/naam-jap/register - Register or update user info
 router.post('/register', async (req, res) => {
     try {
-        const { deviceId, name, city, pushToken } = req.body;
+        const { deviceId, name, city, mobile, pushToken } = req.body;
         console.log('=== NAAM JAP REGISTER ===');
-        console.log('deviceId:', deviceId);
-        console.log('name:', name);
-        console.log('city:', city);
-        console.log('pushToken:', pushToken);
 
-        if (!deviceId || !name || !city) {
+        if (!deviceId || !name || !city || !mobile) {
             return res.status(400).json({
                 success: false,
-                message: 'deviceId, name, and city are required',
+                message: 'deviceId, name, city, and mobile are required',
             });
         }
 
@@ -54,23 +98,34 @@ router.post('/register', async (req, res) => {
             });
         }
 
+        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+
+        // Check if mobile already registered to another user
+        let existingMobileUser = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId: { $ne: deviceId } });
+        if (existingMobileUser) {
+            return res.status(400).json({
+                success: false,
+                message: 'This mobile number is already registered',
+            });
+        }
+
         let user = await NaamJapUser.findOne({ deviceId });
 
         if (user) {
             user.name = trimmedName;
             user.city = trimmedCity;
+            user.mobile = trimmedMobile;
             if (pushToken) user.pushToken = pushToken;
             await user.save();
-            console.log('User updated, pushToken saved:', user.pushToken);
         } else {
             user = new NaamJapUser({
                 deviceId,
+                mobile: trimmedMobile,
                 name: trimmedName,
                 city: trimmedCity,
                 pushToken: pushToken || null,
             });
             await user.save();
-            console.log('New user created, pushToken saved:', user.pushToken);
         }
 
         console.log('=== REGISTER COMPLETE ===');

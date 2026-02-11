@@ -14,6 +14,12 @@ const naamJapUserSchema = new mongoose.Schema({
         trim: true,
         index: true,
     },
+    mobile: {
+        type: String,
+        required: true,
+        trim: true,
+        index: true,
+    },
     name: {
         type: String,
         required: true,

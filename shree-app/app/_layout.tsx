@@ -1,5 +1,7 @@
 import AnimatedSplash from '@/components/animated-splash';
 import LanguagePickerModal from '@/components/language-picker-modal';
+import MobileAuthScreen from '@/components/mobile-auth-screen';
+import { AuthProvider, useAuth } from '@/contexts/auth-context';
 import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { AppThemeProvider } from '@/contexts/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -16,16 +18,28 @@ export const unstable_settings = {
 
 function AppContent() {
   const colorScheme = useColorScheme();
-  const { loading, hasChosenLanguage, markLanguageChosen } = useLanguage();
+  const { loading: langLoading, hasChosenLanguage, markLanguageChosen } = useLanguage();
+  const { isLoggedIn, loading: authLoading } = useAuth();
   const [showLangPicker, setShowLangPicker] = useState(true);
+  const [showMobileAuth, setShowMobileAuth] = useState(true);
 
-  // Initialize notifications & permissions at app startup
   useNotifications();
 
-  const shouldShowPicker = !loading && !hasChosenLanguage && showLangPicker;
+  const shouldShowLangPicker = !langLoading && !hasChosenLanguage && showLangPicker;
+  const shouldShowMobileAuth = !langLoading && hasChosenLanguage && !authLoading && !isLoggedIn && showMobileAuth;
+
+  if (shouldShowMobileAuth) {
+    return (
+      <>
+        <StatusBar style="dark" />
+        <MobileAuthScreen onDone={() => setShowMobileAuth(false)} />
+      </>
+    );
+  }
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <StatusBar style="dark" />
       <Stack initialRouteName="(tabs)">
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="naam-jap-counter" options={{ headerShown: false }} />
@@ -38,7 +52,7 @@ function AppContent() {
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <LanguagePickerModal
-        visible={shouldShowPicker}
+        visible={shouldShowLangPicker}
         onDone={async () => {
           await markLanguageChosen();
           setShowLangPicker(false);
@@ -63,7 +77,9 @@ export default function RootLayout() {
   return (
     <AppThemeProvider>
       <LanguageProvider>
-        <AppContent />
+        <AuthProvider>
+          <AppContent />
+        </AuthProvider>
       </LanguageProvider>
     </AppThemeProvider>
   );

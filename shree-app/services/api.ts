@@ -64,6 +64,9 @@ export async function fetchRecentImages(limit: number = 7): Promise<DailyQuoteRe
 // ============ NAAM JAP APIs ============
 
 export interface NaamJapUser {
+    _id?: string;
+    deviceId: string;
+    mobile: string;
     name: string;
     city: string;
     totalCount: number;
@@ -102,18 +105,36 @@ export interface SyncResponse {
     totalUsers: number;
 }
 
+// Auth by mobile number
+export async function authByMobile(
+    mobile: string,
+    deviceId: string
+): Promise<{ success: boolean; isNewUser?: boolean; response?: NaamJapUser | null; message?: string }> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/naam-jap/auth-mobile`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile, deviceId }),
+        });
+        return await response.json();
+    } catch {
+        return { success: false, message: 'Network error' };
+    }
+}
+
 // Register or update user info
 export async function registerNaamJapUser(
     deviceId: string,
     name: string,
     city: string,
+    mobile: string,
     pushToken?: string
-): Promise<{ success: boolean; response?: any }> {
+): Promise<{ success: boolean; response?: any; message?: string }> {
     try {
         const response = await fetch(`${API_BASE_URL}/naam-jap/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId, name, city, pushToken }),
+            body: JSON.stringify({ deviceId, name, city, mobile, pushToken }),
         });
         return await response.json();
     } catch {

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "myApp",
-    "slug": "myApp",
+    "name": "श्री जी",
+    "slug": "shree-jii",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon.png",
@@ -61,7 +61,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "bbfa5676-9e76-4883-9994-bf76401876d2"
+        "projectId": "9c4fa1b8-042b-43f9-8ce7-25289f027c6e"
       }
     }
   }

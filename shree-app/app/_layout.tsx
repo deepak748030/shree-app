@@ -35,39 +35,63 @@ function AppContent() {
 
   // Request all permissions on app startup
   useEffect(() => {
-    (async () => {
-      // 1. Notification permission
-      await requestNotificationPermission();
+    const requestAllPermissions = async () => {
+      try {
+        // 1. Notification permission
+        await requestNotificationPermission();
 
-      // 2. Activity Recognition / Physical Activity permission (Android 10+)
-      if (Platform.OS === 'android' && Platform.Version >= 29) {
-        try {
-          await PermissionsAndroid.request(
-            'android.permission.ACTIVITY_RECOGNITION' as any,
-            {
-              title: 'Step Tracker Permission',
-              message: 'Allow step counting to track your daily steps.',
-              buttonPositive: 'Allow',
-              buttonNegative: 'Deny',
+        // 2. Activity Recognition / Physical Activity permission (Android 10+)
+        if (Platform.OS === 'android') {
+          if (Platform.Version >= 29) {
+            try {
+              const result = await PermissionsAndroid.request(
+                'android.permission.ACTIVITY_RECOGNITION' as any,
+                {
+                  title: 'Step Tracker Permission',
+                  message: 'Allow step counting to track your daily steps.',
+                  buttonPositive: 'Allow',
+                  buttonNegative: 'Deny',
+                }
+              );
+              console.log('ACTIVITY_RECOGNITION permission:', result);
+            } catch (e) {
+              console.log('ACTIVITY_RECOGNITION permission error:', e);
             }
-          );
-        } catch { }
-      }
-
-      // 3. iOS Motion & Fitness permission (request via Pedometer availability check)
-      if (Platform.OS === 'ios') {
-        try {
-          const sensors = await import('expo-sensors');
-          if (sensors?.Pedometer) {
-            // This triggers the iOS motion permission dialog
-            await sensors.Pedometer.isAvailableAsync();
-            const start = new Date();
-            start.setHours(0, 0, 0, 0);
-            await sensors.Pedometer.getStepCountAsync(start, new Date());
           }
-        } catch { }
+          // Also request BODY_SENSORS for older Android
+          if (Platform.Version >= 20) {
+            try {
+              await PermissionsAndroid.request(
+                'android.permission.BODY_SENSORS' as any,
+                {
+                  title: 'Body Sensors Permission',
+                  message: 'Allow access to body sensors for step tracking.',
+                  buttonPositive: 'Allow',
+                  buttonNegative: 'Deny',
+                }
+              );
+            } catch { }
+          }
+        }
+
+        // 3. iOS Motion & Fitness permission (request via Pedometer)
+        if (Platform.OS === 'ios') {
+          try {
+            const sensors = await import('expo-sensors');
+            if (sensors?.Pedometer) {
+              await sensors.Pedometer.isAvailableAsync();
+              const start = new Date();
+              start.setHours(0, 0, 0, 0);
+              await sensors.Pedometer.getStepCountAsync(start, new Date());
+            }
+          } catch { }
+        }
+      } catch (e) {
+        console.log('Permission request error:', e);
       }
-    })();
+    };
+
+    requestAllPermissions();
   }, []);
 
   const shouldShowLangPicker = !langLoading && !hasChosenLanguage && showLangPicker;

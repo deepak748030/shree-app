@@ -44,9 +44,9 @@ async function getTaskManagerModule() {
     return null;
 }
 
-async function getBackgroundFetchModule() {
+async function getBackgroundTaskModule() {
     try {
-        return await import('expo-background-fetch');
+        return await import('expo-background-task');
     } catch { }
     return null;
 }
@@ -102,6 +102,7 @@ async function updateStepNotification(steps: number, goal: number, distance: num
                 sticky: true,
                 autoDismiss: false,
                 priority: Notifications.AndroidNotificationPriority?.DEFAULT,
+                color: '#FFD700',
                 ...(Platform.OS === 'android' && {
                     channelId: 'step-tracker',
                 }),
@@ -124,7 +125,8 @@ async function setupNotificationChannel() {
             importance: Notifications.AndroidImportance?.DEFAULT ?? 3,
             lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
             enableVibrate: false,
-            enableLights: false,
+            enableLights: true,
+            lightColor: '#FFD700',
             showBadge: false,
         });
     } catch { }
@@ -146,13 +148,13 @@ async function requestNotificationPermissions() {
     return false;
 }
 
-// ─── Background fetch task registration ───
+// ─── Background task registration ───
 
 async function registerBackgroundTask() {
     try {
         const TaskManager = await getTaskManagerModule();
-        const BackgroundFetch = await getBackgroundFetchModule();
-        if (!TaskManager || !BackgroundFetch) return;
+        const BackgroundTask = await getBackgroundTaskModule();
+        if (!TaskManager || !BackgroundTask) return;
 
         const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_STEP_TASK);
         if (isRegistered) return;
@@ -160,7 +162,7 @@ async function registerBackgroundTask() {
         TaskManager.defineTask(BACKGROUND_STEP_TASK, async () => {
             try {
                 const Pedometer = await getPedometerModule();
-                if (!Pedometer) return BackgroundFetch.BackgroundFetchResult?.NoData ?? 1;
+                if (!Pedometer) return BackgroundTask.BackgroundTaskResult?.Failed ?? 2;
 
                 const start = new Date();
                 start.setHours(0, 0, 0, 0);
@@ -184,16 +186,14 @@ async function registerBackgroundTask() {
                     await syncToServerFromBackground(result.steps, distance, calories, goal);
                 }
 
-                return BackgroundFetch.BackgroundFetchResult?.NewData ?? 2;
+                return BackgroundTask.BackgroundTaskResult?.Success ?? 1;
             } catch {
-                return BackgroundFetch.BackgroundFetchResult?.Failed ?? 3;
+                return BackgroundTask.BackgroundTaskResult?.Failed ?? 2;
             }
         });
 
-        await BackgroundFetch.registerTaskAsync(BACKGROUND_STEP_TASK, {
+        await BackgroundTask.registerTaskAsync(BACKGROUND_STEP_TASK, {
             minimumInterval: 5 * 60, // 5 minutes (OS may throttle)
-            stopOnTerminate: false,
-            startOnBoot: true,
         });
     } catch { }
 }

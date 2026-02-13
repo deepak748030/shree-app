@@ -78,6 +78,8 @@ async function syncToServerFromBackground(steps: number, distance: number, calor
 
 // ─── Persistent notification ───
 
+const STEP_NOTIFICATION_ID = 'step-tracker-persistent';
+
 async function updateStepNotification(steps: number, goal: number, distance: number, calories: number) {
     try {
         const Notifications = await getNotificationsModule();
@@ -86,20 +88,26 @@ async function updateStepNotification(steps: number, goal: number, distance: num
         const progress = Math.min(Math.round((steps / goal) * 100), 100);
         const goalReached = steps >= goal;
 
-        await Notifications.dismissAllNotificationsAsync();
+        // Cancel only the previous step notification (same identifier = update in-place)
+        try {
+            await Notifications.cancelScheduledNotificationAsync(STEP_NOTIFICATION_ID);
+        } catch { }
 
+        // Schedule with fixed identifier — this replaces the previous one, not a new notification
         await Notifications.scheduleNotificationAsync({
             content: {
                 title: goalReached ? '🎉 Goal Reached!' : '🚶 Step Tracker Active',
                 body: `${steps.toLocaleString()} / ${goal.toLocaleString()} steps (${progress}%) • ${distance} km • ${calories} kcal`,
                 data: { type: 'step-tracker' },
                 sticky: true,
+                autoDismiss: false,
                 priority: Notifications.AndroidNotificationPriority?.DEFAULT,
                 ...(Platform.OS === 'android' && {
                     channelId: 'step-tracker',
                 }),
             },
             trigger: null,
+            identifier: STEP_NOTIFICATION_ID,
         });
     } catch { }
 }
@@ -373,7 +381,7 @@ export function useStepTracker() {
     const dismissNotification = useCallback(async () => {
         try {
             const Notifications = await getNotificationsModule();
-            if (Notifications) await Notifications.dismissAllNotificationsAsync();
+            if (Notifications) await Notifications.cancelScheduledNotificationAsync(STEP_NOTIFICATION_ID);
         } catch { }
     }, []);
 

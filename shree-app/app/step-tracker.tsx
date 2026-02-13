@@ -11,6 +11,7 @@ import {
     ActivityIndicator,
     Animated,
     Dimensions,
+    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -28,6 +29,8 @@ const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
+const TEXT_DARK = '#333333';
 
 export default function StepTrackerScreen() {
     const router = useRouter();
@@ -49,6 +52,7 @@ export default function StepTrackerScreen() {
     } = useStepTracker();
 
     const [syncing, setSyncing] = useState(false);
+    const [sensorDebug, setSensorDebug] = useState({ available: false, checked: false, liveCount: 0, permGranted: false });
     const progressAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -66,6 +70,48 @@ export default function StepTrackerScreen() {
             }),
         ]).start();
     }, [progress]);
+
+    // Sensor debug: check availability, request permission, and watch live steps
+    useEffect(() => {
+        let sub: { remove: () => void } | null = null;
+        (async () => {
+            try {
+                // Request runtime permission on Android 10+
+                let permOk = true;
+                if (Platform.OS === 'android' && Platform.Version >= 29) {
+                    const { PermissionsAndroid } = require('react-native');
+                    const granted = await PermissionsAndroid.request(
+                        'android.permission.ACTIVITY_RECOGNITION',
+                        {
+                            title: 'Step Tracker Permission',
+                            message: 'Allow step counting to track your daily steps.',
+                            buttonPositive: 'Allow',
+                            buttonNegative: 'Deny',
+                        }
+                    );
+                    permOk = granted === PermissionsAndroid.RESULTS.GRANTED;
+                }
+                setSensorDebug(p => ({ ...p, permGranted: permOk }));
+
+                const mod = await import('expo-sensors');
+                const Pedometer = mod?.Pedometer;
+                if (!Pedometer) {
+                    setSensorDebug(p => ({ ...p, available: false, checked: true }));
+                    return;
+                }
+                const avail = await Pedometer.isAvailableAsync();
+                setSensorDebug(p => ({ ...p, available: avail, checked: true }));
+                if (avail && permOk) {
+                    sub = Pedometer.watchStepCount((result: any) => {
+                        setSensorDebug(p => ({ ...p, liveCount: result.steps }));
+                    });
+                }
+            } catch {
+                setSensorDebug(p => ({ ...p, available: false, checked: true }));
+            }
+        })();
+        return () => { sub?.remove(); };
+    }, []);
 
     const strokeDashoffset = progressAnim.interpolate({
         inputRange: [0, 1],
@@ -112,30 +158,43 @@ export default function StepTrackerScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
+            <View style={[styles.container, { backgroundColor: bgColor }]}>
                 <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
-                <ActivityIndicator size="large" color={accentColor} />
+                <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
+                    <View style={styles.header}>
+                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                            <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                        </TouchableOpacity>
+                        <Text style={styles.headerTitle}>{t('step_tracker_header' as any)}</Text>
+                        <View style={{ width: 24 }} />
+                    </View>
+                </View>
+                <View style={styles.center}>
+                    <ActivityIndicator size="large" color={accentColor} />
+                </View>
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
             <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
 
-            {/* Header */}
-            <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                    <Ionicons name="arrow-back" size={24} color={textColor} />
-                </TouchableOpacity>
-                <Text style={[styles.headerTitle, { color: textColor }]}>{t('step_tracker_header' as any)}</Text>
-                <TouchableOpacity onPress={syncToServer} style={styles.syncBtn} disabled={syncing}>
-                    {syncing ? (
-                        <ActivityIndicator size="small" color={accentColor} />
-                    ) : (
-                        <Ionicons name="sync" size={22} color={accentColor} />
-                    )}
-                </TouchableOpacity>
+            {/* Header - same as daily-quote */}
+            <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>{t('step_tracker_header' as any)}</Text>
+                    <TouchableOpacity onPress={syncToServer} style={styles.syncBtn} disabled={syncing}>
+                        {syncing ? (
+                            <ActivityIndicator size="small" color={accentColor} />
+                        ) : (
+                            <Ionicons name="sync" size={22} color={accentColor} />
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -234,6 +293,38 @@ export default function StepTrackerScreen() {
                         <Text style={[styles.warningText, { color: '#5D4037' }]}>{t('step_tracker_not_available' as any)}</Text>
                     </View>
                 )}
+
+                {/* Sensor Debug Card */}
+                <View style={[styles.debugCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
+                    <Text style={[styles.debugTitle, { color: textColor }]}>🔧 Sensor Debug</Text>
+                    <View style={styles.debugRow}>
+                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Platform:</Text>
+                        <Text style={[styles.debugValue, { color: textColor }]}>{Platform.OS}</Text>
+                    </View>
+                    <View style={styles.debugRow}>
+                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Permission Granted:</Text>
+                        <Text style={[styles.debugValue, { color: sensorDebug.permGranted ? '#4CAF50' : '#F44336' }]}>
+                            {sensorDebug.permGranted ? '✅ YES' : '❌ NO'}
+                        </Text>
+                    </View>
+                    <View style={styles.debugRow}>
+                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Pedometer Available:</Text>
+                        <Text style={[styles.debugValue, { color: sensorDebug.available ? '#4CAF50' : '#F44336' }]}>
+                            {sensorDebug.checked ? (sensorDebug.available ? '✅ YES' : '❌ NO') : '⏳ Checking...'}
+                        </Text>
+                    </View>
+                    <View style={styles.debugRow}>
+                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Live Sensor Count:</Text>
+                        <Text style={[styles.debugValue, { color: accentColor }]}>{sensorDebug.liveCount}</Text>
+                    </View>
+                    <View style={styles.debugRow}>
+                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Today Steps:</Text>
+                        <Text style={[styles.debugValue, { color: textColor }]}>{todaySteps}</Text>
+                    </View>
+                    <Text style={[styles.debugHint, { color: subTextColor }]}>
+                        Walk or shake your phone — "Live Sensor Count" should increase in real-time if the sensor is working.
+                    </Text>
+                </View>
             </ScrollView>
         </View>
     );
@@ -242,6 +333,7 @@ export default function StepTrackerScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    headerBg: {},
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -249,7 +341,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     backBtn: { padding: 6 },
-    headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', textAlign: 'center' },
+    headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', textAlign: 'center', color: TEXT_DARK },
     syncBtn: { padding: 6 },
     scrollContent: { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 6 },
     ringCard: {
@@ -332,4 +424,21 @@ const styles = StyleSheet.create({
         width: '100%',
     },
     warningText: { fontSize: 13, flex: 1 },
+    debugCard: {
+        width: '100%',
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: 12,
+        marginTop: 6,
+    },
+    debugTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
+    debugRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 4,
+    },
+    debugLabel: { fontSize: 12, fontWeight: '500' },
+    debugValue: { fontSize: 12, fontWeight: '700' },
+    debugHint: { fontSize: 11, marginTop: 8, fontStyle: 'italic' },
 });

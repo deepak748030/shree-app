@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Save, RefreshCw, Plus, Trash2, FileText } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { Save, RefreshCw, Plus, Trash2, FileText, Upload, ImageIcon, X } from 'lucide-react'
 import { cn } from '../lib/utils'
 import api from '../lib/api'
 
@@ -11,6 +11,7 @@ interface HomeContentData {
     subtitle_en: string
     paragraphs_hi: string[]
     paragraphs_en: string[]
+    bannerImages: string[]
     updatedAt?: string
 }
 
@@ -21,13 +22,17 @@ const EMPTY: HomeContentData = {
     subtitle_en: '',
     paragraphs_hi: [''],
     paragraphs_en: [''],
+    bannerImages: [],
 }
 
 export function HomeContentPage() {
     const [content, setContent] = useState<HomeContentData>(EMPTY)
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
+    const [isUploading, setIsUploading] = useState(false)
+    const [deletingUrl, setDeletingUrl] = useState<string | null>(null)
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         fetchContent()
@@ -47,6 +52,7 @@ export function HomeContentPage() {
                     subtitle_en: d.subtitle_en || '',
                     paragraphs_hi: d.paragraphs_hi?.length ? d.paragraphs_hi : [''],
                     paragraphs_en: d.paragraphs_en?.length ? d.paragraphs_en : [''],
+                    bannerImages: d.bannerImages || [],
                     updatedAt: d.updatedAt,
                 })
             }
@@ -80,6 +86,46 @@ export function HomeContentPage() {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to save' })
         } finally {
             setIsSaving(false)
+        }
+    }
+
+    const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setIsUploading(true)
+        setMessage(null)
+        try {
+            const formData = new FormData()
+            formData.append('image', file)
+            const res = await api.post('/home-content/banner/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            if (res.data.success) {
+                setContent(prev => ({ ...prev, bannerImages: res.data.response.bannerImages }))
+                setMessage({ type: 'success', text: 'Banner image uploaded!' })
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload banner' })
+        } finally {
+            setIsUploading(false)
+            if (fileInputRef.current) fileInputRef.current.value = ''
+        }
+    }
+
+    const handleBannerDelete = async (imageUrl: string) => {
+        if (!confirm('Delete this banner image?')) return
+        setDeletingUrl(imageUrl)
+        setMessage(null)
+        try {
+            const res = await api.delete('/home-content/banner', { data: { imageUrl } })
+            if (res.data.success) {
+                setContent(prev => ({ ...prev, bannerImages: res.data.response.bannerImages }))
+                setMessage({ type: 'success', text: 'Banner image deleted!' })
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to delete banner' })
+        } finally {
+            setDeletingUrl(null)
         }
     }
 
@@ -123,7 +169,7 @@ export function HomeContentPage() {
                         Home Content
                     </h1>
                     <p className="text-muted-foreground text-sm mt-0.5">
-                        Manage the home screen text in Hindi and English
+                        Manage home screen banners and text in Hindi & English
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -166,6 +212,71 @@ export function HomeContentPage() {
                     Last updated: {new Date(content.updatedAt).toLocaleString('en-IN')}
                 </p>
             )}
+
+            {/* Banner Images Section */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5" />
+                        Banner Images (Slider)
+                    </h2>
+                    <div>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBannerUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={isUploading}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                        >
+                            {isUploading ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Upload className="w-4 h-4" />
+                            )}
+                            {isUploading ? 'Uploading...' : 'Upload Banner'}
+                        </button>
+                    </div>
+                </div>
+
+                {content.bannerImages.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                        <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No banner images uploaded yet.</p>
+                        <p className="text-xs mt-1">Upload images that will appear in the home screen slider.</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {content.bannerImages.map((url, i) => (
+                            <div key={url} className="relative group rounded-lg overflow-hidden border border-border">
+                                <img
+                                    src={url}
+                                    alt={`Banner ${i + 1}`}
+                                    className="w-full h-32 object-cover"
+                                />
+                                <button
+                                    onClick={() => handleBannerDelete(url)}
+                                    disabled={deletingUrl === url}
+                                    className="absolute top-1.5 right-1.5 p-1.5 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                                >
+                                    {deletingUrl === url ? (
+                                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                    ) : (
+                                        <X className="w-3.5 h-3.5" />
+                                    )}
+                                </button>
+                                <div className="absolute bottom-0 left-0 right-0 bg-black/50 text-white text-[10px] px-2 py-0.5 text-center">
+                                    Banner {i + 1}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* Hindi Section */}
             <div className="bg-card border border-border rounded-xl p-5 space-y-4">

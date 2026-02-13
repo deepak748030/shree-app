@@ -1,8 +1,45 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const HomeContent = require('../models/HomeContent');
 const router = express.Router();
+
+// Multer config
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Only image files are allowed'), false);
+    },
+});
+
+// Upload buffer to Cloudinary
+const uploadToCloudinary = (buffer) => {
+    return new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+            { folder: 'home-banners', resource_type: 'image', quality: 'auto', fetch_format: 'auto' },
+            (error, result) => { if (error) reject(error); else resolve(result); }
+        );
+        stream.end(buffer);
+    });
+};
+
+// Delete from Cloudinary
+const deleteFromCloudinary = async (imageUrl) => {
+    try {
+        const parts = imageUrl.split('/');
+        const uploadIndex = parts.indexOf('upload');
+        if (uploadIndex === -1) return;
+        const pathParts = parts.slice(uploadIndex + 2);
+        const publicId = pathParts.join('/').replace(/\.[^/.]+$/, '');
+        await cloudinary.uploader.destroy(publicId);
+    } catch (error) {
+        console.error('Cloudinary delete error:', error.message);
+    }
+};
 
 // Auth middleware
 const authMiddleware = async (req, res, next) => {
@@ -36,6 +73,7 @@ router.get('/', async (req, res) => {
                 subtitle_en: content.subtitle_en,
                 paragraphs_hi: content.paragraphs_hi,
                 paragraphs_en: content.paragraphs_en,
+                bannerImages: content.bannerImages || [],
                 updatedAt: content.updatedAt,
             },
         });
@@ -50,7 +88,6 @@ router.post('/', authMiddleware, async (req, res) => {
     try {
         const { title_hi, title_en, subtitle_hi, subtitle_en, paragraphs_hi, paragraphs_en } = req.body;
 
-        // Upsert: find existing or create new (only one record)
         let content = await HomeContent.findOne();
         if (content) {
             content.title_hi = title_hi || '';
@@ -74,12 +111,71 @@ router.post('/', authMiddleware, async (req, res) => {
 
         res.json({
             success: true,
-            message: content.isNew ? 'Home content created' : 'Home content updated',
+            message: 'Home content updated',
             response: content,
         });
     } catch (error) {
         console.error('Save home content error:', error);
         res.status(500).json({ success: false, message: 'Failed to save home content' });
+    }
+});
+
+// POST /api/home-content/banner/upload - Upload banner image (admin)
+router.post('/banner/upload', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No image file provided' });
+        }
+
+        const result = await uploadToCloudinary(req.file.buffer);
+        const imageUrl = result.secure_url;
+
+        // Add to bannerImages array
+        let content = await HomeContent.findOne();
+        if (!content) {
+            content = new HomeContent({ bannerImages: [imageUrl] });
+        } else {
+            content.bannerImages.push(imageUrl);
+        }
+        await content.save();
+
+        res.json({
+            success: true,
+            response: { imageUrl, bannerImages: content.bannerImages },
+        });
+    } catch (error) {
+        console.error('Banner upload error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload banner image' });
+    }
+});
+
+// DELETE /api/home-content/banner - Delete banner image (admin)
+router.delete('/banner', authMiddleware, async (req, res) => {
+    try {
+        const { imageUrl } = req.body;
+        if (!imageUrl) {
+            return res.status(400).json({ success: false, message: 'imageUrl is required' });
+        }
+
+        const content = await HomeContent.findOne();
+        if (!content) {
+            return res.status(404).json({ success: false, message: 'No home content found' });
+        }
+
+        content.bannerImages = content.bannerImages.filter(url => url !== imageUrl);
+        await content.save();
+
+        // Delete from Cloudinary
+        await deleteFromCloudinary(imageUrl);
+
+        res.json({
+            success: true,
+            message: 'Banner image deleted',
+            response: { bannerImages: content.bannerImages },
+        });
+    } catch (error) {
+        console.error('Banner delete error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete banner image' });
     }
 });
 

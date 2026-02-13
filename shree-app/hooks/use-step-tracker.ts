@@ -1,11 +1,15 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 
 const STEP_DATA_KEY = '@step_tracker_data';
 const STEP_GOAL_KEY = '@step_tracker_goal';
+const BG_DEVICE_ID_KEY = '@step_bg_device_id';
+const BG_MOBILE_KEY = '@step_bg_mobile';
 const STEPS_PER_KM = 1350;
 const CALORIES_PER_STEP = 0.04;
+const BACKGROUND_STEP_TASK = 'BACKGROUND_STEP_SYNC';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
 
 interface StepData {
     date: string;
@@ -16,6 +20,8 @@ function getTodayStr() {
     return new Date().toISOString().split('T')[0];
 }
 
+// ─── Dynamic module loaders (avoid crash if not installed) ───
+
 async function getPedometerModule() {
     try {
         const mod = await import('expo-sensors');
@@ -24,19 +30,204 @@ async function getPedometerModule() {
     return null;
 }
 
+async function getNotificationsModule() {
+    try {
+        return await import('expo-notifications');
+    } catch { }
+    return null;
+}
+
+async function getTaskManagerModule() {
+    try {
+        return await import('expo-task-manager');
+    } catch { }
+    return null;
+}
+
+async function getBackgroundFetchModule() {
+    try {
+        return await import('expo-background-fetch');
+    } catch { }
+    return null;
+}
+
+// ─── Background server sync (no React context needed) ───
+
+async function syncToServerFromBackground(steps: number, distance: number, calories: number, goal: number) {
+    try {
+        const [deviceId, mobile] = await Promise.all([
+            AsyncStorage.getItem(BG_DEVICE_ID_KEY),
+            AsyncStorage.getItem(BG_MOBILE_KEY),
+        ]);
+        if (!deviceId || !mobile) return;
+
+        await fetch(`${API_BASE_URL}/step-tracker/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                deviceId,
+                mobile,
+                todaySteps: steps,
+                todayDistance: distance,
+                todayCalories: calories,
+                dailyGoal: goal,
+            }),
+        });
+    } catch { }
+}
+
+// ─── Persistent notification ───
+
+async function updateStepNotification(steps: number, goal: number, distance: number, calories: number) {
+    try {
+        const Notifications = await getNotificationsModule();
+        if (!Notifications) return;
+
+        const progress = Math.min(Math.round((steps / goal) * 100), 100);
+        const goalReached = steps >= goal;
+
+        await Notifications.dismissAllNotificationsAsync();
+
+        await Notifications.scheduleNotificationAsync({
+            content: {
+                title: goalReached ? '🎉 Goal Reached!' : '🚶 Step Tracker Active',
+                body: `${steps.toLocaleString()} / ${goal.toLocaleString()} steps (${progress}%) • ${distance} km • ${calories} kcal`,
+                data: { type: 'step-tracker' },
+                sticky: true,
+                priority: Notifications.AndroidNotificationPriority?.DEFAULT,
+                ...(Platform.OS === 'android' && {
+                    channelId: 'step-tracker',
+                }),
+            },
+            trigger: null,
+        });
+    } catch { }
+}
+
+// ─── Notification channel (Android) ───
+
+async function setupNotificationChannel() {
+    try {
+        const Notifications = await getNotificationsModule();
+        if (!Notifications || Platform.OS !== 'android') return;
+
+        await Notifications.setNotificationChannelAsync('step-tracker', {
+            name: 'Step Tracker',
+            importance: Notifications.AndroidImportance?.DEFAULT ?? 3,
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility?.PUBLIC ?? 1,
+            enableVibrate: false,
+            enableLights: false,
+            showBadge: false,
+        });
+    } catch { }
+}
+
+// ─── Notification permissions ───
+
+async function requestNotificationPermissions() {
+    try {
+        const Notifications = await getNotificationsModule();
+        if (!Notifications) return false;
+
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        if (existingStatus === 'granted') return true;
+
+        const { status } = await Notifications.requestPermissionsAsync();
+        return status === 'granted';
+    } catch { }
+    return false;
+}
+
+// ─── Background fetch task registration ───
+
+async function registerBackgroundTask() {
+    try {
+        const TaskManager = await getTaskManagerModule();
+        const BackgroundFetch = await getBackgroundFetchModule();
+        if (!TaskManager || !BackgroundFetch) return;
+
+        const isRegistered = await TaskManager.isTaskRegisteredAsync(BACKGROUND_STEP_TASK);
+        if (isRegistered) return;
+
+        TaskManager.defineTask(BACKGROUND_STEP_TASK, async () => {
+            try {
+                const Pedometer = await getPedometerModule();
+                if (!Pedometer) return BackgroundFetch.BackgroundFetchResult?.NoData ?? 1;
+
+                const start = new Date();
+                start.setHours(0, 0, 0, 0);
+                const end = new Date();
+                const result = await Pedometer.getStepCountAsync(start, end);
+
+                if (result?.steps) {
+                    const today = getTodayStr();
+                    const data: StepData = { date: today, steps: result.steps };
+                    await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify(data));
+
+                    const savedGoal = await AsyncStorage.getItem(STEP_GOAL_KEY);
+                    const goal = savedGoal ? parseInt(savedGoal, 10) : 5000;
+                    const distance = parseFloat((result.steps / STEPS_PER_KM).toFixed(2));
+                    const calories = Math.round(result.steps * CALORIES_PER_STEP);
+
+                    // Update persistent notification
+                    await updateStepNotification(result.steps, goal, distance, calories);
+
+                    // Sync to server in background
+                    await syncToServerFromBackground(result.steps, distance, calories, goal);
+                }
+
+                return BackgroundFetch.BackgroundFetchResult?.NewData ?? 2;
+            } catch {
+                return BackgroundFetch.BackgroundFetchResult?.Failed ?? 3;
+            }
+        });
+
+        await BackgroundFetch.registerTaskAsync(BACKGROUND_STEP_TASK, {
+            minimumInterval: 5 * 60, // 5 minutes (OS may throttle)
+            stopOnTerminate: false,
+            startOnBoot: true,
+        });
+    } catch { }
+}
+
+// ─── Helper: persist auth info for background task ───
+
+export async function persistBgAuthInfo(deviceId: string, mobile: string) {
+    try {
+        await Promise.all([
+            AsyncStorage.setItem(BG_DEVICE_ID_KEY, deviceId),
+            AsyncStorage.setItem(BG_MOBILE_KEY, mobile),
+        ]);
+    } catch { }
+}
+
+// ─── Main hook ───
+
 export function useStepTracker() {
     const [todaySteps, setTodaySteps] = useState(0);
     const [dailyGoal, setDailyGoal] = useState(5000);
     const [isAvailable, setIsAvailable] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [notificationEnabled, setNotificationEnabled] = useState(false);
     const subscriptionRef = useRef<{ remove: () => void } | null>(null);
     const baseStepsRef = useRef(0);
+    const lastNotifStepsRef = useRef(-1);
 
     const distance = parseFloat((todaySteps / STEPS_PER_KM).toFixed(2));
     const calories = Math.round(todaySteps * CALORIES_PER_STEP);
     const progress = dailyGoal > 0 ? Math.min(todaySteps / dailyGoal, 1) : 0;
 
-    // Load saved data
+    // Setup notification channel + permissions + background task on mount
+    useEffect(() => {
+        (async () => {
+            await setupNotificationChannel();
+            const granted = await requestNotificationPermissions();
+            setNotificationEnabled(granted);
+            await registerBackgroundTask();
+        })();
+    }, []);
+
+    // Load saved data with proper daily reset
     useEffect(() => {
         (async () => {
             try {
@@ -47,9 +238,15 @@ export function useStepTracker() {
                 if (savedGoal) setDailyGoal(parseInt(savedGoal, 10));
                 if (savedData) {
                     const parsed: StepData = JSON.parse(savedData);
-                    if (parsed.date === getTodayStr()) {
+                    const today = getTodayStr();
+                    if (parsed.date === today) {
                         setTodaySteps(parsed.steps);
                         baseStepsRef.current = parsed.steps;
+                    } else {
+                        // NEW DAY - reset to 0
+                        setTodaySteps(0);
+                        baseStepsRef.current = 0;
+                        await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify({ date: today, steps: 0 }));
                     }
                 }
             } catch { }
@@ -57,7 +254,7 @@ export function useStepTracker() {
         })();
     }, []);
 
-    // Start pedometer
+    // Start pedometer with proper daily reset
     useEffect(() => {
         let sub: { remove: () => void } | null = null;
 
@@ -72,6 +269,7 @@ export function useStepTracker() {
                 setIsAvailable(available);
                 if (!available) return;
 
+                // Get today's steps from midnight
                 const start = new Date();
                 start.setHours(0, 0, 0, 0);
                 const end = new Date();
@@ -80,14 +278,15 @@ export function useStepTracker() {
                     const result = await Pedometer.getStepCountAsync(start, end);
                     if (result?.steps) {
                         setTodaySteps(result.steps);
+                        baseStepsRef.current = result.steps;
                         saveTodaySteps(result.steps);
                     }
                 } catch { }
 
+                // Watch for live updates
                 sub = Pedometer.watchStepCount((result: any) => {
-                    const savedBase = baseStepsRef.current;
-                    setTodaySteps(() => {
-                        const newSteps = savedBase + result.steps;
+                    setTodaySteps(prev => {
+                        const newSteps = baseStepsRef.current + result.steps;
                         saveTodaySteps(newSteps);
                         return newSteps;
                     });
@@ -101,11 +300,30 @@ export function useStepTracker() {
         return () => { sub?.remove(); };
     }, []);
 
-    // Re-fetch on app foreground
+    // Update notification when steps change (throttled - every 50 steps)
+    useEffect(() => {
+        if (!notificationEnabled || todaySteps === 0) return;
+        if (Math.abs(todaySteps - lastNotifStepsRef.current) < 50 && lastNotifStepsRef.current !== -1) return;
+        lastNotifStepsRef.current = todaySteps;
+        updateStepNotification(todaySteps, dailyGoal, distance, calories);
+    }, [todaySteps, dailyGoal, notificationEnabled, distance, calories]);
+
+    // Re-fetch on app foreground + handle daily reset + immediate server sync
     useEffect(() => {
         const listener = AppState.addEventListener('change', async (state) => {
             if (state === 'active') {
                 try {
+                    // Check if new day - reset if needed
+                    const savedData = await AsyncStorage.getItem(STEP_DATA_KEY);
+                    if (savedData) {
+                        const parsed: StepData = JSON.parse(savedData);
+                        if (parsed.date !== getTodayStr()) {
+                            setTodaySteps(0);
+                            baseStepsRef.current = 0;
+                            await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify({ date: getTodayStr(), steps: 0 }));
+                        }
+                    }
+
                     const Pedometer = await getPedometerModule();
                     if (!Pedometer) return;
                     const start = new Date();
@@ -116,12 +334,18 @@ export function useStepTracker() {
                         setTodaySteps(result.steps);
                         baseStepsRef.current = result.steps;
                         saveTodaySteps(result.steps);
+
+                        // Immediate server sync on foreground
+                        const goal = dailyGoal;
+                        const dist = parseFloat((result.steps / STEPS_PER_KM).toFixed(2));
+                        const cal = Math.round(result.steps * CALORIES_PER_STEP);
+                        await syncToServerFromBackground(result.steps, dist, cal, goal);
                     }
                 } catch { }
             }
         });
         return () => listener.remove();
-    }, []);
+    }, [dailyGoal]);
 
     const saveTodaySteps = useCallback(async (steps: number) => {
         try {
@@ -146,6 +370,13 @@ export function useStepTracker() {
         AsyncStorage.setItem(STEP_GOAL_KEY, serverData.dailyGoal.toString());
     }, [saveTodaySteps]);
 
+    const dismissNotification = useCallback(async () => {
+        try {
+            const Notifications = await getNotificationsModule();
+            if (Notifications) await Notifications.dismissAllNotificationsAsync();
+        } catch { }
+    }, []);
+
     return {
         todaySteps,
         distance,
@@ -154,7 +385,9 @@ export function useStepTracker() {
         progress,
         isAvailable,
         loading,
+        notificationEnabled,
         updateGoal,
         restoreFromServer,
+        dismissNotification,
     };
 }

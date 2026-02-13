@@ -100,7 +100,7 @@ export default function HomeScreen() {
           />
         }
       >
-        <ImageSlider />
+        <ImageSlider remoteImages={remoteContent?.bannerImages} />
 
         <View style={styles.contentContainer}>
           <View style={styles.controlsWrapper}>

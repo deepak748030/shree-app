@@ -2,7 +2,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { useDeviceId } from '@/hooks/use-device-id';
-import { useStepTracker } from '@/hooks/use-step-tracker';
+import { useStepTracker, persistBgAuthInfo } from '@/hooks/use-step-tracker';
 import { syncStepData, fetchStepData } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -11,7 +11,6 @@ import {
     ActivityIndicator,
     Animated,
     Dimensions,
-    Platform,
     ScrollView,
     StyleSheet,
     Text,
@@ -23,15 +22,68 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const RING_SIZE = SCREEN_WIDTH * 0.58;
+const RING_SIZE = SCREEN_WIDTH * 0.55;
 const STROKE_WIDTH = 14;
 const RADIUS = (RING_SIZE - STROKE_WIDTH) / 2;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
-const TEXT_DARK = '#333333';
+// ─── Notification Bar Component ───
+function StepNotificationBar({ steps, goal, distance, calories, accentColor, theme }: {
+    steps: number; goal: number; distance: number; calories: number; accentColor: string; theme: any;
+}) {
+    const progress = goal > 0 ? Math.min(steps / goal, 1) : 0;
+    const pulseAnim = useRef(new Animated.Value(1)).current;
 
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1.15, duration: 800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+            ])
+        ).start();
+    }, []);
+
+    return (
+        <View style={[notifStyles.bar, { backgroundColor: accentColor + '12', borderColor: accentColor + '30' }]}>
+            <Animated.View style={[notifStyles.liveDot, { backgroundColor: '#4CAF50', transform: [{ scale: pulseAnim }] }]} />
+            <Ionicons name="footsteps" size={16} color={accentColor} />
+            <Text style={[notifStyles.liveText, { color: '#1A1A1A' }]}>
+                <Text style={{ fontWeight: '800' }}>{steps.toLocaleString()}</Text> steps
+            </Text>
+            <View style={notifStyles.barDivider} />
+            <Text style={[notifStyles.barStat, { color: '#666' }]}>{distance} km</Text>
+            <View style={notifStyles.barDivider} />
+            <Text style={[notifStyles.barStat, { color: '#666' }]}>{calories} kcal</Text>
+            <View style={[notifStyles.progressPill, { backgroundColor: accentColor + '20' }]}>
+                <Text style={[notifStyles.progressText, { color: accentColor }]}>{Math.round(progress * 100)}%</Text>
+            </View>
+        </View>
+    );
+}
+
+const notifStyles = StyleSheet.create({
+    bar: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 12,
+        paddingVertical: 8,
+        borderRadius: 10,
+        borderWidth: 1,
+        marginHorizontal: 6,
+        marginTop: 4,
+        gap: 6,
+    },
+    liveDot: { width: 6, height: 6, borderRadius: 3 },
+    liveText: { fontSize: 13, fontWeight: '600' },
+    barDivider: { width: 1, height: 12, backgroundColor: '#DDD' },
+    barStat: { fontSize: 11, fontWeight: '500' },
+    progressPill: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+    progressText: { fontSize: 11, fontWeight: '700' },
+});
+
+// ─── Main Screen ───
 export default function StepTrackerScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
@@ -47,12 +99,13 @@ export default function StepTrackerScreen() {
         progress,
         isAvailable,
         loading,
+        notificationEnabled,
         updateGoal,
         restoreFromServer,
     } = useStepTracker();
 
     const [syncing, setSyncing] = useState(false);
-    const [sensorDebug, setSensorDebug] = useState({ available: false, checked: false, liveCount: 0, permGranted: false });
+    const [lastSyncTime, setLastSyncTime] = useState<string | null>(null);
     const progressAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
@@ -71,64 +124,33 @@ export default function StepTrackerScreen() {
         ]).start();
     }, [progress]);
 
-    // Sensor debug: check availability, request permission, and watch live steps
-    useEffect(() => {
-        let sub: { remove: () => void } | null = null;
-        (async () => {
-            try {
-                // Request runtime permission on Android 10+
-                let permOk = true;
-                if (Platform.OS === 'android' && Platform.Version >= 29) {
-                    const { PermissionsAndroid } = require('react-native');
-                    const granted = await PermissionsAndroid.request(
-                        'android.permission.ACTIVITY_RECOGNITION',
-                        {
-                            title: 'Step Tracker Permission',
-                            message: 'Allow step counting to track your daily steps.',
-                            buttonPositive: 'Allow',
-                            buttonNegative: 'Deny',
-                        }
-                    );
-                    permOk = granted === PermissionsAndroid.RESULTS.GRANTED;
-                }
-                setSensorDebug(p => ({ ...p, permGranted: permOk }));
-
-                const mod = await import('expo-sensors');
-                const Pedometer = mod?.Pedometer;
-                if (!Pedometer) {
-                    setSensorDebug(p => ({ ...p, available: false, checked: true }));
-                    return;
-                }
-                const avail = await Pedometer.isAvailableAsync();
-                setSensorDebug(p => ({ ...p, available: avail, checked: true }));
-                if (avail && permOk) {
-                    sub = Pedometer.watchStepCount((result: any) => {
-                        setSensorDebug(p => ({ ...p, liveCount: result.steps }));
-                    });
-                }
-            } catch {
-                setSensorDebug(p => ({ ...p, available: false, checked: true }));
-            }
-        })();
-        return () => { sub?.remove(); };
-    }, []);
-
     const strokeDashoffset = progressAnim.interpolate({
         inputRange: [0, 1],
         outputRange: [CIRCUMFERENCE, 0],
     });
 
+    // Persist auth info for background task access
     useEffect(() => {
-        if (!isLoggedIn || !deviceId || todaySteps > 0) return;
+        if (deviceId && mobile) {
+            persistBgAuthInfo(deviceId, mobile);
+        }
+    }, [deviceId, mobile]);
+
+    // Restore from server on first load
+    useEffect(() => {
+        if (!isLoggedIn || !deviceId) return;
         (async () => {
             const data = await fetchStepData(deviceId);
             if (data) {
                 const today = new Date().toISOString().split('T')[0];
                 const todayLog = data.dailyLogs?.find((l: any) => l.date === today);
-                restoreFromServer({
-                    todaySteps: todayLog?.steps || 0,
-                    dailyGoal: data.dailyGoal || 5000,
-                });
+                // Only restore if local has no steps yet (new day or fresh install)
+                if (todaySteps === 0 && todayLog?.steps > 0) {
+                    restoreFromServer({
+                        todaySteps: todayLog.steps,
+                        dailyGoal: data.dailyGoal || 5000,
+                    });
+                }
             }
         })();
     }, [isLoggedIn, deviceId]);
@@ -138,17 +160,19 @@ export default function StepTrackerScreen() {
         setSyncing(true);
         try {
             await syncStepData(deviceId, mobile, todaySteps, distance, calories, dailyGoal);
+            setLastSyncTime(new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
         } catch { }
         setSyncing(false);
     }, [deviceId, isLoggedIn, mobile, todaySteps, distance, calories, dailyGoal]);
 
+    // Auto sync every 30 seconds
     useEffect(() => {
         if (!isLoggedIn || !deviceId) return;
-        const interval = setInterval(syncToServer, 60000);
+        syncToServer(); // Sync immediately on mount
+        const interval = setInterval(syncToServer, 30000);
         return () => clearInterval(interval);
     }, [syncToServer, isLoggedIn, deviceId]);
 
-    // Derive colors from theme with proper contrast
     const accentColor = theme.accent;
     const bgColor = theme.bgCream;
     const cardBg = '#FFFFFF';
@@ -158,44 +182,41 @@ export default function StepTrackerScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { backgroundColor: bgColor }]}>
+            <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
                 <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
-                <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
-                    <View style={styles.header}>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                            <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>{t('step_tracker_header' as any)}</Text>
-                        <View style={{ width: 24 }} />
-                    </View>
-                </View>
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color={accentColor} />
-                </View>
+                <ActivityIndicator size="large" color={accentColor} />
             </View>
         );
     }
 
     return (
-        <View style={[styles.container, { backgroundColor: bgColor }]}>
+        <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
             <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
 
-            {/* Header - same as daily-quote */}
-            <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
-                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('step_tracker_header' as any)}</Text>
-                    <TouchableOpacity onPress={syncToServer} style={styles.syncBtn} disabled={syncing}>
-                        {syncing ? (
-                            <ActivityIndicator size="small" color={accentColor} />
-                        ) : (
-                            <Ionicons name="sync" size={22} color={accentColor} />
-                        )}
-                    </TouchableOpacity>
-                </View>
+            {/* Header */}
+            <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+                    <Ionicons name="arrow-back" size={24} color={textColor} />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: textColor }]}>{t('step_tracker_header' as any)}</Text>
+                <TouchableOpacity onPress={syncToServer} style={styles.syncBtn} disabled={syncing}>
+                    {syncing ? (
+                        <ActivityIndicator size="small" color={accentColor} />
+                    ) : (
+                        <Ionicons name="sync" size={22} color={accentColor} />
+                    )}
+                </TouchableOpacity>
             </View>
+
+            {/* Live Notification Bar */}
+            <StepNotificationBar
+                steps={todaySteps}
+                goal={dailyGoal}
+                distance={distance}
+                calories={calories}
+                accentColor={accentColor}
+                theme={theme}
+            />
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Ring Card */}
@@ -227,6 +248,9 @@ export default function StepTrackerScreen() {
                         <View style={styles.ringCenter}>
                             <Text style={[styles.stepsCount, { color: textColor }]}>{todaySteps.toLocaleString()}</Text>
                             <Text style={[styles.stepsLabel, { color: subTextColor }]}>{t('step_tracker_steps' as any)}</Text>
+                            {todaySteps >= dailyGoal && (
+                                <Text style={{ fontSize: 20, marginTop: 4 }}>🎉</Text>
+                            )}
                         </View>
                     </Animated.View>
                 </View>
@@ -256,7 +280,14 @@ export default function StepTrackerScreen() {
 
                 {/* Goal Card */}
                 <View style={[styles.goalCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
-                    <Text style={[styles.goalTitle, { color: textColor }]}>{t('step_tracker_daily_goal' as any)}</Text>
+                    <View style={styles.goalHeader}>
+                        <Text style={[styles.goalTitle, { color: textColor }]}>{t('step_tracker_daily_goal' as any)}</Text>
+                        {lastSyncTime && (
+                            <Text style={[styles.syncTime, { color: subTextColor }]}>
+                                <Ionicons name="cloud-done" size={10} color="#4CAF50" /> Synced {lastSyncTime}
+                            </Text>
+                        )}
+                    </View>
                     <Text style={[styles.goalValue, { color: accentColor }]}>{dailyGoal.toLocaleString()} {t('step_tracker_steps' as any)}</Text>
                     <View style={[styles.goalBarBg, { backgroundColor: ringTrackColor }]}>
                         <View style={[styles.goalBarFill, { width: `${Math.min(progress * 100, 100)}%`, backgroundColor: accentColor }]} />
@@ -287,43 +318,26 @@ export default function StepTrackerScreen() {
                     ))}
                 </View>
 
-                {!isAvailable && (
-                    <View style={[styles.warningCard, { backgroundColor: '#FFF8E1', borderColor: '#FFD54F' }]}>
-                        <Ionicons name="warning" size={20} color="#F9A825" />
-                        <Text style={[styles.warningText, { color: '#5D4037' }]}>{t('step_tracker_not_available' as any)}</Text>
-                    </View>
-                )}
-
-                {/* Sensor Debug Card */}
-                <View style={[styles.debugCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
-                    <Text style={[styles.debugTitle, { color: textColor }]}>🔧 Sensor Debug</Text>
-                    <View style={styles.debugRow}>
-                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Platform:</Text>
-                        <Text style={[styles.debugValue, { color: textColor }]}>{Platform.OS}</Text>
-                    </View>
-                    <View style={styles.debugRow}>
-                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Permission Granted:</Text>
-                        <Text style={[styles.debugValue, { color: sensorDebug.permGranted ? '#4CAF50' : '#F44336' }]}>
-                            {sensorDebug.permGranted ? '✅ YES' : '❌ NO'}
+                {/* Status indicators */}
+                <View style={[styles.statusCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
+                    <View style={styles.statusRow}>
+                        <Ionicons name="hardware-chip" size={16} color={isAvailable ? '#4CAF50' : '#F44336'} />
+                        <Text style={[styles.statusText, { color: subTextColor }]}>
+                            Pedometer: {isAvailable ? 'Active' : 'Not Available'}
                         </Text>
                     </View>
-                    <View style={styles.debugRow}>
-                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Pedometer Available:</Text>
-                        <Text style={[styles.debugValue, { color: sensorDebug.available ? '#4CAF50' : '#F44336' }]}>
-                            {sensorDebug.checked ? (sensorDebug.available ? '✅ YES' : '❌ NO') : '⏳ Checking...'}
+                    <View style={styles.statusRow}>
+                        <Ionicons name="notifications" size={16} color={notificationEnabled ? '#4CAF50' : '#F44336'} />
+                        <Text style={[styles.statusText, { color: subTextColor }]}>
+                            Notifications: {notificationEnabled ? 'On' : 'Off'}
                         </Text>
                     </View>
-                    <View style={styles.debugRow}>
-                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Live Sensor Count:</Text>
-                        <Text style={[styles.debugValue, { color: accentColor }]}>{sensorDebug.liveCount}</Text>
+                    <View style={styles.statusRow}>
+                        <Ionicons name="cloud" size={16} color={isLoggedIn ? '#4CAF50' : '#FF9800'} />
+                        <Text style={[styles.statusText, { color: subTextColor }]}>
+                            Cloud Sync: {isLoggedIn ? 'Active' : 'Login Required'}
+                        </Text>
                     </View>
-                    <View style={styles.debugRow}>
-                        <Text style={[styles.debugLabel, { color: subTextColor }]}>Today Steps:</Text>
-                        <Text style={[styles.debugValue, { color: textColor }]}>{todaySteps}</Text>
-                    </View>
-                    <Text style={[styles.debugHint, { color: subTextColor }]}>
-                        Walk or shake your phone — "Live Sensor Count" should increase in real-time if the sensor is working.
-                    </Text>
                 </View>
             </ScrollView>
         </View>
@@ -333,7 +347,6 @@ export default function StepTrackerScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1 },
     center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-    headerBg: {},
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -341,7 +354,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
     },
     backBtn: { padding: 6 },
-    headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', textAlign: 'center', color: TEXT_DARK },
+    headerTitle: { flex: 1, fontSize: 17, fontWeight: '700', textAlign: 'center' },
     syncBtn: { padding: 6 },
     scrollContent: { alignItems: 'center', paddingBottom: 40, paddingHorizontal: 6 },
     ringCard: {
@@ -392,7 +405,14 @@ const styles = StyleSheet.create({
         padding: 16,
         marginTop: 6,
     },
-    goalTitle: { fontSize: 14, fontWeight: '600', marginBottom: 6 },
+    goalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginBottom: 6,
+    },
+    goalTitle: { fontSize: 14, fontWeight: '600' },
+    syncTime: { fontSize: 10, fontWeight: '500' },
     goalValue: { fontSize: 22, fontWeight: '800', marginBottom: 10 },
     goalBarBg: {
         height: 8,
@@ -413,32 +433,18 @@ const styles = StyleSheet.create({
         borderWidth: 1.5,
     },
     goalPresetText: { fontSize: 13, fontWeight: '600' },
-    warningCard: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        borderWidth: 1,
-        borderRadius: 10,
-        padding: 12,
-        marginTop: 6,
-        width: '100%',
-    },
-    warningText: { fontSize: 13, flex: 1 },
-    debugCard: {
+    statusCard: {
         width: '100%',
         borderRadius: 12,
         borderWidth: 1,
-        padding: 12,
-        marginTop: 6,
+        padding: 14,
+        marginTop: 10,
+        gap: 8,
     },
-    debugTitle: { fontSize: 14, fontWeight: '700', marginBottom: 8 },
-    debugRow: {
+    statusRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
-        paddingVertical: 4,
+        gap: 8,
     },
-    debugLabel: { fontSize: 12, fontWeight: '500' },
-    debugValue: { fontSize: 12, fontWeight: '700' },
-    debugHint: { fontSize: 11, marginTop: 8, fontStyle: 'italic' },
+    statusText: { fontSize: 12, fontWeight: '500' },
 });

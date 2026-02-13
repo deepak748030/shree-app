@@ -10,7 +10,7 @@ import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { Platform, PermissionsAndroid } from 'react-native';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
@@ -39,16 +39,34 @@ function AppContent() {
       // 1. Notification permission
       await requestNotificationPermission();
 
-      // 2. Sensor/Pedometer permission (uses expo-sensors API)
-      try {
-        const { Pedometer } = await import('expo-sensors');
-        if (Pedometer) {
-          const { status } = await Pedometer.getPermissionsAsync();
-          if (status !== 'granted') {
-            await Pedometer.requestPermissionsAsync();
+      // 2. Activity Recognition / Physical Activity permission (Android 10+)
+      if (Platform.OS === 'android' && Platform.Version >= 29) {
+        try {
+          await PermissionsAndroid.request(
+            'android.permission.ACTIVITY_RECOGNITION' as any,
+            {
+              title: 'Step Tracker Permission',
+              message: 'Allow step counting to track your daily steps.',
+              buttonPositive: 'Allow',
+              buttonNegative: 'Deny',
+            }
+          );
+        } catch { }
+      }
+
+      // 3. iOS Motion & Fitness permission (request via Pedometer availability check)
+      if (Platform.OS === 'ios') {
+        try {
+          const sensors = await import('expo-sensors');
+          if (sensors?.Pedometer) {
+            // This triggers the iOS motion permission dialog
+            await sensors.Pedometer.isAvailableAsync();
+            const start = new Date();
+            start.setHours(0, 0, 0, 0);
+            await sensors.Pedometer.getStepCountAsync(start, new Date());
           }
-        }
-      } catch { }
+        } catch { }
+      }
     })();
   }, []);
 

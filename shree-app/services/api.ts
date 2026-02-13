@@ -10,6 +10,7 @@ export interface HomeContentResponse {
     subtitle_en: string;
     paragraphs_hi: string[];
     paragraphs_en: string[];
+    bannerImages: string[];
     updatedAt: string;
 }
 

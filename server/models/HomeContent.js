@@ -25,6 +25,10 @@ const homeContentSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    bannerImages: {
+        type: [String],
+        default: [],
+    },
 }, {
     timestamps: true,
 });

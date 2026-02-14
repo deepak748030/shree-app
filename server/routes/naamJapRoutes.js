@@ -19,10 +19,13 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Helper: get today's date string YYYY-MM-DD
+// Helper: get today's date string YYYY-MM-DD in Indian timezone (IST)
 const getTodayString = () => {
     const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    // Convert to IST (UTC+5:30)
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + istOffset);
+    return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
 };
 
 // ============ PUBLIC ROUTES (for mobile app) ============

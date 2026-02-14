@@ -74,6 +74,7 @@ export default function NaamJapCounterScreen() {
         resetAllMalas,
         restoreFromServer,
         checkAndResetDaily,
+        markLoaded,
     } = usePersistedCounter();
 
     const [menuVisible, setMenuVisible] = useState(false);
@@ -110,37 +111,43 @@ export default function NaamJapCounterScreen() {
         });
     }, [isLoggedIn]);
 
-    // On mount: check daily reset and fetch today's data from server by date
+    // On mount: fetch today's data from server — no cache
     const restoredRef = useRef(false);
     useEffect(() => {
-        if (!isLoaded) return;
-
-        // Always reset daily counters if new day (on mount)
+        // Always reset daily counters if new day
         checkAndResetDaily();
 
-        if (!isLoggedIn || !deviceId) return;
+        if (!deviceId) {
+            markLoaded();
+            return;
+        }
 
         // Prevent duplicate fetches
         if (restoredRef.current) return;
         restoredRef.current = true;
 
-        // Fetch today's data from server by date — not cached
-        const today = new Date().toISOString().slice(0, 10);
-        fetchUserDailyData(deviceId, today).then((data) => {
-            if (data) {
-                // Restore today's counts from server (authoritative source)
-                restoreFromServer(
-                    data.user.totalCount || 0,
-                    data.user.totalMalas || 0,
-                    data.dailyLog?.count || 0,
-                    data.dailyLog?.malas || 0
-                );
-                // Update rank
-                setRank(data.rank);
-                setTotalUsers(data.totalUsers);
-            }
-        }).catch(() => { });
-    }, [isLoggedIn, deviceId, isLoaded]);
+        // Use Indian timezone for date
+        const now = new Date();
+        const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+        const today = `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
+        fetchUserDailyData(deviceId, today)
+            .then((data) => {
+                if (data) {
+                    restoreFromServer(
+                        data.user.totalCount || 0,
+                        data.user.totalMalas || 0,
+                        data.dailyLog?.count || 0,
+                        data.dailyLog?.malas || 0
+                    );
+                    setRank(data.rank);
+                    setTotalUsers(data.totalUsers);
+                }
+            })
+            .catch(() => { })
+            .finally(() => {
+                markLoaded();
+            });
+    }, [deviceId]);
 
     // Sync state object for the hook
     const syncState = useMemo(() => ({

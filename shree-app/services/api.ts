@@ -11,6 +11,7 @@ export interface HomeContentResponse {
     paragraphs_hi: string[];
     paragraphs_en: string[];
     bannerImages: string[];
+    sidebarImage: string;
     updatedAt: string;
 }
 

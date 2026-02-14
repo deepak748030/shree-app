@@ -74,6 +74,7 @@ router.get('/', async (req, res) => {
                 paragraphs_hi: content.paragraphs_hi,
                 paragraphs_en: content.paragraphs_en,
                 bannerImages: content.bannerImages || [],
+                sidebarImage: content.sidebarImage || '',
                 updatedAt: content.updatedAt,
             },
         });
@@ -176,6 +177,60 @@ router.delete('/banner', authMiddleware, async (req, res) => {
     } catch (error) {
         console.error('Banner delete error:', error);
         res.status(500).json({ success: false, message: 'Failed to delete banner image' });
+    }
+});
+
+// POST /api/home-content/sidebar-image/upload - Upload sidebar image (admin)
+router.post('/sidebar-image/upload', authMiddleware, upload.single('image'), async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ success: false, message: 'No image file provided' });
+        }
+
+        const result = await uploadToCloudinary(req.file.buffer);
+        const imageUrl = result.secure_url;
+
+        let content = await HomeContent.findOne();
+        if (!content) {
+            content = new HomeContent({ sidebarImage: imageUrl });
+        } else {
+            // Delete old sidebar image from Cloudinary if exists
+            if (content.sidebarImage) {
+                await deleteFromCloudinary(content.sidebarImage);
+            }
+            content.sidebarImage = imageUrl;
+        }
+        await content.save();
+
+        res.json({
+            success: true,
+            response: { sidebarImage: content.sidebarImage },
+        });
+    } catch (error) {
+        console.error('Sidebar image upload error:', error);
+        res.status(500).json({ success: false, message: 'Failed to upload sidebar image' });
+    }
+});
+
+// DELETE /api/home-content/sidebar-image - Delete sidebar image (admin)
+router.delete('/sidebar-image', authMiddleware, async (req, res) => {
+    try {
+        const content = await HomeContent.findOne();
+        if (!content || !content.sidebarImage) {
+            return res.status(404).json({ success: false, message: 'No sidebar image found' });
+        }
+
+        await deleteFromCloudinary(content.sidebarImage);
+        content.sidebarImage = '';
+        await content.save();
+
+        res.json({
+            success: true,
+            message: 'Sidebar image deleted',
+        });
+    } catch (error) {
+        console.error('Sidebar image delete error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete sidebar image' });
     }
 });
 

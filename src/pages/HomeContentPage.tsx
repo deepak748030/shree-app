@@ -12,6 +12,7 @@ interface HomeContentData {
     paragraphs_hi: string[]
     paragraphs_en: string[]
     bannerImages: string[]
+    sidebarImage: string
     updatedAt?: string
 }
 
@@ -23,6 +24,7 @@ const EMPTY: HomeContentData = {
     paragraphs_hi: [''],
     paragraphs_en: [''],
     bannerImages: [],
+    sidebarImage: '',
 }
 
 export function HomeContentPage() {
@@ -30,9 +32,11 @@ export function HomeContentPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [isUploading, setIsUploading] = useState(false)
+    const [isUploadingSidebar, setIsUploadingSidebar] = useState(false)
     const [deletingUrl, setDeletingUrl] = useState<string | null>(null)
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
+    const sidebarFileInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         fetchContent()
@@ -53,6 +57,7 @@ export function HomeContentPage() {
                     paragraphs_hi: d.paragraphs_hi?.length ? d.paragraphs_hi : [''],
                     paragraphs_en: d.paragraphs_en?.length ? d.paragraphs_en : [''],
                     bannerImages: d.bannerImages || [],
+                    sidebarImage: d.sidebarImage || '',
                     updatedAt: d.updatedAt,
                 })
             }
@@ -126,6 +131,43 @@ export function HomeContentPage() {
             setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to delete banner' })
         } finally {
             setDeletingUrl(null)
+        }
+    }
+
+    const handleSidebarImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setIsUploadingSidebar(true)
+        setMessage(null)
+        try {
+            const formData = new FormData()
+            formData.append('image', file)
+            const res = await api.post('/home-content/sidebar-image/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            })
+            if (res.data.success) {
+                setContent(prev => ({ ...prev, sidebarImage: res.data.response.sidebarImage }))
+                setMessage({ type: 'success', text: 'Sidebar image uploaded!' })
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to upload sidebar image' })
+        } finally {
+            setIsUploadingSidebar(false)
+            if (sidebarFileInputRef.current) sidebarFileInputRef.current.value = ''
+        }
+    }
+
+    const handleSidebarImageDelete = async () => {
+        if (!confirm('Delete sidebar image?')) return
+        setMessage(null)
+        try {
+            const res = await api.delete('/home-content/sidebar-image')
+            if (res.data.success) {
+                setContent(prev => ({ ...prev, sidebarImage: '' }))
+                setMessage({ type: 'success', text: 'Sidebar image deleted!' })
+            }
+        } catch (err: any) {
+            setMessage({ type: 'error', text: err.response?.data?.message || 'Failed to delete sidebar image' })
         }
     }
 
@@ -278,7 +320,59 @@ export function HomeContentPage() {
                 )}
             </div>
 
-            {/* Hindi Section */}
+            {/* Sidebar Image Section */}
+            <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+                <div className="flex items-center justify-between">
+                    <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
+                        <ImageIcon className="w-5 h-5" />
+                        Sidebar Drawer Image
+                    </h2>
+                    <div>
+                        <input
+                            ref={sidebarFileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handleSidebarImageUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => sidebarFileInputRef.current?.click()}
+                            disabled={isUploadingSidebar}
+                            className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm"
+                        >
+                            {isUploadingSidebar ? (
+                                <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                                <Upload className="w-4 h-4" />
+                            )}
+                            {isUploadingSidebar ? 'Uploading...' : content.sidebarImage ? 'Change Image' : 'Upload Image'}
+                        </button>
+                    </div>
+                </div>
+
+                {content.sidebarImage ? (
+                    <div className="relative group rounded-lg overflow-hidden border border-border inline-block">
+                        <img
+                            src={content.sidebarImage}
+                            alt="Sidebar"
+                            className="w-full max-w-xs h-48 object-cover"
+                        />
+                        <button
+                            onClick={handleSidebarImageDelete}
+                            className="absolute top-1.5 right-1.5 p-1.5 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/90"
+                        >
+                            <X className="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+                ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                        <ImageIcon className="w-12 h-12 mx-auto mb-2 opacity-40" />
+                        <p className="text-sm">No sidebar image uploaded yet.</p>
+                        <p className="text-xs mt-1">This image appears at the top of the mobile app's sidebar drawer.</p>
+                    </div>
+                )}
+            </div>
+
             <div className="bg-card border border-border rounded-xl p-5 space-y-4">
                 <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
                     <span className="w-7 h-7 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold">हि</span>

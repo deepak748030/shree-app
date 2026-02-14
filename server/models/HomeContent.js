@@ -29,6 +29,10 @@ const homeContentSchema = new mongoose.Schema({
         type: [String],
         default: [],
     },
+    sidebarImage: {
+        type: String,
+        default: '',
+    },
 }, {
     timestamps: true,
 });

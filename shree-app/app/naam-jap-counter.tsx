@@ -126,10 +126,11 @@ export default function NaamJapCounterScreen() {
         if (restoredRef.current) return;
         restoredRef.current = true;
 
-        // Use Indian timezone for date
+        // Use Indian timezone for date — manual UTC+5:30 offset
         const now = new Date();
-        const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-        const today = `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
+        const istMs = now.getTime() + (5.5 * 60 * 60 * 1000);
+        const istDate = new Date(istMs);
+        const today = `${istDate.getUTCFullYear()}-${String(istDate.getUTCMonth() + 1).padStart(2, '0')}-${String(istDate.getUTCDate()).padStart(2, '0')}`;
         fetchUserDailyData(deviceId, today)
             .then((data) => {
                 if (data) {

@@ -51,7 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        await AsyncStorage.multiRemove([AUTH_USER_KEY, AUTH_MOBILE_KEY]);
+        await AsyncStorage.clear();
         setUser(null);
         setMobile(null);
     };

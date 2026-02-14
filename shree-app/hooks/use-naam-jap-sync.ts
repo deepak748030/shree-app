@@ -88,12 +88,32 @@ export function useNaamJapSync(
         }
     }, [state.count, state.malaCount, debouncedSync]);
 
-    // Periodic sync as safety net
+    // Force sync (skip the "nothing changed" check) for unmount
+    const forceSyncRef = useRef(() => { });
+    useEffect(() => {
+        forceSyncRef.current = async () => {
+            if (!deviceId) return;
+            const current = stateRef.current;
+            try {
+                await syncNaamJapCount(
+                    deviceId,
+                    current.count,
+                    current.malaCount,
+                    current.todayCount,
+                    current.todayMalas
+                );
+            } catch { }
+        };
+    }, [deviceId]);
+
+    // Periodic sync as safety net + sync on unmount
     useEffect(() => {
         intervalRef.current = setInterval(doSync, INTERVAL_MS);
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
             if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+            // Sync immediately on unmount so data is not lost
+            forceSyncRef.current();
         };
     }, [doSync]);
 

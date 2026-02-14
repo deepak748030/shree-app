@@ -5,9 +5,10 @@ const TEXT_DARK = '#333333';
 // Get today's date string in Indian timezone (IST, UTC+5:30)
 function getTodayString(): string {
     const now = new Date();
-    // Convert to IST by using Intl
-    const istDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
-    return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
+    // Manual IST offset: UTC + 5 hours 30 minutes
+    const istMs = now.getTime() + (5.5 * 60 * 60 * 1000);
+    const istDate = new Date(istMs);
+    return `${istDate.getUTCFullYear()}-${String(istDate.getUTCMonth() + 1).padStart(2, '0')}-${String(istDate.getUTCDate()).padStart(2, '0')}`;
 }
 
 export function usePersistedCounter() {

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const STORAGE_KEYS = {
     COUNT: '@naam_jap_count',
@@ -32,6 +32,22 @@ export function usePersistedCounter() {
     const [todayMalas, setTodayMalas] = useState(0);
     const [autoChangeImage, setAutoChangeImage] = useState(true);
     const [isLoaded, setIsLoaded] = useState(false);
+    const lastDateRef = useRef<string>(getTodayString());
+
+    // Check if day changed and reset daily counters if needed
+    const checkAndResetDaily = useCallback(async () => {
+        const today = getTodayString();
+        if (lastDateRef.current !== today) {
+            lastDateRef.current = today;
+            setTodayCount(0);
+            setTodayMalas(0);
+            await AsyncStorage.multiSet([
+                [STORAGE_KEYS.TODAY_DATE, today],
+                [STORAGE_KEYS.TODAY_COUNT, '0'],
+                [STORAGE_KEYS.TODAY_MALAS, '0'],
+            ]);
+        }
+    }, []);
 
     // Load persisted data on mount
     useEffect(() => {
@@ -213,6 +229,7 @@ export function usePersistedCounter() {
         todayMalas,
         autoChangeImage,
         isLoaded,
+        checkAndResetDaily,
         updateCount,
         updateMalaCount,
         updateTodayCount,

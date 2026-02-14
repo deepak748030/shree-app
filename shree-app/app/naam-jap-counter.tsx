@@ -10,7 +10,7 @@ import { useDeviceId } from '@/hooks/use-device-id';
 import { useNaamJapSync } from '@/hooks/use-naam-jap-sync';
 import { getExpoPushToken } from '@/hooks/use-notifications';
 import { usePersistedCounter } from '@/hooks/use-persisted-counter';
-import { fetchPresetImages, fetchUserData, PresetImageData } from '@/services/api';
+import { fetchPresetImages, fetchUserDailyData, PresetImageData } from '@/services/api';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -73,6 +73,7 @@ export default function NaamJapCounterScreen() {
         resetCurrentMala,
         resetAllMalas,
         restoreFromServer,
+        checkAndResetDaily,
     } = usePersistedCounter();
 
     const [menuVisible, setMenuVisible] = useState(false);
@@ -109,32 +110,37 @@ export default function NaamJapCounterScreen() {
         });
     }, [isLoggedIn]);
 
-    // Restore counts from server when logged in (handles cache clear / re-login)
+    // On mount: check daily reset and fetch today's data from server by date
     const restoredRef = useRef(false);
     useEffect(() => {
-        if (!isLoggedIn || !deviceId || !isLoaded) return;
-        // If local data exists, skip but allow future restore if reset to 0
-        if (count > 0 || malaCount > 0) {
-            restoredRef.current = false;
-            return;
-        }
-        // Prevent duplicate fetches at 0
+        if (!isLoaded) return;
+
+        // Always reset daily counters if new day (on mount)
+        checkAndResetDaily();
+
+        if (!isLoggedIn || !deviceId) return;
+
+        // Prevent duplicate fetches
         if (restoredRef.current) return;
         restoredRef.current = true;
 
-        fetchUserData(deviceId).then((data) => {
-            if (data && data.user) {
-                const today = new Date().toISOString().slice(0, 10);
-                const todayLog = data.recentLogs?.find((l) => l.date === today);
+        // Fetch today's data from server by date — not cached
+        const today = new Date().toISOString().slice(0, 10);
+        fetchUserDailyData(deviceId, today).then((data) => {
+            if (data) {
+                // Restore today's counts from server (authoritative source)
                 restoreFromServer(
                     data.user.totalCount || 0,
                     data.user.totalMalas || 0,
-                    todayLog?.count || 0,
-                    todayLog?.malas || 0
+                    data.dailyLog?.count || 0,
+                    data.dailyLog?.malas || 0
                 );
+                // Update rank
+                setRank(data.rank);
+                setTotalUsers(data.totalUsers);
             }
         }).catch(() => { });
-    }, [isLoggedIn, deviceId, isLoaded, count, malaCount]);
+    }, [isLoggedIn, deviceId, isLoaded]);
 
     // Sync state object for the hook
     const syncState = useMemo(() => ({
@@ -157,7 +163,10 @@ export default function NaamJapCounterScreen() {
     const strokeDashoffset = CIRCUMFERENCE * (1 - progress);
     const menuAnchorY = insets.top + 40;
 
-    const handleTap = useCallback(() => {
+    const handleTap = useCallback(async () => {
+        // Check if day changed — reset daily counters to 0 if new day
+        await checkAndResetDaily();
+
         if (vibrationEnabled) {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         }
@@ -179,7 +188,7 @@ export default function NaamJapCounterScreen() {
         });
 
         updateTodayCount((prev) => prev + 1);
-    }, [vibrationEnabled, autoChangeImage, presetImages, displayMode, updateCount, updateMalaCount, updateTodayCount, updateTodayMalas, updateSelectedImage]);
+    }, [vibrationEnabled, autoChangeImage, presetImages, displayMode, updateCount, updateMalaCount, updateTodayCount, updateTodayMalas, updateSelectedImage, checkAndResetDaily]);
 
     const handleUserSaved = useCallback(() => {
         setUserInfoVisible(false);

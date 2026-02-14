@@ -212,6 +212,23 @@ export async function fetchUserData(deviceId: string): Promise<UserRankData | nu
     }
 }
 
+// Get user daily data for a specific date (returns 0 if no entry)
+export async function fetchUserDailyData(
+    deviceId: string,
+    date: string
+): Promise<{ dailyLog: { date: string; count: number; malas: number }; rank: number; totalUsers: number; user: NaamJapUser } | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/naam-jap/user/${deviceId}/daily/${date}`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 // ============ PRESET IMAGES APIs ============
 
 export interface PresetImageData {

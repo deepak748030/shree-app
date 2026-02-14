@@ -522,4 +522,62 @@ router.get('/admin/stats', authMiddleware, async (req, res) => {
     }
 });
 
+// GET /api/naam-jap/user/:deviceId/daily/:date - Get or create daily log for specific date
+router.get('/user/:deviceId/daily/:date', async (req, res) => {
+    try {
+        const { deviceId, date } = req.params;
+
+        // Validate date format YYYY-MM-DD
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            return res.status(400).json({ success: false, message: 'Invalid date format. Use YYYY-MM-DD' });
+        }
+
+        const user = await NaamJapUser.findOne({ deviceId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        // Find today's log
+        let dailyLog = user.dailyLogs.find(log => log.date === date);
+
+        // If no log exists for this date, create one with 0
+        if (!dailyLog) {
+            dailyLog = { date, count: 0, malas: 0 };
+            // Keep only last 90 days
+            if (user.dailyLogs.length >= 90) {
+                user.dailyLogs.sort((a, b) => a.date.localeCompare(b.date));
+                user.dailyLogs = user.dailyLogs.slice(-89);
+            }
+            user.dailyLogs.push(dailyLog);
+            await user.save();
+        }
+
+        const rank = await NaamJapUser.countDocuments({
+            isActive: true,
+            totalMalas: { $gt: user.totalMalas },
+        }) + 1;
+
+        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
+
+        res.json({
+            success: true,
+            response: {
+                user: {
+                    name: user.name,
+                    city: user.city,
+                    totalCount: user.totalCount,
+                    totalMalas: user.totalMalas,
+                    lastSyncAt: user.lastSyncAt,
+                },
+                dailyLog,
+                rank,
+                totalUsers,
+            },
+        });
+    } catch (error) {
+        console.error('Get daily log error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get daily log' });
+    }
+});
+
 module.exports = router;

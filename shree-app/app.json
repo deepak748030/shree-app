@@ -19,7 +19,9 @@
       "package": "com.shreejii.app",
       "googleServicesFile": "./google-services.json",
       "permissions": [
-        "android.permission.ACTIVITY_RECOGNITION"
+        "android.permission.ACTIVITY_RECOGNITION",
+        "BODY_SENSORS",
+        "ACTIVITY_RECOGNITION"
       ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

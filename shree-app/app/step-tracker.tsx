@@ -11,6 +11,8 @@ import {
     ActivityIndicator,
     Animated,
     Dimensions,
+    Platform,
+    PermissionsAndroid,
     ScrollView,
     StyleSheet,
     Text,
@@ -109,6 +111,49 @@ export default function StepTrackerScreen() {
     const progressAnim = useRef(new Animated.Value(0)).current;
     const scaleAnim = useRef(new Animated.Value(0.9)).current;
 
+    // Request step tracking permissions when entering this screen
+    useEffect(() => {
+        (async () => {
+            if (Platform.OS === 'android') {
+                if (Platform.Version >= 29) {
+                    try {
+                        await PermissionsAndroid.request(
+                            'android.permission.ACTIVITY_RECOGNITION' as any,
+                            {
+                                title: 'Step Tracking Permission',
+                                message: 'Allow access to track your steps.',
+                                buttonPositive: 'Allow',
+                                buttonNegative: 'Deny',
+                            }
+                        );
+                    } catch { }
+                }
+                try {
+                    await PermissionsAndroid.request(
+                        'android.permission.BODY_SENSORS' as any,
+                        {
+                            title: 'Body Sensor Permission',
+                            message: 'Allow access to body sensors for accurate step tracking.',
+                            buttonPositive: 'Allow',
+                            buttonNegative: 'Deny',
+                        }
+                    );
+                } catch { }
+            }
+            if (Platform.OS === 'ios') {
+                try {
+                    const sensors = await import('expo-sensors');
+                    if (sensors?.Pedometer) {
+                        await sensors.Pedometer.isAvailableAsync();
+                        const start = new Date();
+                        start.setHours(0, 0, 0, 0);
+                        await sensors.Pedometer.getStepCountAsync(start, new Date());
+                    }
+                } catch { }
+            }
+        })();
+    }, []);
+
     useEffect(() => {
         Animated.parallel([
             Animated.timing(progressAnim, {
@@ -183,7 +228,7 @@ export default function StepTrackerScreen() {
     if (loading) {
         return (
             <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+                <StatusBar style="dark" backgroundColor="#FFD700" translucent={false} />
                 <ActivityIndicator size="large" color={accentColor} />
             </View>
         );
@@ -191,10 +236,10 @@ export default function StepTrackerScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style="dark" backgroundColor="#FFD700" translucent={false} />
 
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
+            <View style={[styles.header, { backgroundColor: '#FFD700' }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color={textColor} />
                 </TouchableOpacity>

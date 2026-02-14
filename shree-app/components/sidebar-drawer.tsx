@@ -2,6 +2,7 @@ import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
+import { fetchHomeContent } from '@/services/api';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -54,6 +55,19 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const overlayAnim = useRef(new Animated.Value(0)).current;
     const [logoutSheetVisible, setLogoutSheetVisible] = useState(false);
+    const [sidebarImageUrl, setSidebarImageUrl] = useState<string | null>(null);
+
+    // Fetch sidebar image from API
+    useEffect(() => {
+        (async () => {
+            try {
+                const data = await fetchHomeContent();
+                if (data?.sidebarImage) {
+                    setSidebarImageUrl(data.sidebarImage);
+                }
+            } catch { }
+        })();
+    }, []);
 
     useEffect(() => {
         if (visible) {
@@ -105,7 +119,7 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
             >
                 <View style={styles.drawerHeader}>
                     <Image
-                        source={require('@/assets/images/slider-2.png')}
+                        source={sidebarImageUrl ? { uri: sidebarImageUrl } : require('@/assets/images/slider-2.png')}
                         style={styles.drawerHeaderImage}
                         contentFit="cover"
                     />

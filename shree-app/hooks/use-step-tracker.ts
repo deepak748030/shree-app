@@ -225,6 +225,13 @@ export function useStepTracker() {
     const calories = Math.round(todaySteps * CALORIES_PER_STEP);
     const progress = dailyGoal > 0 ? Math.min(todaySteps / dailyGoal, 1) : 0;
 
+    const saveTodaySteps = useCallback(async (steps: number) => {
+        try {
+            const data: StepData = { date: getTodayStr(), steps };
+            await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify(data));
+        } catch { }
+    }, []);
+
     // Setup notification channel + permissions + background task on mount
     useEffect(() => {
         (async () => {
@@ -316,10 +323,11 @@ export function useStepTracker() {
         updateStepNotification(todaySteps, dailyGoal, distance, calories);
     }, [todaySteps, dailyGoal, notificationEnabled, distance, calories]);
 
-    // Re-fetch on app foreground + handle daily reset + immediate server sync
+    // Re-fetch on app foreground + sync on background + handle daily reset
     useEffect(() => {
         const listener = AppState.addEventListener('change', async (state) => {
             if (state === 'active') {
+                // ── FOREGROUND: re-fetch accurate steps, restart live subscription ──
                 try {
                     // Check if new day - reset if needed
                     const savedData = await AsyncStorage.getItem(STEP_DATA_KEY);
@@ -343,24 +351,61 @@ export function useStepTracker() {
                         baseStepsRef.current = result.steps;
                         saveTodaySteps(result.steps);
 
-                        // Immediate server sync on foreground
+                        // Immediate server sync + notification update on foreground
                         const goal = dailyGoal;
                         const dist = parseFloat((result.steps / STEPS_PER_KM).toFixed(2));
                         const cal = Math.round(result.steps * CALORIES_PER_STEP);
                         await syncToServerFromBackground(result.steps, dist, cal, goal);
+                        if (notificationEnabled) {
+                            await updateStepNotification(result.steps, goal, dist, cal);
+                        }
+                    }
+
+                    // Re-subscribe to live pedometer updates (previous sub dies in background)
+                    if (subscriptionRef.current) {
+                        subscriptionRef.current.remove();
+                        subscriptionRef.current = null;
+                    }
+                    const sub = Pedometer.watchStepCount((r: any) => {
+                        setTodaySteps(prev => {
+                            const newSteps = baseStepsRef.current + r.steps;
+                            saveTodaySteps(newSteps);
+                            return newSteps;
+                        });
+                    });
+                    subscriptionRef.current = sub;
+                } catch { }
+            } else if (state === 'background') {
+                // ── BACKGROUND: do a final sync + update notification before OS suspends ──
+                try {
+                    const Pedometer = await getPedometerModule();
+                    if (!Pedometer) return;
+                    const start = new Date();
+                    start.setHours(0, 0, 0, 0);
+                    const end = new Date();
+                    const result = await Pedometer.getStepCountAsync(start, end);
+                    if (result?.steps) {
+                        // Persist locally so background task / next foreground has latest
+                        const data: StepData = { date: getTodayStr(), steps: result.steps };
+                        await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify(data));
+
+                        const goal = dailyGoal;
+                        const dist = parseFloat((result.steps / STEPS_PER_KM).toFixed(2));
+                        const cal = Math.round(result.steps * CALORIES_PER_STEP);
+
+                        // Sync to server before OS suspends
+                        await syncToServerFromBackground(result.steps, dist, cal, goal);
+
+                        // Update notification so it stays current while backgrounded
+                        await updateStepNotification(result.steps, goal, dist, cal);
                     }
                 } catch { }
             }
         });
         return () => listener.remove();
-    }, [dailyGoal]);
+    }, [dailyGoal, notificationEnabled, saveTodaySteps]);
 
-    const saveTodaySteps = useCallback(async (steps: number) => {
-        try {
-            const data: StepData = { date: getTodayStr(), steps };
-            await AsyncStorage.setItem(STEP_DATA_KEY, JSON.stringify(data));
-        } catch { }
-    }, []);
+    // saveTodaySteps is defined above (before useEffects that reference it)
 
     const updateGoal = useCallback(async (goal: number) => {
         setDailyGoal(goal);

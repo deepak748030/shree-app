@@ -12,6 +12,7 @@ import { PushNotificationsPage } from './pages/PushNotificationsPage'
 import { PresetImagesPage } from './pages/PresetImagesPage'
 import { TermsConditionsPage } from './pages/TermsConditionsPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
+import { DeleteAccountPage } from './pages/DeleteAccountPage'
 
 function App() {
     return (
@@ -21,6 +22,7 @@ function App() {
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/terms-conditions" element={<TermsConditionsPage />} />
                     <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+                    <Route path="/delete-account" element={<DeleteAccountPage />} />
                     <Route
                         path="/"
                         element={

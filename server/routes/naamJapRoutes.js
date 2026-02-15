@@ -438,6 +438,49 @@ router.post('/update-push-token', async (req, res) => {
     }
 });
 
+// POST /api/naam-jap/delete-account - Delete user account by mobile number (Play Store compliant)
+router.post('/delete-account', async (req, res) => {
+    try {
+        const { mobile } = req.body;
+
+        if (!mobile) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mobile number is required',
+            });
+        }
+
+        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        if (trimmedMobile.length < 10 || trimmedMobile.length > 15) {
+            return res.status(400).json({
+                success: false,
+                message: 'Invalid mobile number',
+            });
+        }
+
+        const user = await NaamJapUser.findOne({ mobile: trimmedMobile });
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'No account found with this mobile number',
+            });
+        }
+
+        // Permanently delete the user and all associated data
+        await NaamJapUser.deleteOne({ _id: user._id });
+
+        console.log(`Account deleted for mobile: ${trimmedMobile}, user: ${user.name}`);
+
+        res.json({
+            success: true,
+            message: 'Your account and all associated data have been permanently deleted',
+        });
+    } catch (error) {
+        console.error('Delete account error:', error);
+        res.status(500).json({ success: false, message: 'Failed to delete account. Please try again.' });
+    }
+});
+
 // ============ ADMIN ROUTES ============
 
 // GET /api/naam-jap/admin/users - List all users (admin)

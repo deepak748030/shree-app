@@ -10,6 +10,8 @@ import { NaamJapUsersPage } from './pages/NaamJapUsersPage'
 import { HomeContentPage } from './pages/HomeContentPage'
 import { PushNotificationsPage } from './pages/PushNotificationsPage'
 import { PresetImagesPage } from './pages/PresetImagesPage'
+import { TermsConditionsPage } from './pages/TermsConditionsPage'
+import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 
 function App() {
     return (
@@ -17,6 +19,8 @@ function App() {
             <AuthProvider>
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
+                    <Route path="/terms-conditions" element={<TermsConditionsPage />} />
+                    <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                     <Route
                         path="/"
                         element={

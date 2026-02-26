@@ -99,34 +99,31 @@ router.post('/send', authMiddleware, async (req, res) => {
             });
         }
 
-        // Send in chunks
-        const chunks = expo.chunkPushNotifications(messages);
-        console.log('Sending in', chunks.length, 'chunk(s)');
+        // Send each notification individually to avoid mixed-project token errors
+        console.log('Sending', messages.length, 'notifications individually...');
         let sent = 0;
         let failed = 0;
         const errors = [];
 
-        for (const chunk of chunks) {
+        for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
             try {
-                console.log('Sending chunk of', chunk.length, 'messages...');
-                const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
-                console.log('Chunk response:', JSON.stringify(ticketChunk));
+                console.log(`Sending notification ${i + 1}/${messages.length} to token: ${msg.to}`);
+                const ticketChunk = await expo.sendPushNotificationsAsync([msg]);
+                const ticket = ticketChunk[0];
 
-                for (let i = 0; i < ticketChunk.length; i++) {
-                    const ticket = ticketChunk[i];
-                    if (ticket.status === 'ok') {
-                        sent++;
-                        console.log(`Ticket ${i}: OK (id: ${ticket.id})`);
-                    } else {
-                        failed++;
-                        console.log(`Ticket ${i}: FAILED - ${ticket.message} (details: ${JSON.stringify(ticket.details)})`);
-                        errors.push({ token: chunk[i].to, error: ticket.message });
-                    }
+                if (ticket.status === 'ok') {
+                    sent++;
+                    console.log(`Notification ${i + 1}: OK (id: ${ticket.id})`);
+                } else {
+                    failed++;
+                    console.log(`Notification ${i + 1}: FAILED - ${ticket.message} (details: ${JSON.stringify(ticket.details)})`);
+                    errors.push({ token: msg.to, error: ticket.message });
                 }
             } catch (error) {
-                console.error('Error sending chunk:', error.message);
-                failed += chunk.length;
-                errors.push({ error: error.message });
+                failed++;
+                console.error(`Notification ${i + 1}: ERROR - ${error.message}`);
+                errors.push({ token: msg.to, error: error.message });
             }
         }
 

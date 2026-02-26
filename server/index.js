@@ -11,6 +11,7 @@ const homeContentRoutes = require('./routes/homeContentRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const presetImageRoutes = require('./routes/presetImageRoutes');
 const stepTrackerRoutes = require('./routes/stepTrackerRoutes');
+const appVersionRoutes = require('./routes/appVersionRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -51,6 +52,7 @@ app.use('/api/home-content', homeContentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/preset-images', presetImageRoutes);
 app.use('/api/step-tracker', stepTrackerRoutes);
+app.use('/api/app-version', appVersionRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

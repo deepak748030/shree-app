@@ -30,6 +30,29 @@ const getTodayString = () => {
 
 // ============ PUBLIC ROUTES (for mobile app) ============
 
+// POST /api/naam-jap/validate-session - Check if user session is still valid
+router.post('/validate-session', async (req, res) => {
+    try {
+        const { mobile, deviceId } = req.body;
+
+        if (!mobile || !deviceId) {
+            return res.status(400).json({ success: false, message: 'mobile and deviceId are required' });
+        }
+
+        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        const user = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId, isActive: true });
+
+        if (!user) {
+            return res.json({ success: false, message: 'Session invalid' });
+        }
+
+        return res.json({ success: true, response: user });
+    } catch (error) {
+        console.error('Validate session error:', error);
+        return res.status(500).json({ success: false, message: 'Server error' });
+    }
+});
+
 // POST /api/naam-jap/auth-mobile - Login or register by mobile number
 router.post('/auth-mobile', async (req, res) => {
     try {

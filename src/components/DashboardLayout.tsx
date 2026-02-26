@@ -14,6 +14,7 @@ import {
     Users,
     Bell,
     ImageIcon,
+    Smartphone,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -26,6 +27,7 @@ const navItems = [
     { to: '/naam-jap-users', icon: Users, label: 'Naam Jap Users' },
     { to: '/push-notifications', icon: Bell, label: 'Push Notifications' },
     { to: '/preset-images', icon: ImageIcon, label: 'Preset Images' },
+    { to: '/app-version', icon: Smartphone, label: 'App Version' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { type NaamJapUser } from '@/services/api';
+import { type NaamJapUser, validateSession } from '@/services/api';
 
 const AUTH_USER_KEY = '@auth_user';
 const AUTH_MOBILE_KEY = '@auth_mobile';
@@ -29,18 +29,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        Promise.all([
-            AsyncStorage.getItem(AUTH_USER_KEY),
-            AsyncStorage.getItem(AUTH_MOBILE_KEY),
-        ])
-            .then(([savedUser, savedMobile]) => {
+        (async () => {
+            try {
+                const [savedUser, savedMobile] = await Promise.all([
+                    AsyncStorage.getItem(AUTH_USER_KEY),
+                    AsyncStorage.getItem(AUTH_MOBILE_KEY),
+                ]);
+
                 if (savedUser && savedMobile) {
-                    setUser(JSON.parse(savedUser));
+                    const parsedUser = JSON.parse(savedUser) as NaamJapUser;
+
+                    // Basic local validation - check essential fields exist
+                    if (!parsedUser.deviceId || !parsedUser.name || !parsedUser.mobile) {
+                        await AsyncStorage.clear();
+                        setUser(null);
+                        setMobile(null);
+                        setLoading(false);
+                        return;
+                    }
+
+                    // Set cached data first so UI loads fast
+                    setUser(parsedUser);
                     setMobile(savedMobile);
+
+                    // Validate session with server
+                    const result = await validateSession(savedMobile, parsedUser.deviceId);
+                    if (!result.valid) {
+                        // User deleted/deactivated on server - auto logout
+                        await AsyncStorage.clear();
+                        setUser(null);
+                        setMobile(null);
+                    } else if (result.user) {
+                        // Verify server returned complete user data
+                        if (!result.user.name || !result.user.mobile || !result.user.deviceId) {
+                            await AsyncStorage.clear();
+                            setUser(null);
+                            setMobile(null);
+                        } else {
+                            // Update cached user with fresh server data
+                            setUser(result.user);
+                            await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(result.user));
+                        }
+                    }
+                } else if (savedUser || savedMobile) {
+                    // Partial data - clear everything
+                    await AsyncStorage.clear();
                 }
-            })
-            .catch(() => { })
-            .finally(() => setLoading(false));
+            } catch { }
+            setLoading(false);
+        })();
     }, []);
 
     const setAuthUser = async (userData: NaamJapUser, mob: string) => {

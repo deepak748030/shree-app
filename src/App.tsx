@@ -10,6 +10,7 @@ import { NaamJapUsersPage } from './pages/NaamJapUsersPage'
 import { HomeContentPage } from './pages/HomeContentPage'
 import { PushNotificationsPage } from './pages/PushNotificationsPage'
 import { PresetImagesPage } from './pages/PresetImagesPage'
+import { AppVersionPage } from './pages/AppVersionPage'
 import { TermsConditionsPage } from './pages/TermsConditionsPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { DeleteAccountPage } from './pages/DeleteAccountPage'
@@ -37,6 +38,7 @@ function App() {
                         <Route path="naam-jap-users" element={<NaamJapUsersPage />} />
                         <Route path="push-notifications" element={<PushNotificationsPage />} />
                         <Route path="preset-images" element={<PresetImagesPage />} />
+                        <Route path="app-version" element={<AppVersionPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

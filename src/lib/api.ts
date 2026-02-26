@@ -18,15 +18,16 @@ api.interceptors.request.use((config) => {
     return config
 })
 
-// Handle auth errors
+// Handle auth errors - auto logout on 401/403
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            const token = localStorage.getItem('admin_token')
-            const isProfileCheck = error.config?.url?.includes('/admin/me')
-
-            if (!token && !isProfileCheck) {
+        if (error.response?.status === 401 || error.response?.status === 403) {
+            localStorage.removeItem('admin_token')
+            localStorage.removeItem('admin_user')
+            sessionStorage.clear()
+            // Redirect to login if not already there
+            if (!window.location.pathname.includes('/login')) {
                 window.location.href = '/login'
             }
         }

@@ -107,6 +107,25 @@ export interface SyncResponse {
     totalUsers: number;
 }
 
+// Validate session - check if user still exists and is active
+export async function validateSession(mobile: string, deviceId: string): Promise<{ valid: boolean; user?: NaamJapUser }> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/naam-jap/validate-session`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mobile, deviceId }),
+        });
+        const data = await response.json();
+        if (data.success && data.response) {
+            return { valid: true, user: data.response };
+        }
+        return { valid: false };
+    } catch {
+        // Network error - don't logout, keep cached session
+        return { valid: true };
+    }
+}
+
 // Auth by mobile number
 export async function authByMobile(
     mobile: string,
@@ -277,6 +296,33 @@ export async function syncStepData(
 export async function fetchStepData(deviceId: string): Promise<any> {
     try {
         const response = await fetch(`${API_BASE_URL}/step-tracker/user/${deviceId}`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+// ============ APP VERSION CHECK APIs ============
+
+export interface AppVersionCheck {
+    needsUpdate: boolean;
+    isForceUpdate: boolean;
+    requiredVersion: string;
+    playStoreUrl: string;
+    appStoreUrl: string;
+    updateMessage_hi: string;
+    updateMessage_en: string;
+}
+
+export async function checkAppVersion(currentVersion: string, platform: string = 'android'): Promise<AppVersionCheck | null> {
+    try {
+        const response = await fetch(
+            `${API_BASE_URL}/app-version/check?platform=${platform}&currentVersion=${currentVersion}`
+        );
         const data = await response.json();
         if (data.success && data.response) {
             return data.response;

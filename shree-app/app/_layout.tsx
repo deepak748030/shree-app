@@ -1,5 +1,6 @@
 
 import AnimatedSplash from '@/components/animated-splash';
+import ForceUpdateScreen from '@/components/force-update-screen';
 import LanguagePickerModal from '@/components/language-picker-modal';
 import MobileAuthScreen from '@/components/mobile-auth-screen';
 import { AuthProvider, useAuth } from '@/contexts/auth-context';
@@ -7,7 +8,9 @@ import { LanguageProvider, useLanguage } from '@/contexts/language-context';
 import { AppThemeProvider } from '@/contexts/theme-context';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useNotifications, requestNotificationPermission } from '@/hooks/use-notifications';
+import { checkAppVersion, type AppVersionCheck } from '@/services/api';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import Constants from 'expo-constants';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
@@ -24,6 +27,8 @@ function AppContent() {
   const { isLoggedIn, loading: authLoading } = useAuth();
   const [showLangPicker, setShowLangPicker] = useState(true);
   const [showMobileAuth, setShowMobileAuth] = useState(true);
+  const [forceUpdate, setForceUpdate] = useState<AppVersionCheck | null>(null);
+  const [versionChecked, setVersionChecked] = useState(false);
 
   // Reset showMobileAuth when user logs out so auth screen shows again
   React.useEffect(() => {
@@ -33,6 +38,21 @@ function AppContent() {
   }, [isLoggedIn, authLoading]);
 
   useNotifications();
+
+  // Check app version on startup
+  useEffect(() => {
+    (async () => {
+      try {
+        const appVersion = Constants.expoConfig?.version || '1.0.0';
+        const platform = Platform.OS === 'ios' ? 'ios' : 'android';
+        const result = await checkAppVersion(appVersion, platform);
+        if (result && result.needsUpdate && result.isForceUpdate) {
+          setForceUpdate(result);
+        }
+      } catch { }
+      setVersionChecked(true);
+    })();
+  }, []);
 
   // Request all permissions on app startup
   useEffect(() => {
@@ -54,6 +74,18 @@ function AppContent() {
   }, []);
 
   const shouldShowLangPicker = !langLoading && !hasChosenLanguage && showLangPicker;
+  // Show force update screen (blocks everything)
+  if (versionChecked && forceUpdate) {
+    const updateMsg = forceUpdate.updateMessage_hi + '\n' + forceUpdate.updateMessage_en;
+    const storeUrl = Platform.OS === 'ios' ? forceUpdate.appStoreUrl : forceUpdate.playStoreUrl;
+    return (
+      <>
+        <StatusBar style="light" />
+        <ForceUpdateScreen message={updateMsg} storeUrl={storeUrl} />
+      </>
+    );
+  }
+
   const shouldShowMobileAuth = !langLoading && hasChosenLanguage && !authLoading && !isLoggedIn && showMobileAuth;
 
   if (shouldShowMobileAuth) {

@@ -25,6 +25,7 @@ const hi = {
     sidebar_share: 'ऐप शेयर करें',
     sidebar_privacy: 'गोपनीयता नीति',
     sidebar_terms: 'नियम और शर्तें',
+    sidebar_donation: 'दान करें',
 
     // Theme settings
     theme_header: 'थीम बदलें',

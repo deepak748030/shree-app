@@ -34,12 +34,12 @@ const menuItems: DrawerMenuItem[] = [
     { icon: <MaterialCommunityIcons name="counter" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
     { icon: <Ionicons name="footsteps-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
     { icon: <Ionicons name="chatbubble-ellipses-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_daily_quote', route: '/daily-quote' },
-    { icon: <Ionicons name="heart-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_donation', route: '/donation' },
     { icon: <Ionicons name="color-palette-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_theme', route: '/theme-settings' },
     { icon: <Ionicons name="language-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_language', route: '/language-settings' },
     { icon: <Ionicons name="share-social-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_share', route: '/share-app' },
     { icon: <Ionicons name="shield-checkmark-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_privacy', route: '/privacy-policy' },
     { icon: <Ionicons name="document-text-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_terms', route: '/terms-conditions' },
+    { icon: <Ionicons name="heart-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_donation', route: '/donation' },
 ];
 
 interface SidebarDrawerProps {

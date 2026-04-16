@@ -11,6 +11,7 @@ import { HomeContentPage } from './pages/HomeContentPage'
 import { PushNotificationsPage } from './pages/PushNotificationsPage'
 import { PresetImagesPage } from './pages/PresetImagesPage'
 import { AppVersionPage } from './pages/AppVersionPage'
+import { DonationSettingsPage } from './pages/DonationSettingsPage'
 import { TermsConditionsPage } from './pages/TermsConditionsPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { DeleteAccountPage } from './pages/DeleteAccountPage'
@@ -39,6 +40,7 @@ function App() {
                         <Route path="push-notifications" element={<PushNotificationsPage />} />
                         <Route path="preset-images" element={<PresetImagesPage />} />
                         <Route path="app-version" element={<AppVersionPage />} />
+                        <Route path="donation-settings" element={<DonationSettingsPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

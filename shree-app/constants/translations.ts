@@ -25,6 +25,7 @@ const hi = {
     sidebar_share: 'ऐप शेयर करें',
     sidebar_privacy: 'गोपनीयता नीति',
     sidebar_terms: 'नियम और शर्तें',
+    sidebar_donation: 'दान करें',
 
     // Theme settings
     theme_header: 'थीम बदलें',
@@ -173,6 +174,7 @@ const en: typeof hi = {
     sidebar_share: 'Share App',
     sidebar_privacy: 'Privacy Policy',
     sidebar_terms: 'Terms & Conditions',
+    sidebar_donation: 'Donate',
 
     // Theme settings
     theme_header: 'Change Theme',

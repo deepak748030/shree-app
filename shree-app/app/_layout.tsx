@@ -105,6 +105,7 @@ function AppContent() {
         <Stack.Screen name="naam-jap-counter" options={{ headerShown: false }} />
         <Stack.Screen name="step-tracker" options={{ headerShown: false }} />
         <Stack.Screen name="daily-quote" options={{ headerShown: false }} />
+        <Stack.Screen name="donation" options={{ headerShown: false }} />
         <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
         <Stack.Screen name="terms-conditions" options={{ headerShown: false }} />
         <Stack.Screen name="share-app" options={{ headerShown: false }} />

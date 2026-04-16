@@ -15,6 +15,7 @@ import {
     Bell,
     ImageIcon,
     Smartphone,
+    Heart,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -28,6 +29,7 @@ const navItems = [
     { to: '/push-notifications', icon: Bell, label: 'Push Notifications' },
     { to: '/preset-images', icon: ImageIcon, label: 'Preset Images' },
     { to: '/app-version', icon: Smartphone, label: 'App Version' },
+    { to: '/donation-settings', icon: Heart, label: 'Donation Settings' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

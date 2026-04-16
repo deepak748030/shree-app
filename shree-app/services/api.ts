@@ -332,3 +332,30 @@ export async function checkAppVersion(currentVersion: string, platform: string =
         return null;
     }
 }
+
+// ============ DONATION APIs ============
+
+export interface DonationSettingsResponse {
+    upiId: string;
+    accountNumber: string;
+    ifscCode: string;
+    accountHolderName: string;
+    bankName: string;
+    scannerImage: string;
+    note_hi: string;
+    note_en: string;
+    isActive: boolean;
+}
+
+export async function fetchDonationSettings(): Promise<DonationSettingsResponse | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/donation`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}

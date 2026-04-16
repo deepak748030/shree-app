@@ -174,6 +174,7 @@ const en: typeof hi = {
     sidebar_share: 'Share App',
     sidebar_privacy: 'Privacy Policy',
     sidebar_terms: 'Terms & Conditions',
+    sidebar_donation: 'Donate',
 
     // Theme settings
     theme_header: 'Change Theme',

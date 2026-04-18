@@ -18,6 +18,7 @@ const hi = {
 
     // Sidebar
     sidebar_home: 'होम',
+    sidebar_shree_info: 'श्री जानकारी',
     sidebar_naam_jap: 'नाम जप Counter',
     sidebar_daily_quote: 'आज का विचार',
     sidebar_theme: 'थीम बदलें',
@@ -167,6 +168,7 @@ const en: typeof hi = {
 
     // Sidebar
     sidebar_home: 'Home',
+    sidebar_shree_info: 'Shree Info',
     sidebar_naam_jap: 'Naam Jap Counter',
     sidebar_daily_quote: 'Daily Quote',
     sidebar_theme: 'Change Theme',

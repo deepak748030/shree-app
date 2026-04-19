@@ -8,7 +8,7 @@ import SidebarDrawer from '@/components/sidebar-drawer';
 import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
-import { fetchUserData, type UserRankData } from '@/services/api';
+import { fetchHandwrittenNaam, fetchUserData, type HandwrittenNaamData, type UserRankData } from '@/services/api';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -54,18 +54,25 @@ export default function HomeScreen() {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [userData, setUserData] = useState<UserRankData | null>(null);
+  const [handwritten, setHandwritten] = useState<HandwrittenNaamData | null>(null);
 
   const dailyGoalMantras = 1;
   const malaTarget = 108;
   const todayMalaCount = userData ? Math.min(userData.user.totalCount % 108 || 0, 108) : 0;
   const totalCount = userData?.user.totalCount ?? 0;
   const totalMalas = userData?.user.totalMalas ?? 0;
+  const handwrittenToday = handwritten?.todayCount ?? 0;
+  const handwrittenLifetime = handwritten?.lifetimeCount ?? 0;
 
   const loadData = useCallback(async () => {
     if (!user?.deviceId) return;
     try {
-      const data = await fetchUserData(user.deviceId);
+      const [data, hw] = await Promise.all([
+        fetchUserData(user.deviceId),
+        fetchHandwrittenNaam(user.deviceId),
+      ]);
       if (data) setUserData(data);
+      if (hw) setHandwritten(hw);
     } catch { }
   }, [user?.deviceId]);
 

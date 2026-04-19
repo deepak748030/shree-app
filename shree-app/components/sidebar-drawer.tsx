@@ -31,7 +31,7 @@ interface DrawerMenuItem {
 
 const menuItems: DrawerMenuItem[] = [
     { icon: <Ionicons name="home" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_home', route: '/' },
-    { icon: <Ionicons name="information-circle-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_shree_info', route: '/(tabs)/shree-info' },
+    { icon: <Ionicons name="information-circle-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_shree_info', route: '/shree-info' },
     { icon: <MaterialCommunityIcons name="counter" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
     { icon: <Ionicons name="footsteps-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
     { icon: <Ionicons name="chatbubble-ellipses-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_daily_quote', route: '/daily-quote' },

@@ -163,14 +163,16 @@ export default function HandwrittenNaamScreen() {
                 },
                 onPanResponderRelease: () => {
                     if (currentPathRef.current) {
-                        setPaths((prev) => [...prev, currentPathRef.current]);
+                        const completedPath = currentPathRef.current;
+                        setPaths((prev) => [...prev, completedPath]);
                         currentPathRef.current = '';
                         setCurrentPath('');
                     }
                 },
                 onPanResponderTerminate: () => {
                     if (currentPathRef.current) {
-                        setPaths((prev) => [...prev, currentPathRef.current]);
+                        const completedPath = currentPathRef.current;
+                        setPaths((prev) => [...prev, completedPath]);
                         currentPathRef.current = '';
                         setCurrentPath('');
                     }
@@ -196,7 +198,11 @@ export default function HandwrittenNaamScreen() {
             return;
         }
 
-        // Optimistic UI - DO NOT clear canvas (per user request)
+        // Clear canvas immediately on Next
+        setPaths([]);
+        currentPathRef.current = '';
+        setCurrentPath('');
+
         const prevToday = today;
         const prevLifetime = lifetime;
         const newToday = today + 1;

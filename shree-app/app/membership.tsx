@@ -91,10 +91,10 @@ export default function MembershipScreen() {
             >
                 {/* Hero card */}
                 <View style={[styles.heroCard, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}>
-                    <View style={[styles.heroIconWrap, { backgroundColor: 'rgba(255,255,255,0.6)', borderColor: theme.accent }]}>
-                        <Ionicons name="ribbon" size={30} color={theme.accent} />
+                    <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF', borderColor: theme.accent }]}>
+                        <Ionicons name="ribbon" size={30} color="#E6A700" />
                     </View>
-                    <Text style={[styles.heroTitle, { color: theme.accent }]}>{t('membership_hero_title' as any)}</Text>
+                    <Text style={[styles.heroTitle, { color: '#1A1A1A' }]}>{t('membership_hero_title' as any)}</Text>
                     <Text style={styles.heroSubtitle}>{t('membership_hero_subtitle' as any)}</Text>
                 </View>
 

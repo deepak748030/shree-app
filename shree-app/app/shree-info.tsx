@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { fetchHomeContent, type HomeContentResponse } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
@@ -44,6 +45,16 @@ export default function HomeScreen() {
         try {
             const data = await fetchHomeContent();
             if (data) {
+                // Preload banner images before showing content
+                if (data.bannerImages && data.bannerImages.length > 0) {
+                    try {
+                        await Promise.all(
+                            data.bannerImages.map((url) => Image.prefetch(url)),
+                        );
+                    } catch {
+                        // ignore prefetch errors, still show content
+                    }
+                }
                 setRemoteContent(data);
             }
         } catch {
@@ -100,24 +111,26 @@ export default function HomeScreen() {
                     />
                 }
             >
-                <ImageSlider remoteImages={remoteContent?.bannerImages} />
-
-                <View style={styles.contentContainer}>
-                    <View style={styles.controlsWrapper}>
-                        <View style={styles.textSizeRow}>
-                            <TextSizeSlider
-                                value={fontSize}
-                                onValueChange={setFontSize}
-                                onSlidingStart={() => setScrollEnabled(false)}
-                                onSlidingEnd={() => setScrollEnabled(true)}
-                            />
-                        </View>
+                {loadingContent ? (
+                    <View style={styles.loaderWrapper}>
+                        <ActivityIndicator size="large" color={theme.accent} />
                     </View>
+                ) : (
+                    <>
+                        <ImageSlider remoteImages={remoteContent?.bannerImages} />
 
-                    {loadingContent ? (
-                        <ActivityIndicator size="small" color={theme.accent} style={{ marginTop: 20 }} />
-                    ) : (
-                        <>
+                        <View style={styles.contentContainer}>
+                            <View style={styles.controlsWrapper}>
+                                <View style={styles.textSizeRow}>
+                                    <TextSizeSlider
+                                        value={fontSize}
+                                        onValueChange={setFontSize}
+                                        onSlidingStart={() => setScrollEnabled(false)}
+                                        onSlidingEnd={() => setScrollEnabled(true)}
+                                    />
+                                </View>
+                            </View>
+
                             <Text style={[styles.contentTitle, { color: theme.accent }]}>{displayTitle}</Text>
                             <Text style={styles.contentSubtitle}>{displaySubtitle}</Text>
 
@@ -132,9 +145,9 @@ export default function HomeScreen() {
                                     {para}
                                 </Text>
                             ))}
-                        </>
-                    )}
-                </View>
+                        </View>
+                    </>
+                )}
             </ScrollView>
 
             <SidebarDrawer
@@ -170,6 +183,13 @@ const styles = StyleSheet.create({
     },
     scrollContent: {
         paddingBottom: 30,
+    },
+    loaderWrapper: {
+        flex: 1,
+        minHeight: 400,
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 40,
     },
     contentContainer: {
         paddingHorizontal: HP,

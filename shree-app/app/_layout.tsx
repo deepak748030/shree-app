@@ -112,6 +112,7 @@ function AppContent() {
         <Stack.Screen name="share-app" options={{ headerShown: false }} />
         <Stack.Screen name="theme-settings" options={{ headerShown: false }} />
         <Stack.Screen name="language-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="membership" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <LanguagePickerModal

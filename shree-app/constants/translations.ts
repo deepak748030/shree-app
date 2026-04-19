@@ -157,6 +157,28 @@ const hi = {
     logout_confirm_title: 'लॉगआउट',
     logout_confirm_msg: 'क्या आप लॉगआउट करना चाहते हैं?',
     logout_success: 'सफलतापूर्वक लॉगआउट हो गया',
+
+    // Home Screen
+    home_greeting_morning: 'सुप्रभात',
+    home_greeting_afternoon: 'नमस्ते',
+    home_greeting_evening: 'शुभ संध्या',
+    home_greeting_night: 'शुभ रात्रि',
+    home_guest_user: 'अतिथि',
+    home_no_ads: 'No Ads',
+    home_todays_goal: 'आज का लक्ष्य',
+    home_mantras: 'मंत्र',
+    home_edit_goal: 'लक्ष्य बदलें',
+    home_my_chants: 'मेरे जप',
+    home_all_mantra: 'सभी मंत्र',
+    home_target: 'लक्ष्य',
+    home_today_japa: "आज के जप",
+    home_lifetime_japa: 'कुल जप',
+    home_handwritten: 'लिखित नाम जाप',
+    home_handwritten_sub: 'अपने हाथों से नाम लिखकर भक्ति में डूबें!',
+    home_my_insights: 'मेरी प्रगति',
+    home_view: 'देखें',
+    home_total_japa: 'कुल जप',
+    home_total_malas: 'कुल माला',
 };
 
 const en: typeof hi = {
@@ -307,6 +329,28 @@ const en: typeof hi = {
     logout_confirm_title: 'Logout',
     logout_confirm_msg: 'Are you sure you want to logout?',
     logout_success: 'Logged out successfully',
+
+    // Home Screen
+    home_greeting_morning: 'Good Morning',
+    home_greeting_afternoon: 'Good Afternoon',
+    home_greeting_evening: 'Good Evening',
+    home_greeting_night: 'Good Night',
+    home_guest_user: 'Guest User',
+    home_no_ads: 'No Ads',
+    home_todays_goal: "Today's Goal",
+    home_mantras: 'mantra(s)',
+    home_edit_goal: 'Edit Goal',
+    home_my_chants: 'My Chants',
+    home_all_mantra: 'All Mantra',
+    home_target: 'Target',
+    home_today_japa: "Today's Japa",
+    home_lifetime_japa: 'Lifetime Japa',
+    home_handwritten: 'Handwritten Naam Jaap',
+    home_handwritten_sub: 'Now write the name with your own hands and immerse in devotion!',
+    home_my_insights: 'My Insights',
+    home_view: 'View',
+    home_total_japa: 'Total Japa',
+    home_total_malas: 'Total Malas',
 };
 
 export type TranslationKeys = keyof typeof hi;

@@ -152,7 +152,7 @@ export default function HomeScreen() {
             targetLabel={t('home_target')}
             todayLabel={t('home_today_japa')}
             lifetimeLabel={t('home_lifetime_japa')}
-            onPress={() => router.push('/naam-jap-counter')}
+            onPress={() => router.push('/handwritten-naam')}
           />
         );
       case 'feature':

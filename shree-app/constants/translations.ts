@@ -179,6 +179,30 @@ const hi = {
     home_view: 'देखें',
     home_total_japa: 'कुल जप',
     home_total_malas: 'कुल माला',
+
+    // Membership
+    sidebar_membership: 'सदस्यता',
+    membership_header: 'सदस्यता',
+    membership_hero_title: 'श्री जी प्रीमियम',
+    membership_hero_subtitle: 'विज्ञापन हटाएँ, विशेष सामग्री पाएँ और हमारी सेवा में सहयोग दें।',
+    membership_monthly: 'मासिक',
+    membership_yearly: 'वार्षिक',
+    membership_lifetime: 'आजीवन',
+    membership_per_month: 'प्रति माह',
+    membership_per_year: 'प्रति वर्ष',
+    membership_lifetime_period: 'एक बार भुगतान',
+    membership_lifetime_sub: 'एक बार भुगतान करें, जीवन भर लाभ उठाएँ',
+    membership_best_value: 'सर्वोत्तम मूल्य',
+    membership_benefit_no_ads: 'कोई विज्ञापन नहीं',
+    membership_benefit_instant: 'तुरंत सक्रिय होगा',
+    membership_benefit_cancel: 'कभी भी रद्द करें',
+    membership_benefit_premium_content: 'विशेष प्रीमियम सामग्री',
+    membership_continue: 'जारी रखें',
+    membership_already_member: 'पहले से सदस्य हैं?',
+    membership_restore: 'पुनः प्राप्त करें',
+    membership_coming_soon_title: 'जल्द आ रहा है',
+    membership_coming_soon_msg: 'सदस्यता खरीदने का विकल्प जल्द ही उपलब्ध होगा।',
+    membership_error_msg: 'कुछ गलत हो गया, कृपया पुनः प्रयास करें।',
 };
 
 const en: typeof hi = {
@@ -351,6 +375,30 @@ const en: typeof hi = {
     home_view: 'View',
     home_total_japa: 'Total Japa',
     home_total_malas: 'Total Malas',
+
+    // Membership
+    sidebar_membership: 'Membership',
+    membership_header: 'Membership',
+    membership_hero_title: 'Shree Ji Premium',
+    membership_hero_subtitle: 'Remove ads, unlock premium content and support our seva.',
+    membership_monthly: 'Monthly',
+    membership_yearly: 'Yearly',
+    membership_lifetime: 'Lifetime',
+    membership_per_month: 'per month',
+    membership_per_year: 'per year',
+    membership_lifetime_period: 'one-time',
+    membership_lifetime_sub: 'Pay once, enjoy forever',
+    membership_best_value: 'Best Value',
+    membership_benefit_no_ads: 'No advertisements',
+    membership_benefit_instant: 'Activated instantly',
+    membership_benefit_cancel: 'Cancel anytime',
+    membership_benefit_premium_content: 'Exclusive premium content',
+    membership_continue: 'Continue',
+    membership_already_member: 'Already a member?',
+    membership_restore: 'Restore',
+    membership_coming_soon_title: 'Coming Soon',
+    membership_coming_soon_msg: 'In-app purchase will be available soon.',
+    membership_error_msg: 'Something went wrong, please try again.',
 };
 
 export type TranslationKeys = keyof typeof hi;

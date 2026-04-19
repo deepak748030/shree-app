@@ -228,7 +228,7 @@ export default function StepTrackerScreen() {
     if (loading) {
         return (
             <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-                <StatusBar style="dark" backgroundColor="#FFD700" translucent={false} />
+                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
                 <ActivityIndicator size="large" color={accentColor} />
             </View>
         );
@@ -236,10 +236,10 @@ export default function StepTrackerScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-            <StatusBar style="dark" backgroundColor="#FFD700" translucent={false} />
+            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
 
             {/* Header */}
-            <View style={[styles.header, { backgroundColor: '#FFD700' }]}>
+            <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomWidth: 1, borderBottomColor: theme.cardBorder }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color={textColor} />
                 </TouchableOpacity>

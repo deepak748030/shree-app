@@ -18,7 +18,7 @@ import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 export const unstable_settings = {
-  anchor: 'index',
+  anchor: '(tabs)',
 };
 
 function AppContent() {
@@ -100,8 +100,8 @@ function AppContent() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
       <StatusBar style="dark" />
-      <Stack initialRouteName="index">
-        <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack initialRouteName="(tabs)">
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="shree-info" options={{ headerShown: false }} />
         <Stack.Screen name="naam-jap-counter" options={{ headerShown: false }} />
         <Stack.Screen name="step-tracker" options={{ headerShown: false }} />

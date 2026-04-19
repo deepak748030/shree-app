@@ -154,7 +154,7 @@ export default function HomeScreen() {
             iconName="create-outline"
             title={t('home_handwritten')}
             subtitle={t('home_handwritten_sub')}
-            onPress={() => router.push('/naam-jap-counter')}
+            onPress={() => router.push('/handwritten-naam')}
           />
         );
       case 'insights_header':

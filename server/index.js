@@ -13,6 +13,7 @@ const presetImageRoutes = require('./routes/presetImageRoutes');
 const stepTrackerRoutes = require('./routes/stepTrackerRoutes');
 const appVersionRoutes = require('./routes/appVersionRoutes');
 const donationRoutes = require('./routes/donationRoutes');
+const handwrittenNaamRoutes = require('./routes/handwrittenNaamRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -55,6 +56,7 @@ app.use('/api/preset-images', presetImageRoutes);
 app.use('/api/step-tracker', stepTrackerRoutes);
 app.use('/api/app-version', appVersionRoutes);
 app.use('/api/donation', donationRoutes);
+app.use('/api/handwritten-naam', handwrittenNaamRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

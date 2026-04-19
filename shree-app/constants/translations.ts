@@ -203,6 +203,16 @@ const hi = {
     membership_coming_soon_title: 'जल्द आ रहा है',
     membership_coming_soon_msg: 'सदस्यता खरीदने का विकल्प जल्द ही उपलब्ध होगा।',
     membership_error_msg: 'कुछ गलत हो गया, कृपया पुनः प्रयास करें।',
+
+    // Handwritten Naam Jaap
+    handwritten_header: 'लिखित नाम जाप',
+    handwritten_today: 'आज का जप',
+    handwritten_lifetime: 'कुल जप',
+    handwritten_clear: 'मिटाएं',
+    handwritten_next: 'अगला',
+    handwritten_hint: 'अपनी उँगली से यहाँ नाम लिखें',
+    handwritten_pick_mantra: 'मंत्र चुनें',
+    handwritten_empty_msg: 'कृपया पहले नाम लिखें, फिर अगला दबाएं।',
 };
 
 const en: typeof hi = {
@@ -399,6 +409,16 @@ const en: typeof hi = {
     membership_coming_soon_title: 'Coming Soon',
     membership_coming_soon_msg: 'In-app purchase will be available soon.',
     membership_error_msg: 'Something went wrong, please try again.',
+
+    // Handwritten Naam Jaap
+    handwritten_header: 'Handwritten Naam Jaap',
+    handwritten_today: 'Today Jap',
+    handwritten_lifetime: 'Lifetime Jap',
+    handwritten_clear: 'Clear',
+    handwritten_next: 'Next',
+    handwritten_hint: 'Write the name here with your finger',
+    handwritten_pick_mantra: 'Pick a mantra',
+    handwritten_empty_msg: 'Please write the name first, then tap Next.',
 };
 
 export type TranslationKeys = keyof typeof hi;

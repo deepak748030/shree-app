@@ -359,3 +359,62 @@ export async function fetchDonationSettings(): Promise<DonationSettingsResponse 
         return null;
     }
 }
+
+// ============ HANDWRITTEN NAAM APIs ============
+
+export interface HandwrittenNaamData {
+    lifetimeCount: number;
+    todayCount: number;
+    selectedMantra: string;
+}
+
+export async function fetchHandwrittenNaam(deviceId: string): Promise<HandwrittenNaamData | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/handwritten-naam/${deviceId}`);
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+export async function incrementHandwrittenNaam(
+    deviceId: string,
+    increment: number = 1,
+    selectedMantra?: string
+): Promise<HandwrittenNaamData | null> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/handwritten-naam/increment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, increment, selectedMantra }),
+        });
+        const data = await response.json();
+        if (data.success && data.response) {
+            return data.response;
+        }
+        return null;
+    } catch {
+        return null;
+    }
+}
+
+export async function updateHandwrittenMantra(
+    deviceId: string,
+    selectedMantra: string
+): Promise<boolean> {
+    try {
+        const response = await fetch(`${API_BASE_URL}/handwritten-naam/mantra`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, selectedMantra }),
+        });
+        const data = await response.json();
+        return !!data.success;
+    } catch {
+        return false;
+    }
+}

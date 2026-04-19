@@ -20,8 +20,8 @@ export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onM
         <View style={styles.row}>
             <View style={styles.left}>
                 {onMenuPress && (
-                    <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn} hitSlop={8}>
-                        <Ionicons name="menu" size={26} color="#222" />
+                    <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn} hitSlop={10}>
+                        <Ionicons name="menu" size={34} color={theme.accent} />
                     </TouchableOpacity>
                 )}
                 <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
@@ -39,7 +39,7 @@ export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onM
                     activeOpacity={0.8}
                     style={[styles.noAdsPill, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}
                 >
-                    <Ionicons name="star" size={14} color={theme.accent} />
+                    <Ionicons name="star" size={14} color="#E6A700" />
                     <Text style={[styles.noAdsText, { color: theme.accent }]}>{noAdsLabel}</Text>
                 </TouchableOpacity>
             )}
@@ -55,7 +55,13 @@ const styles = StyleSheet.create({
         paddingVertical: 6,
     },
     left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
-    menuBtn: { padding: 2, marginRight: 6 },
+    menuBtn: {
+        width: 36,
+        height: 36,
+        alignItems: 'center',
+        justifyContent: 'center',
+        marginRight: 4,
+    },
     avatar: {
         width: 42, height: 42, borderRadius: 21,
         alignItems: 'center', justifyContent: 'center', marginRight: 6,

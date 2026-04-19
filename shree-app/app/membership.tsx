@@ -144,8 +144,8 @@ export default function MembershipScreen() {
                                 },
                             ]}
                         >
-                            <View style={[styles.lifetimeIconWrap, { borderColor: theme.accent }]}>
-                                <Ionicons name="infinite" size={22} color={theme.accent} />
+                            <View style={[styles.lifetimeIconWrap, { borderColor: '#E6A700', backgroundColor: '#FFF7DC' }]}>
+                                <Ionicons name="infinite" size={22} color="#E6A700" />
                             </View>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.lifetimeTitle}>{t(plan.titleKey as any)}</Text>
@@ -167,8 +167,8 @@ export default function MembershipScreen() {
                         'membership_benefit_premium_content',
                     ].map((key) => (
                         <View key={key} style={styles.benefitRow}>
-                            <View style={[styles.checkWrap, { borderColor: theme.accent }]}>
-                                <Ionicons name="checkmark" size={14} color={theme.accent} />
+                            <View style={[styles.checkWrap, { borderColor: '#22A06B', backgroundColor: '#E8F7EF' }]}>
+                                <Ionicons name="checkmark" size={14} color="#22A06B" />
                             </View>
                             <Text style={styles.benefitText}>{t(key as any)}</Text>
                         </View>
@@ -186,7 +186,7 @@ export default function MembershipScreen() {
                         <ActivityIndicator color={theme.accent} />
                     ) : (
                         <Text style={[styles.continueText, { color: theme.accent }]}>
-                            {t('membership_continue' as any)} — {selectedPlan.price} / {t(selectedPlan.periodKey as any)}
+                            {t('membership_continue' as any)}  •  {selectedPlan.price}
                         </Text>
                     )}
                 </TouchableOpacity>

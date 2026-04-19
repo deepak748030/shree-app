@@ -95,7 +95,7 @@ export default function HomeScreen() {
         title: 'Om Namah Shivay',
         subtitle: 'ॐ नमः शिवाय',
         target: malaTarget,
-        current: todayMalaCount,
+        current: handwrittenToday,
         todayJapa: handwrittenToday,
         lifetimeJapa: handwrittenLifetime,
       },

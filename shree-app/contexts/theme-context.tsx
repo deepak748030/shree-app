@@ -13,6 +13,7 @@ export interface ThemeColors {
 }
 
 export const THEME_OPTIONS: ThemeColors[] = [
+    { id: 'dark', headerBg: '#1A1A1A', bgCream: '#0D0D0D', accent: '#F2A03D', cardBorder: '#2A2A2A', primary: '#F2A03D' },
     { id: 'yellow', headerBg: '#FFEB3B', bgCream: '#FFFDE7', accent: '#B8860B', cardBorder: '#FFD54F', primary: '#D4A017' },
     { id: 'saffron', headerBg: '#FF9800', bgCream: '#FFF3E0', accent: '#E65100', cardBorder: '#FFB74D', primary: '#FF9800' },
     { id: 'lotus', headerBg: '#F48FB1', bgCream: '#FCE4EC', accent: '#C2185B', cardBorder: '#F48FB1', primary: '#E91E63' },
@@ -30,13 +31,13 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType>({
     theme: THEME_OPTIONS[0],
-    themeId: 'yellow',
+    themeId: 'dark',
     setThemeId: async () => { },
     loading: true,
 });
 
 export function AppThemeProvider({ children }: { children: React.ReactNode }) {
-    const [themeId, setThemeIdState] = useState('yellow');
+    const [themeId, setThemeIdState] = useState('dark');
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {

@@ -342,7 +342,7 @@ export default function HandwrittenNaamScreen() {
             </View>
 
             {/* Bottom action buttons */}
-            <View style={styles.bottomBar}>
+            <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
                 <TouchableOpacity
                     style={[styles.clearBtn, { borderColor: theme.cardBorder, backgroundColor: '#FFFFFF' }]}
                     onPress={handleClear}

@@ -5,21 +5,54 @@ const THEME_KEY = '@app_theme';
 
 export interface ThemeColors {
     id: string;
+    isDark: boolean;
     headerBg: string;
+    headerText: string;
     bgCream: string;
     accent: string;
+    cardBg: string;
     cardBorder: string;
     primary: string;
+    text: string;
+    subText: string;
+    mutedBg: string;
+    divider: string;
 }
 
+// Helper to build a theme entry concisely
+const make = (
+    id: string,
+    isDark: boolean,
+    headerBg: string,
+    bgCream: string,
+    accent: string,
+    cardBorder: string,
+    primary: string,
+    cardBg?: string,
+): ThemeColors => ({
+    id,
+    isDark,
+    headerBg,
+    headerText: isDark ? '#F5F5F5' : '#1A1A1A',
+    bgCream,
+    accent,
+    cardBorder,
+    primary,
+    cardBg: cardBg ?? (isDark ? '#1A1A1A' : '#FFFFFF'),
+    text: isDark ? '#F5F5F5' : '#1A1A1A',
+    subText: isDark ? '#B5B5B5' : '#666666',
+    mutedBg: isDark ? '#222222' : '#F4F4F4',
+    divider: isDark ? '#2A2A2A' : '#E5E5E5',
+});
+
 export const THEME_OPTIONS: ThemeColors[] = [
-    { id: 'dark', headerBg: '#1A1A1A', bgCream: '#0D0D0D', accent: '#F2A03D', cardBorder: '#2A2A2A', primary: '#F2A03D' },
-    { id: 'yellow', headerBg: '#FFEB3B', bgCream: '#FFFDE7', accent: '#B8860B', cardBorder: '#FFD54F', primary: '#D4A017' },
-    { id: 'saffron', headerBg: '#FF9800', bgCream: '#FFF3E0', accent: '#E65100', cardBorder: '#FFB74D', primary: '#FF9800' },
-    { id: 'lotus', headerBg: '#F48FB1', bgCream: '#FCE4EC', accent: '#C2185B', cardBorder: '#F48FB1', primary: '#E91E63' },
-    { id: 'peacock', headerBg: '#4FC3F7', bgCream: '#E1F5FE', accent: '#0277BD', cardBorder: '#4FC3F7', primary: '#0288D1' },
-    { id: 'tulsi', headerBg: '#81C784', bgCream: '#E8F5E9', accent: '#2E7D32', cardBorder: '#81C784', primary: '#388E3C' },
-    { id: 'sandal', headerBg: '#D7CCC8', bgCream: '#EFEBE9', accent: '#5D4037', cardBorder: '#BCAAA4', primary: '#795548' },
+    make('dark', true, '#1A1A1A', '#0D0D0D', '#F2A03D', '#2A2A2A', '#F2A03D'),
+    make('yellow', false, '#FFEB3B', '#FFFDE7', '#B8860B', '#FFD54F', '#D4A017'),
+    make('saffron', false, '#FF9800', '#FFF3E0', '#E65100', '#FFB74D', '#FF9800'),
+    make('lotus', false, '#F48FB1', '#FCE4EC', '#C2185B', '#F48FB1', '#E91E63'),
+    make('peacock', false, '#4FC3F7', '#E1F5FE', '#0277BD', '#4FC3F7', '#0288D1'),
+    make('tulsi', false, '#81C784', '#E8F5E9', '#2E7D32', '#81C784', '#388E3C'),
+    make('sandal', false, '#D7CCC8', '#EFEBE9', '#5D4037', '#BCAAA4', '#795548'),
 ];
 
 interface ThemeContextType {

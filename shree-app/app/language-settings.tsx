@@ -14,8 +14,6 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const TEXT_DARK = '#333333';
-
 interface LangOption {
     id: Language;
     name: string;
@@ -66,13 +64,13 @@ export default function LanguageSettingsScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                        <Ionicons name="arrow-back" size={24} color={theme.headerText} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('lang_header')}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('lang_header')}</Text>
                     <View style={{ width: 32 }} />
                 </View>
             </View>
@@ -85,7 +83,7 @@ export default function LanguageSettingsScreen() {
                             key={item.id}
                             style={[
                                 styles.langCard,
-                                { borderColor: isSelected ? theme.accent : '#E0E0E0' },
+                                { backgroundColor: theme.cardBg, borderColor: isSelected ? theme.accent : theme.cardBorder },
                                 isSelected && { borderWidth: 2 },
                             ]}
                             onPress={() => handleSelectLang(item.id)}
@@ -94,8 +92,8 @@ export default function LanguageSettingsScreen() {
                         >
                             <Text style={styles.flag}>{item.flag}</Text>
                             <View style={styles.langInfo}>
-                                <Text style={styles.langName}>{item.nameNative}</Text>
-                                <Text style={styles.langNameEn}>{item.name}</Text>
+                                <Text style={[styles.langName, { color: theme.text }]}>{item.nameNative}</Text>
+                                <Text style={[styles.langNameEn, { color: theme.subText }]}>{item.name}</Text>
                             </View>
                             {saving && item.id !== language ? null : isSelected ? (
                                 <Ionicons name="checkmark-circle" size={24} color={theme.accent} />
@@ -120,9 +118,7 @@ export default function LanguageSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     headerBg: {},
     header: {
         flexDirection: 'row',
@@ -131,43 +127,19 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
         paddingVertical: 10,
     },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: TEXT_DARK,
-    },
-    listContent: {
-        paddingHorizontal: 6,
-        paddingTop: 6,
-    },
+    backButton: { padding: 4 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    listContent: { paddingHorizontal: 6, paddingTop: 6 },
     langCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
         padding: 10,
         marginBottom: 6,
     },
-    flag: {
-        fontSize: 28,
-    },
-    langInfo: {
-        flex: 1,
-        marginLeft: 10,
-    },
-    langName: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: TEXT_DARK,
-    },
-    langNameEn: {
-        fontSize: 12,
-        color: TEXT_DARK,
-        opacity: 0.6,
-    },
+    flag: { fontSize: 28 },
+    langInfo: { flex: 1, marginLeft: 10 },
+    langName: { fontSize: 16, fontWeight: '600' },
+    langNameEn: { fontSize: 12, opacity: 0.85 },
 });

@@ -73,15 +73,15 @@ export default function MembershipScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             <View style={{ height: insets.top, backgroundColor: theme.headerBg }} />
 
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.cardBorder }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-                    <Ionicons name="chevron-back" size={22} color="#222" />
+                    <Ionicons name="chevron-back" size={22} color={theme.headerText} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>{t('membership_header' as any)}</Text>
+                <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('membership_header' as any)}</Text>
                 <View style={{ width: 28 }} />
             </View>
 
@@ -90,12 +90,12 @@ export default function MembershipScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 {/* Hero card */}
-                <View style={[styles.heroCard, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}>
-                    <View style={[styles.heroIconWrap, { backgroundColor: '#FFFFFF', borderColor: theme.accent }]}>
-                        <Ionicons name="ribbon" size={30} color="#E6A700" />
+                <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+                    <View style={[styles.heroIconWrap, { backgroundColor: theme.mutedBg, borderColor: theme.accent }]}>
+                        <Ionicons name="ribbon" size={30} color={theme.accent} />
                     </View>
-                    <Text style={[styles.heroTitle, { color: '#1A1A1A' }]}>{t('membership_hero_title' as any)}</Text>
-                    <Text style={styles.heroSubtitle}>{t('membership_hero_subtitle' as any)}</Text>
+                    <Text style={[styles.heroTitle, { color: theme.text }]}>{t('membership_hero_title' as any)}</Text>
+                    <Text style={[styles.heroSubtitle, { color: theme.subText }]}>{t('membership_hero_subtitle' as any)}</Text>
                 </View>
 
                 {/* Plan cards row */}
@@ -109,7 +109,7 @@ export default function MembershipScreen() {
                                 style={[
                                     styles.planCard,
                                     {
-                                        backgroundColor: '#FFFFFF',
+                                        backgroundColor: theme.cardBg,
                                         borderColor: isSel ? theme.accent : theme.cardBorder,
                                         borderWidth: isSel ? 2 : 1,
                                     },
@@ -117,12 +117,12 @@ export default function MembershipScreen() {
                             >
                                 {plan.bestValue && (
                                     <View style={[styles.bestBadge, { backgroundColor: theme.accent }]}>
-                                        <Text style={styles.bestBadgeText}>{t('membership_best_value' as any)}</Text>
+                                        <Text style={[styles.bestBadgeText, { color: theme.isDark ? '#000' : '#fff' }]}>{t('membership_best_value' as any)}</Text>
                                     </View>
                                 )}
-                                <Text style={styles.planLabel}>{t(plan.titleKey as any)}</Text>
-                                <Text style={[styles.planPrice, { color: '#222' }]}>{plan.price}</Text>
-                                <Text style={styles.planPeriod}>{t(plan.periodKey as any)}</Text>
+                                <Text style={[styles.planLabel, { color: theme.subText }]}>{t(plan.titleKey as any)}</Text>
+                                <Text style={[styles.planPrice, { color: theme.text }]}>{plan.price}</Text>
+                                <Text style={[styles.planPeriod, { color: theme.subText }]}>{t(plan.periodKey as any)}</Text>
                             </Pressable>
                         );
                     })}
@@ -138,19 +138,19 @@ export default function MembershipScreen() {
                             style={[
                                 styles.lifetimeCard,
                                 {
-                                    backgroundColor: '#FFFFFF',
+                                    backgroundColor: theme.cardBg,
                                     borderColor: isSel ? theme.accent : theme.cardBorder,
                                     borderWidth: isSel ? 2 : 1,
                                 },
                             ]}
                         >
-                            <View style={[styles.lifetimeIconWrap, { borderColor: '#E6A700', backgroundColor: '#FFF7DC' }]}>
-                                <Ionicons name="infinite" size={22} color="#E6A700" />
+                            <View style={[styles.lifetimeIconWrap, { borderColor: theme.accent, backgroundColor: theme.mutedBg }]}>
+                                <Ionicons name="infinite" size={22} color={theme.accent} />
                             </View>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.lifetimeTitle}>{t(plan.titleKey as any)}</Text>
+                                <Text style={[styles.lifetimeTitle, { color: theme.text }]}>{t(plan.titleKey as any)}</Text>
                                 {plan.subKey && (
-                                    <Text style={styles.lifetimeSub}>{t(plan.subKey as any)}</Text>
+                                    <Text style={[styles.lifetimeSub, { color: theme.subText }]}>{t(plan.subKey as any)}</Text>
                                 )}
                             </View>
                             <Text style={[styles.lifetimePrice, { color: theme.accent }]}>{plan.price}</Text>
@@ -159,7 +159,7 @@ export default function MembershipScreen() {
                 })}
 
                 {/* Benefits */}
-                <View style={[styles.benefitsCard, { backgroundColor: '#FFFFFF', borderColor: theme.cardBorder }]}>
+                <View style={[styles.benefitsCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
                     {[
                         'membership_benefit_no_ads',
                         'membership_benefit_instant',
@@ -167,10 +167,10 @@ export default function MembershipScreen() {
                         'membership_benefit_premium_content',
                     ].map((key) => (
                         <View key={key} style={styles.benefitRow}>
-                            <View style={[styles.checkWrap, { borderColor: '#22A06B', backgroundColor: '#E8F7EF' }]}>
+                            <View style={[styles.checkWrap, { borderColor: '#22A06B', backgroundColor: theme.isDark ? '#0E2A1F' : '#E8F7EF' }]}>
                                 <Ionicons name="checkmark" size={14} color="#22A06B" />
                             </View>
-                            <Text style={styles.benefitText}>{t(key as any)}</Text>
+                            <Text style={[styles.benefitText, { color: theme.text }]}>{t(key as any)}</Text>
                         </View>
                     ))}
                 </View>
@@ -180,19 +180,19 @@ export default function MembershipScreen() {
                     onPress={handleContinue}
                     disabled={loading}
                     activeOpacity={0.8}
-                    style={[styles.continueBtn, { backgroundColor: theme.headerBg, borderColor: theme.accent }]}
+                    style={[styles.continueBtn, { backgroundColor: theme.accent, borderColor: theme.accent }]}
                 >
                     {loading ? (
-                        <ActivityIndicator color={theme.accent} />
+                        <ActivityIndicator color={theme.isDark ? '#000' : '#fff'} />
                     ) : (
-                        <Text style={[styles.continueText, { color: theme.accent }]}>
+                        <Text style={[styles.continueText, { color: theme.isDark ? '#000' : '#fff' }]}>
                             {t('membership_continue' as any)}  •  {selectedPlan.price}
                         </Text>
                     )}
                 </TouchableOpacity>
 
                 <TouchableOpacity style={styles.restoreBtn} hitSlop={6}>
-                    <Text style={styles.restoreText}>
+                    <Text style={[styles.restoreText, { color: theme.subText }]}>
                         {t('membership_already_member' as any)}{' '}
                         <Text style={{ color: theme.accent, fontWeight: '700' }}>
                             {t('membership_restore' as any)}
@@ -226,7 +226,7 @@ const styles = StyleSheet.create({
         width: 28, height: 28, borderRadius: 14,
         alignItems: 'center', justifyContent: 'center',
     },
-    headerTitle: { fontSize: 16, fontWeight: '700', color: '#222' },
+    headerTitle: { fontSize: 16, fontWeight: '700' },
 
     scrollContent: { paddingHorizontal: HP, paddingTop: 6, paddingBottom: 20 },
 
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
         marginBottom: 8,
     },
     heroTitle: { fontSize: 20, fontWeight: '800', marginTop: 2 },
-    heroSubtitle: { fontSize: 12, color: '#555', marginTop: 4, textAlign: 'center' },
+    heroSubtitle: { fontSize: 12, marginTop: 4, textAlign: 'center' },
 
     planRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
     planCard: {
@@ -263,10 +263,10 @@ const styles = StyleSheet.create({
         paddingVertical: 2,
         borderRadius: 10,
     },
-    bestBadgeText: { fontSize: 10, fontWeight: '700', color: '#222' },
-    planLabel: { fontSize: 12, color: '#666', marginTop: 4 },
+    bestBadgeText: { fontSize: 10, fontWeight: '700' },
+    planLabel: { fontSize: 12, marginTop: 4 },
     planPrice: { fontSize: 18, fontWeight: '800', marginTop: 4 },
-    planPeriod: { fontSize: 11, color: '#777', marginTop: 2 },
+    planPeriod: { fontSize: 11, marginTop: 2 },
 
     lifetimeCard: {
         marginTop: 6,
@@ -282,8 +282,8 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
         borderWidth: 1,
     },
-    lifetimeTitle: { fontSize: 14, fontWeight: '700', color: '#222' },
-    lifetimeSub: { fontSize: 11, color: '#666', marginTop: 1 },
+    lifetimeTitle: { fontSize: 14, fontWeight: '700' },
+    lifetimeSub: { fontSize: 11, marginTop: 1 },
     lifetimePrice: { fontSize: 16, fontWeight: '800' },
 
     benefitsCard: {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
         alignItems: 'center', justifyContent: 'center',
         borderWidth: 1, marginRight: 8,
     },
-    benefitText: { fontSize: 13, color: '#222', flex: 1 },
+    benefitText: { fontSize: 13, flex: 1 },
 
     continueBtn: {
         marginTop: 6,
@@ -317,5 +317,5 @@ const styles = StyleSheet.create({
     continueText: { fontSize: 14, fontWeight: '800' },
 
     restoreBtn: { marginTop: 6, alignItems: 'center', paddingVertical: 6 },
-    restoreText: { fontSize: 12, color: '#666' },
+    restoreText: { fontSize: 12 },
 });

@@ -16,11 +16,11 @@ export default function SectionHeader({ title, actionLabel, actionIcon, onAction
 
     return (
         <View style={styles.row}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
             {!!actionLabel && (
                 <TouchableOpacity
                     onPress={onActionPress}
-                    style={[styles.btn, { borderColor: theme.cardBorder, backgroundColor: theme.bgCream }]}
+                    style={[styles.btn, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
                     hitSlop={6}
                 >
                     <Text style={[styles.btnText, { color: theme.accent }]}>{actionLabel}</Text>
@@ -38,7 +38,7 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         marginBottom: 6,
     },
-    title: { fontSize: 16, fontWeight: '700', color: '#222' },
+    title: { fontSize: 16, fontWeight: '700' },
     btn: {
         flexDirection: 'row',
         alignItems: 'center',

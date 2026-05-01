@@ -24,14 +24,14 @@ export default function TodaysGoalCard({
     const pct = Math.round(progress * 100);
 
     return (
-        <View style={[styles.card, { backgroundColor: theme.bgCream, borderColor: theme.cardBorder }]}>
+        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
             <View style={styles.headerRow}>
                 <View style={[styles.iconWrap, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}>
                     <Ionicons name="locate" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.titleCol}>
                     <Text style={[styles.title, { color: theme.accent }]}>{title}</Text>
-                    <Text style={styles.subtitle}>{mantraCount} {mantrasLabel}</Text>
+                    <Text style={[styles.subtitle, { color: theme.subText }]}>{mantraCount} {mantrasLabel}</Text>
                 </View>
                 <TouchableOpacity
                     style={[styles.editBtn, { borderColor: theme.cardBorder, backgroundColor: theme.headerBg }]}
@@ -44,25 +44,21 @@ export default function TodaysGoalCard({
             </View>
 
             <View style={styles.bottomRow}>
-                <Text style={styles.mantraName} numberOfLines={1}>{mantraName}</Text>
+                <Text style={[styles.mantraName, { color: theme.text }]} numberOfLines={1}>{mantraName}</Text>
                 <Text style={[styles.countText, { color: theme.accent }]}>
                     {current} / {target} • {pct}%
                 </Text>
             </View>
 
             <View style={{ marginTop: 6 }}>
-                <ProgressBar progress={progress} color={theme.accent} trackColor={theme.cardBorder + '55'} />
+                <ProgressBar progress={progress} color={theme.accent} trackColor={theme.mutedBg} />
             </View>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    card: {
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: 10,
-    },
+    card: { borderRadius: 12, borderWidth: 1, padding: 10 },
     headerRow: { flexDirection: 'row', alignItems: 'center' },
     iconWrap: {
         width: 34, height: 34, borderRadius: 8,
@@ -71,7 +67,7 @@ const styles = StyleSheet.create({
     },
     titleCol: { flex: 1 },
     title: { fontSize: 15, fontWeight: '700' },
-    subtitle: { fontSize: 12, color: '#666' },
+    subtitle: { fontSize: 12 },
     editBtn: {
         flexDirection: 'row', alignItems: 'center', gap: 4,
         paddingHorizontal: 8, paddingVertical: 4,
@@ -82,6 +78,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center',
         justifyContent: 'space-between', marginTop: 8,
     },
-    mantraName: { fontSize: 14, fontWeight: '600', color: '#222', flex: 1, marginRight: 6 },
+    mantraName: { fontSize: 14, fontWeight: '600', flex: 1, marginRight: 6 },
     countText: { fontSize: 12, fontWeight: '700' },
 });

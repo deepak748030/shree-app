@@ -187,7 +187,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-      <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+      <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
       {/* Yellow safe-area top band (status bar / notification bar background) */}
       <View style={{ height: insets.top, backgroundColor: theme.headerBg }} />

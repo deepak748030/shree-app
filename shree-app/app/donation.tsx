@@ -6,6 +6,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
@@ -16,8 +17,6 @@ import {
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-
-const TEXT_DARK = '#333333';
 
 interface DonationData {
     upiId: string;
@@ -67,13 +66,14 @@ export default function DonationScreen() {
     const note = language === 'hi' ? data?.note_hi : data?.note_en;
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.headerBg, paddingTop: insets.top }]}>
+        <View style={[styles.container, { backgroundColor: theme.bgCream, paddingTop: insets.top }]}>
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.cardBorder }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} activeOpacity={0.7}>
-                    <Ionicons name="arrow-back" size={22} color={TEXT_DARK} />
+                    <Ionicons name="arrow-back" size={22} color={theme.headerText} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>
+                <Text style={[styles.headerTitle, { color: theme.headerText }]}>
                     {language === 'hi' ? 'दान करें' : 'Donate'}
                 </Text>
                 <View style={{ width: 34 }} />
@@ -81,12 +81,12 @@ export default function DonationScreen() {
 
             {loading ? (
                 <View style={styles.loaderWrap}>
-                    <ActivityIndicator size="large" color={theme.primary} />
+                    <ActivityIndicator size="large" color={theme.accent} />
                 </View>
             ) : !data || !data.isActive ? (
                 <View style={styles.emptyWrap}>
-                    <Ionicons name="heart-outline" size={48} color="#999" />
-                    <Text style={styles.emptyText}>
+                    <Ionicons name="heart-outline" size={48} color={theme.subText} />
+                    <Text style={[styles.emptyText, { color: theme.subText }]}>
                         {language === 'hi' ? 'अभी दान की सुविधा उपलब्ध नहीं है' : 'Donation is not available right now'}
                     </Text>
                 </View>
@@ -95,34 +95,27 @@ export default function DonationScreen() {
                     contentContainerStyle={styles.scrollContent}
                     showsVerticalScrollIndicator={false}
                 >
-                    {/* Note */}
                     {note ? (
-                        <View style={[styles.card, { borderColor: theme.primary + '30' }]}>
-                            <Ionicons name="heart" size={20} color={theme.primary} />
-                            <Text style={styles.noteText}>{note}</Text>
+                        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.accent + '40' }]}>
+                            <Ionicons name="heart" size={20} color={theme.accent} />
+                            <Text style={[styles.noteText, { color: theme.text }]}>{note}</Text>
                         </View>
                     ) : null}
 
-                    {/* QR Scanner */}
                     {data.scannerImage ? (
-                        <View style={[styles.card, { alignItems: 'center' }]}>
-                            <Text style={styles.sectionTitle}>
+                        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder, alignItems: 'center' }]}>
+                            <Text style={[styles.sectionTitle, { color: theme.text }]}>
                                 {language === 'hi' ? 'QR कोड से दान करें' : 'Scan QR to Donate'}
                             </Text>
-                            <Image
-                                source={{ uri: data.scannerImage }}
-                                style={styles.qrImage}
-                                contentFit="contain"
-                            />
+                            <Image source={{ uri: data.scannerImage }} style={styles.qrImage} contentFit="contain" />
                         </View>
                     ) : null}
 
-                    {/* UPI */}
                     {data.upiId ? (
-                        <View style={styles.card}>
+                        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="phone-portrait-outline" size={18} color={theme.primary} />
-                                <Text style={styles.sectionTitle}>
+                                <Ionicons name="phone-portrait-outline" size={18} color={theme.accent} />
+                                <Text style={[styles.sectionTitle, { color: theme.text }]}>
                                     {language === 'hi' ? 'UPI से दान करें' : 'Donate via UPI'}
                                 </Text>
                             </View>
@@ -130,12 +123,11 @@ export default function DonationScreen() {
                         </View>
                     ) : null}
 
-                    {/* Bank Details */}
                     {data.accountNumber ? (
-                        <View style={styles.card}>
+                        <View style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
                             <View style={styles.sectionHeader}>
-                                <Ionicons name="business-outline" size={18} color={theme.primary} />
-                                <Text style={styles.sectionTitle}>
+                                <Ionicons name="business-outline" size={18} color={theme.accent} />
+                                <Text style={[styles.sectionTitle, { color: theme.text }]}>
                                     {language === 'hi' ? 'बैंक खाते में दान करें' : 'Bank Transfer'}
                                 </Text>
                             </View>
@@ -167,22 +159,20 @@ export default function DonationScreen() {
 
 function CopyRow({ label, value, onCopy, theme }: { label: string; value: string; onCopy: () => void; theme: any }) {
     return (
-        <View style={styles.copyRow}>
+        <View style={[styles.copyRow, { borderBottomColor: theme.divider }]}>
             <View style={{ flex: 1 }}>
-                <Text style={styles.copyLabel}>{label}</Text>
-                <Text style={styles.copyValue}>{value}</Text>
+                <Text style={[styles.copyLabel, { color: theme.subText }]}>{label}</Text>
+                <Text style={[styles.copyValue, { color: theme.text }]}>{value}</Text>
             </View>
-            <TouchableOpacity onPress={onCopy} style={[styles.copyBtn, { backgroundColor: theme.primary + '15' }]} activeOpacity={0.7}>
-                <Ionicons name="copy-outline" size={16} color={theme.primary} />
+            <TouchableOpacity onPress={onCopy} style={[styles.copyBtn, { backgroundColor: theme.accent + '22' }]} activeOpacity={0.7}>
+                <Ionicons name="copy-outline" size={16} color={theme.accent} />
             </TouchableOpacity>
         </View>
     );
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     header: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -190,95 +180,23 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
         paddingVertical: 10,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.06)',
     },
     backBtn: {
-        width: 34,
-        height: 34,
-        borderRadius: 17,
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: 34, height: 34, borderRadius: 17,
+        alignItems: 'center', justifyContent: 'center',
     },
-    headerTitle: {
-        fontSize: 17,
-        fontWeight: 'bold',
-        color: TEXT_DARK,
-    },
-    loaderWrap: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    emptyWrap: {
-        flex: 1,
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-    },
-    emptyText: {
-        fontSize: 14,
-        color: '#999',
-        textAlign: 'center',
-        paddingHorizontal: 6,
-    },
-    scrollContent: {
-        paddingHorizontal: 6,
-        paddingTop: 6,
-        paddingBottom: 24,
-        gap: 6,
-    },
-    card: {
-        backgroundColor: '#FFFFFF',
-        borderRadius: 12,
-        padding: 12,
-        borderWidth: 1,
-        borderColor: 'rgba(0,0,0,0.08)',
-    },
-    noteText: {
-        fontSize: 14,
-        color: TEXT_DARK,
-        lineHeight: 20,
-        marginTop: 4,
-    },
-    sectionHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-        marginBottom: 8,
-    },
-    sectionTitle: {
-        fontSize: 15,
-        fontWeight: '700',
-        color: TEXT_DARK,
-    },
-    qrImage: {
-        width: 220,
-        height: 220,
-        borderRadius: 8,
-        marginTop: 8,
-    },
-    copyRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 6,
-        borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.04)',
-    },
-    copyLabel: {
-        fontSize: 11,
-        color: '#888',
-        marginBottom: 1,
-    },
-    copyValue: {
-        fontSize: 14,
-        color: TEXT_DARK,
-        fontWeight: '600',
-    },
-    copyBtn: {
-        width: 32,
-        height: 32,
-        borderRadius: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
+    headerTitle: { fontSize: 17, fontWeight: 'bold' },
+    loaderWrap: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    emptyWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 },
+    emptyText: { fontSize: 14, textAlign: 'center', paddingHorizontal: 6 },
+    scrollContent: { paddingHorizontal: 6, paddingTop: 6, paddingBottom: 24, gap: 6 },
+    card: { borderRadius: 12, padding: 12, borderWidth: 1 },
+    noteText: { fontSize: 14, lineHeight: 20, marginTop: 4 },
+    sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 },
+    sectionTitle: { fontSize: 15, fontWeight: '700' },
+    qrImage: { width: 220, height: 220, borderRadius: 8, marginTop: 8 },
+    copyRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 6, borderBottomWidth: 1 },
+    copyLabel: { fontSize: 11, marginBottom: 1 },
+    copyValue: { fontSize: 14, fontWeight: '600' },
+    copyBtn: { width: 32, height: 32, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

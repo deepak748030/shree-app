@@ -21,26 +21,26 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.78;
-const TEXT_DARK = '#333333';
 
 interface DrawerMenuItem {
-    icon: React.ReactNode;
+    iconName: keyof typeof Ionicons.glyphMap | 'counter';
+    iconLib?: 'ion' | 'mc';
     labelKey: string;
     route: string;
 }
 
 const menuItems: DrawerMenuItem[] = [
-    { icon: <Ionicons name="home" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_home', route: '/' },
-    { icon: <Ionicons name="information-circle-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_shree_info', route: '/shree-info' },
-    { icon: <MaterialCommunityIcons name="counter" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
-    { icon: <Ionicons name="footsteps-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
-    { icon: <Ionicons name="chatbubble-ellipses-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_daily_quote', route: '/daily-quote' },
-    { icon: <Ionicons name="color-palette-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_theme', route: '/theme-settings' },
-    { icon: <Ionicons name="language-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_language', route: '/language-settings' },
-    { icon: <Ionicons name="share-social-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_share', route: '/share-app' },
-    { icon: <Ionicons name="shield-checkmark-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_privacy', route: '/privacy-policy' },
-    { icon: <Ionicons name="document-text-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_terms', route: '/terms-conditions' },
-    { icon: <Ionicons name="heart-outline" size={22} color={TEXT_DARK} />, labelKey: 'sidebar_donation', route: '/donation' },
+    { iconName: 'home', labelKey: 'sidebar_home', route: '/' },
+    { iconName: 'information-circle-outline', labelKey: 'sidebar_shree_info', route: '/shree-info' },
+    { iconName: 'counter', iconLib: 'mc', labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
+    { iconName: 'footsteps-outline', labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
+    { iconName: 'chatbubble-ellipses-outline', labelKey: 'sidebar_daily_quote', route: '/daily-quote' },
+    { iconName: 'color-palette-outline', labelKey: 'sidebar_theme', route: '/theme-settings' },
+    { iconName: 'language-outline', labelKey: 'sidebar_language', route: '/language-settings' },
+    { iconName: 'share-social-outline', labelKey: 'sidebar_share', route: '/share-app' },
+    { iconName: 'shield-checkmark-outline', labelKey: 'sidebar_privacy', route: '/privacy-policy' },
+    { iconName: 'document-text-outline', labelKey: 'sidebar_terms', route: '/terms-conditions' },
+    { iconName: 'heart-outline', labelKey: 'sidebar_donation', route: '/donation' },
 ];
 
 interface SidebarDrawerProps {
@@ -59,14 +59,11 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     const [logoutSheetVisible, setLogoutSheetVisible] = useState(false);
     const [sidebarImageUrl, setSidebarImageUrl] = useState<string | null>(null);
 
-    // Fetch sidebar image from API
     useEffect(() => {
         (async () => {
             try {
                 const data = await fetchHomeContent();
-                if (data?.sidebarImage) {
-                    setSidebarImageUrl(data.sidebarImage);
-                }
+                if (data?.sidebarImage) setSidebarImageUrl(data.sidebarImage);
             } catch { }
         })();
     }, []);
@@ -93,10 +90,7 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
         setLogoutSheetVisible(false);
     };
 
-    useEffect(() => {
-        if (visible) setShouldRender(true);
-    }, [visible]);
-
+    useEffect(() => { if (visible) setShouldRender(true); }, [visible]);
     useEffect(() => {
         if (!visible && !shouldRender) return;
         if (!visible) {
@@ -116,10 +110,10 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
             <Animated.View
                 style={[
                     styles.drawer,
-                    { paddingTop: insets.top, backgroundColor: theme.headerBg, transform: [{ translateX: slideAnim }] },
+                    { paddingTop: insets.top, backgroundColor: theme.bgCream, transform: [{ translateX: slideAnim }] },
                 ]}
             >
-                <View style={styles.drawerHeader}>
+                <View style={[styles.drawerHeader, { backgroundColor: theme.headerBg }]}>
                     <Image
                         source={sidebarImageUrl ? { uri: sidebarImageUrl } : require('@/assets/images/slider-2.png')}
                         style={styles.drawerHeaderImage}
@@ -138,21 +132,27 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
                     {menuItems.map((item, index) => (
                         <TouchableOpacity
                             key={index}
-                            style={styles.menuItem}
+                            style={[styles.menuItem, { borderBottomColor: theme.divider }]}
                             onPress={() => {
                                 onClose();
                                 router.push(item.route as any);
                             }}
                             activeOpacity={0.6}
                         >
-                            <View style={styles.menuIconContainer}>{item.icon}</View>
-                            <Text style={styles.menuLabel}>{t(item.labelKey as any)}</Text>
+                            <View style={styles.menuIconContainer}>
+                                {item.iconLib === 'mc' ? (
+                                    <MaterialCommunityIcons name={item.iconName as any} size={22} color={theme.accent} />
+                                ) : (
+                                    <Ionicons name={item.iconName as any} size={22} color={theme.accent} />
+                                )}
+                            </View>
+                            <Text style={[styles.menuLabel, { color: theme.text }]}>{t(item.labelKey as any)}</Text>
                         </TouchableOpacity>
                     ))}
 
                     {isLoggedIn && (
                         <TouchableOpacity
-                            style={[styles.menuItem, styles.logoutItem]}
+                            style={[styles.menuItem, styles.logoutItem, { borderTopColor: theme.divider }]}
                             onPress={() => setLogoutSheetVisible(true)}
                             activeOpacity={0.6}
                         >
@@ -165,9 +165,9 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
                 </ScrollView>
 
                 {isLoggedIn && user && (
-                    <View style={[styles.userInfo, { borderTopColor: 'rgba(0,0,0,0.1)' }]}>
-                        <Ionicons name="person-circle-outline" size={28} color={TEXT_DARK} />
-                        <Text style={styles.userName} numberOfLines={1}>{user.name}</Text>
+                    <View style={[styles.userInfo, { borderTopColor: theme.divider }]}>
+                        <Ionicons name="person-circle-outline" size={28} color={theme.text} />
+                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>{user.name}</Text>
                     </View>
                 )}
             </Animated.View>
@@ -197,56 +197,29 @@ const styles = StyleSheet.create({
         left: 0,
         width: DRAWER_WIDTH,
     },
-    drawerHeader: {
-        width: '100%',
-        height: 200,
-        position: 'relative',
-    },
-    drawerHeaderImage: {
-        width: '100%',
-        height: '100%',
-    },
+    drawerHeader: { width: '100%', height: 200, position: 'relative' },
+    drawerHeaderImage: { width: '100%', height: '100%' },
     closeButton: {
-        position: 'absolute',
-        top: 8,
-        right: 8,
-        width: 34,
-        height: 34,
-        borderRadius: 17,
+        position: 'absolute', top: 8, right: 8,
+        width: 34, height: 34, borderRadius: 17,
         backgroundColor: 'rgba(0,0,0,0.4)',
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'center', justifyContent: 'center',
     },
-    menuScroll: {
-        flex: 1,
-    },
-    menuContent: {
-        paddingVertical: 4,
-    },
+    menuScroll: { flex: 1 },
+    menuContent: { paddingVertical: 4 },
     menuItem: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 6,
         borderBottomWidth: 1,
-        borderBottomColor: 'rgba(0,0,0,0.06)',
     },
     logoutItem: {
         marginTop: 6,
         borderTopWidth: 1,
-        borderTopColor: 'rgba(0,0,0,0.1)',
     },
-    menuIconContainer: {
-        width: 32,
-        alignItems: 'center',
-    },
-    menuLabel: {
-        fontSize: 15,
-        color: TEXT_DARK,
-        marginLeft: 12,
-        flex: 1,
-        fontWeight: '500',
-    },
+    menuIconContainer: { width: 32, alignItems: 'center' },
+    menuLabel: { fontSize: 15, marginLeft: 12, flex: 1, fontWeight: '500' },
     userInfo: {
         flexDirection: 'row',
         alignItems: 'center',
@@ -255,10 +228,5 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         gap: 8,
     },
-    userName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: TEXT_DARK,
-        flex: 1,
-    },
+    userName: { fontSize: 14, fontWeight: '600', flex: 1 },
 });

@@ -51,13 +51,13 @@ function StepNotificationBar({ steps, goal, distance, calories, accentColor, the
         <View style={[notifStyles.bar, { backgroundColor: accentColor + '12', borderColor: accentColor + '30' }]}>
             <Animated.View style={[notifStyles.liveDot, { backgroundColor: '#4CAF50', transform: [{ scale: pulseAnim }] }]} />
             <Ionicons name="footsteps" size={16} color={accentColor} />
-            <Text style={[notifStyles.liveText, { color: '#1A1A1A' }]}>
+            <Text style={[notifStyles.liveText, { color: theme.text }]}>
                 <Text style={{ fontWeight: '800' }}>{steps.toLocaleString()}</Text> steps
             </Text>
-            <View style={notifStyles.barDivider} />
-            <Text style={[notifStyles.barStat, { color: '#666' }]}>{distance} km</Text>
-            <View style={notifStyles.barDivider} />
-            <Text style={[notifStyles.barStat, { color: '#666' }]}>{calories} kcal</Text>
+            <View style={[notifStyles.barDivider, { backgroundColor: theme.divider }]} />
+            <Text style={[notifStyles.barStat, { color: theme.subText }]}>{distance} km</Text>
+            <View style={[notifStyles.barDivider, { backgroundColor: theme.divider }]} />
+            <Text style={[notifStyles.barStat, { color: theme.subText }]}>{calories} kcal</Text>
             <View style={[notifStyles.progressPill, { backgroundColor: accentColor + '20' }]}>
                 <Text style={[notifStyles.progressText, { color: accentColor }]}>{Math.round(progress * 100)}%</Text>
             </View>
@@ -79,7 +79,7 @@ const notifStyles = StyleSheet.create({
     },
     liveDot: { width: 6, height: 6, borderRadius: 3 },
     liveText: { fontSize: 13, fontWeight: '600' },
-    barDivider: { width: 1, height: 12, backgroundColor: '#DDD' },
+    barDivider: { width: 1, height: 12 },
     barStat: { fontSize: 11, fontWeight: '500' },
     progressPill: { marginLeft: 'auto', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
     progressText: { fontSize: 11, fontWeight: '700' },
@@ -220,15 +220,15 @@ export default function StepTrackerScreen() {
 
     const accentColor = theme.accent;
     const bgColor = theme.bgCream;
-    const cardBg = '#FFFFFF';
-    const ringTrackColor = theme.cardBorder + '40';
-    const textColor = '#1A1A1A';
-    const subTextColor = '#666666';
+    const cardBg = theme.cardBg;
+    const ringTrackColor = theme.mutedBg;
+    const textColor = theme.text;
+    const subTextColor = theme.subText;
 
     if (loading) {
         return (
             <View style={[styles.center, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+                <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
                 <ActivityIndicator size="large" color={accentColor} />
             </View>
         );
@@ -236,7 +236,7 @@ export default function StepTrackerScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
             {/* Header */}
             <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomWidth: 1, borderBottomColor: theme.cardBorder }]}>

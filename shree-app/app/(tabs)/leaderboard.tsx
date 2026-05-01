@@ -2,6 +2,7 @@ import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { fetchLeaderboard, type LeaderboardEntry } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -13,28 +14,38 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-type Period = 'all' | 'daily' | 'weekly' | 'monthly';
+type Period = 'daily' | 'weekly' | 'monthly' | 'all';
+
+const RANK_COLORS: Record<number, { bg: readonly [string, string]; border: string; text: string; iconBg: string }> = {
+    1: { bg: ['#3A2E12', '#1F1909'] as const, border: '#E2B53A', text: '#F4C744', iconBg: '#FFD24A' },
+    2: { bg: ['#2A2A2A', '#1B1B1B'] as const, border: '#9C9C9C', text: '#D8D8D8', iconBg: '#C9C9C9' },
+    3: { bg: ['#3A1F0E', '#1F1209'] as const, border: '#C97A3A', text: '#E8853A', iconBg: '#E07B2D' },
+};
 
 export default function LeaderboardScreen() {
     const { theme } = useAppTheme();
     const { t } = useLanguage();
-    const insets = useSafeAreaInsets();
     const isDark = theme.id === 'dark';
 
-    const textPrimary = isDark ? '#F5F5F5' : '#222222';
-    const textMuted = isDark ? '#9A9A9A' : '#777777';
-    const cardBg = isDark ? '#1A1A1A' : '#FFFFFF';
+    const textPrimary = isDark ? '#F5F5F5' : '#1A1A1A';
+    const textMuted = isDark ? '#8A8A8A' : '#777777';
+    const cardBg = isDark ? '#1B1B1B' : '#FFFFFF';
+    const screenBg = isDark ? '#0A0A0A' : theme.bgCream;
 
-    const [period, setPeriod] = useState<Period>('all');
+    const [period, setPeriod] = useState<Period>('daily');
     const [data, setData] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
     const load = useCallback(async (p: Period) => {
         const list = await fetchLeaderboard(p, 200);
-        setData(list);
+        // Re-sort/rank by total jap count (count) per requirement
+        const ranked = [...list]
+            .sort((a, b) => (b.count || 0) - (a.count || 0))
+            .map((entry, i) => ({ ...entry, rank: i + 1 }));
+        setData(ranked);
         setLoading(false);
     }, []);
 
@@ -50,66 +61,94 @@ export default function LeaderboardScreen() {
     }, [period, load]);
 
     const periods: { id: Period; key: string }[] = [
-        { id: 'all', key: 'leaderboard_all_time' },
-        { id: 'monthly', key: 'leaderboard_monthly' },
+        { id: 'daily', key: 'leaderboard_today' },
         { id: 'weekly', key: 'leaderboard_weekly' },
-        { id: 'daily', key: 'leaderboard_daily' },
+        { id: 'monthly', key: 'leaderboard_monthly' },
+        { id: 'all', key: 'leaderboard_all_time' },
     ];
 
-    const rankColor = (rank: number) => {
-        if (rank === 1) return '#FFD700';
-        if (rank === 2) return '#C0C0C0';
-        if (rank === 3) return '#CD7F32';
-        return theme.accent;
+    const renderTopRank = (item: LeaderboardEntry) => {
+        const conf = RANK_COLORS[item.rank];
+        return (
+            <LinearGradient
+                colors={conf.bg}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.cardTop, { borderColor: conf.border }]}
+            >
+                <View style={styles.crownWrap}>
+                    <Ionicons name="trophy" size={14} color={conf.iconBg} style={{ position: 'absolute', top: -2 }} />
+                    <View style={[styles.laurel, { borderColor: conf.iconBg }]}>
+                        <Text style={[styles.laurelRank, { color: conf.iconBg }]}>{item.rank}</Text>
+                    </View>
+                    <View style={styles.starsRow}>
+                        <Ionicons name="star" size={7} color={conf.iconBg} />
+                        <Ionicons name="star" size={7} color={conf.iconBg} />
+                        <Ionicons name="star" size={7} color={conf.iconBg} />
+                    </View>
+                </View>
+
+                <View style={{ flex: 1, marginLeft: 14 }}>
+                    <Text style={[styles.topName, { color: '#FFFFFF' }]} numberOfLines={1}>{item.name}</Text>
+                    <Text style={[styles.topMeta, { color: '#BFBFBF' }]} numberOfLines={1}>
+                        {t('leaderboard_days' as any)}: 1{item.city ? `  •  ${item.city}` : ''}
+                    </Text>
+                </View>
+
+                <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={[styles.topCount, { color: conf.text }]}>{item.count.toLocaleString()}</Text>
+                    <Text style={[styles.topTotal, { color: '#BFBFBF' }]}>{t('leaderboard_total' as any)}</Text>
+                </View>
+            </LinearGradient>
+        );
     };
 
-    const renderItem = ({ item }: { item: LeaderboardEntry }) => (
-        <View style={[styles.card, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
-            <View style={[styles.rankBadge, { backgroundColor: rankColor(item.rank) + '22', borderColor: rankColor(item.rank) }]}>
-                <Text style={[styles.rankText, { color: rankColor(item.rank) }]}>#{item.rank}</Text>
+    const renderRow = (item: LeaderboardEntry) => (
+        <View style={[styles.row, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
+            <View style={[styles.rankCircle, { backgroundColor: isDark ? '#2A2A2A' : '#EFEFEF' }]}>
+                <Text style={[styles.rankCircleText, { color: textPrimary }]}>{item.rank}</Text>
             </View>
-            <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={[styles.name, { color: textPrimary }]} numberOfLines={1}>{item.name}</Text>
-                {item.city ? (
-                    <Text style={[styles.city, { color: textMuted }]} numberOfLines={1}>{item.city}</Text>
-                ) : null}
+            <View style={{ flex: 1, marginLeft: 12 }}>
+                <Text style={[styles.rowName, { color: textPrimary }]} numberOfLines={1}>{item.name}</Text>
+                <Text style={[styles.rowMeta, { color: textMuted }]} numberOfLines={1}>
+                    {t('leaderboard_days' as any)}: 1{item.city ? `  •  ${item.city}` : ''}
+                </Text>
             </View>
             <View style={{ alignItems: 'flex-end' }}>
-                <Text style={[styles.malas, { color: theme.accent }]}>{item.malas}</Text>
-                <Text style={[styles.malasLabel, { color: textMuted }]}>{t('leaderboard_malas' as any)}</Text>
+                <Text style={[styles.rowCount, { color: theme.accent }]}>{item.count.toLocaleString()}</Text>
+                <Text style={[styles.rowTotal, { color: textMuted }]}>{t('leaderboard_total' as any)}</Text>
             </View>
         </View>
     );
 
-    return (
-        <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
-            <View style={{ height: insets.top, backgroundColor: theme.headerBg }} />
+    const renderItem = ({ item }: { item: LeaderboardEntry }) => {
+        if (item.rank <= 3) return renderTopRank(item);
+        return renderRow(item);
+    };
 
-            <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.cardBorder }]}>
-                <Ionicons name="trophy" size={22} color={theme.accent} />
+    return (
+        <SafeAreaView style={[styles.container, { backgroundColor: screenBg }]} edges={['top']}>
+            <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={screenBg} translucent={false} />
+
+            <View style={styles.headerWrap}>
                 <Text style={[styles.headerTitle, { color: textPrimary }]}>{t('leaderboard_title' as any)}</Text>
+                <Text style={[styles.headerSub, { color: textMuted }]}>{t('leaderboard_subtitle' as any)}</Text>
             </View>
 
-            <View style={styles.tabs}>
+            <View style={[styles.tabsRow, { borderBottomColor: isDark ? '#222' : '#E5E5E5' }]}>
                 {periods.map((p) => {
                     const active = period === p.id;
                     return (
                         <TouchableOpacity
                             key={p.id}
-                            style={[
-                                styles.tab,
-                                {
-                                    backgroundColor: active ? theme.accent : cardBg,
-                                    borderColor: active ? theme.accent : theme.cardBorder,
-                                },
-                            ]}
+                            style={styles.tabBtn}
                             onPress={() => setPeriod(p.id)}
-                            activeOpacity={0.8}
+                            activeOpacity={0.7}
                         >
-                            <Text style={[styles.tabText, { color: active ? '#FFFFFF' : textPrimary }]}>
+                            <Text style={[styles.tabText, { color: active ? theme.accent : textMuted, fontWeight: active ? '800' : '600' }]}>
                                 {t(p.key as any)}
                             </Text>
+                            {active ? <View style={[styles.tabUnderline, { backgroundColor: theme.accent }]} /> : null}
                         </TouchableOpacity>
                     );
                 })}
@@ -129,8 +168,8 @@ export default function LeaderboardScreen() {
                     data={data}
                     keyExtractor={(item, i) => `${item.name}-${i}`}
                     renderItem={renderItem}
-                    contentContainerStyle={{ padding: 6, paddingBottom: 20 }}
-                    ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+                    contentContainerStyle={{ padding: 12, paddingBottom: 24 }}
+                    ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
                     showsVerticalScrollIndicator={false}
                     refreshControl={
                         <RefreshControl
@@ -142,55 +181,89 @@ export default function LeaderboardScreen() {
                     }
                 />
             )}
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    header: {
+    headerWrap: {
+        paddingHorizontal: 16,
+        paddingTop: 12,
+        paddingBottom: 8,
+    },
+    headerTitle: { fontSize: 26, fontWeight: '900', letterSpacing: 1.5 },
+    headerSub: { fontSize: 13, marginTop: 2 },
+    tabsRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 12,
-        paddingVertical: 10,
+        paddingHorizontal: 8,
         borderBottomWidth: StyleSheet.hairlineWidth,
     },
-    headerTitle: { fontSize: 18, fontWeight: '700' },
-    tabs: {
-        flexDirection: 'row',
-        gap: 6,
-        paddingHorizontal: 6,
-        paddingVertical: 6,
-    },
-    tab: {
+    tabBtn: {
         flex: 1,
-        paddingVertical: 8,
-        borderRadius: 10,
-        borderWidth: 1,
+        paddingVertical: 12,
         alignItems: 'center',
     },
-    tabText: { fontSize: 12, fontWeight: '600' },
-    card: {
+    tabText: { fontSize: 14 },
+    tabUnderline: {
+        position: 'absolute',
+        bottom: -1,
+        left: '25%',
+        right: '25%',
+        height: 3,
+        borderRadius: 2,
+    },
+    cardTop: {
         flexDirection: 'row',
         alignItems: 'center',
-        padding: 10,
-        borderRadius: 12,
-        borderWidth: StyleSheet.hairlineWidth,
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: 1.5,
+        minHeight: 76,
     },
-    rankBadge: {
+    crownWrap: {
+        width: 56,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    laurel: {
         width: 44,
         height: 44,
         borderRadius: 22,
+        borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
-        borderWidth: 1,
     },
-    rankText: { fontSize: 13, fontWeight: '800' },
-    name: { fontSize: 14, fontWeight: '700' },
-    city: { fontSize: 11, marginTop: 2 },
-    malas: { fontSize: 18, fontWeight: '800' },
-    malasLabel: { fontSize: 10, marginTop: 1 },
+    laurelRank: { fontSize: 18, fontWeight: '900' },
+    starsRow: {
+        flexDirection: 'row',
+        gap: 2,
+        marginTop: 2,
+    },
+    topName: { fontSize: 17, fontWeight: '800' },
+    topMeta: { fontSize: 12, marginTop: 3 },
+    topCount: { fontSize: 22, fontWeight: '900' },
+    topTotal: { fontSize: 11, marginTop: 1 },
+    row: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        padding: 14,
+        borderRadius: 14,
+        borderWidth: StyleSheet.hairlineWidth,
+        minHeight: 70,
+    },
+    rankCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+    rankCircleText: { fontSize: 16, fontWeight: '700' },
+    rowName: { fontSize: 16, fontWeight: '700' },
+    rowMeta: { fontSize: 12, marginTop: 2 },
+    rowCount: { fontSize: 20, fontWeight: '800' },
+    rowTotal: { fontSize: 11, marginTop: 1 },
     loadingWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
     empty: { fontSize: 14, fontWeight: '500' },
 });

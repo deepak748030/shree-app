@@ -31,36 +31,36 @@ export default function ChantCard({
         <TouchableOpacity
             activeOpacity={0.85}
             onPress={onPress}
-            style={[styles.card, { backgroundColor: theme.bgCream, borderColor: theme.cardBorder }]}
+            style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}
         >
             <View style={styles.headerRow}>
                 <View style={[styles.iconWrap, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}>
                     <Ionicons name="sparkles" size={18} color={theme.accent} />
                 </View>
                 <View style={styles.titleCol}>
-                    <Text style={styles.title} numberOfLines={1}>{title}</Text>
-                    {!!subtitle && <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>}
+                    <Text style={[styles.title, { color: theme.text }]} numberOfLines={1}>{title}</Text>
+                    {!!subtitle && <Text style={[styles.subtitle, { color: theme.subText }]} numberOfLines={1}>{subtitle}</Text>}
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={theme.accent} />
             </View>
 
             <View style={styles.targetRow}>
-                <Text style={styles.target}>{targetLabel}: {target}</Text>
+                <Text style={[styles.target, { color: theme.subText }]}>{targetLabel}: {target}</Text>
                 <Text style={[styles.pct, { color: theme.accent }]}>{pct}%</Text>
             </View>
 
             <View style={{ marginTop: 4 }}>
-                <ProgressBar progress={progress} color={theme.accent} trackColor={theme.cardBorder + '55'} />
+                <ProgressBar progress={progress} color={theme.accent} trackColor={theme.mutedBg} />
             </View>
 
             <View style={styles.statsRow}>
                 <View style={[styles.statBox, { borderColor: theme.cardBorder }]}>
-                    <Text style={styles.statValue}>{todayJapa}</Text>
-                    <Text style={styles.statLabel}>{todayLabel}</Text>
+                    <Text style={[styles.statValue, { color: theme.text }]}>{todayJapa}</Text>
+                    <Text style={[styles.statLabel, { color: theme.subText }]}>{todayLabel}</Text>
                 </View>
                 <View style={[styles.statBox, { borderColor: theme.cardBorder }]}>
-                    <Text style={styles.statValue}>{lifetimeJapa}</Text>
-                    <Text style={styles.statLabel}>{lifetimeLabel}</Text>
+                    <Text style={[styles.statValue, { color: theme.text }]}>{lifetimeJapa}</Text>
+                    <Text style={[styles.statLabel, { color: theme.subText }]}>{lifetimeLabel}</Text>
                 </View>
             </View>
         </TouchableOpacity>
@@ -68,11 +68,7 @@ export default function ChantCard({
 }
 
 const styles = StyleSheet.create({
-    card: {
-        borderRadius: 12,
-        borderWidth: 1,
-        padding: 10,
-    },
+    card: { borderRadius: 12, borderWidth: 1, padding: 10 },
     headerRow: { flexDirection: 'row', alignItems: 'center' },
     iconWrap: {
         width: 34, height: 34, borderRadius: 8,
@@ -80,28 +76,21 @@ const styles = StyleSheet.create({
         borderWidth: 1, marginRight: 6,
     },
     titleCol: { flex: 1 },
-    title: { fontSize: 14, fontWeight: '700', color: '#222' },
-    subtitle: { fontSize: 11, color: '#777' },
+    title: { fontSize: 14, fontWeight: '700' },
+    subtitle: { fontSize: 11 },
     targetRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: 8,
     },
-    target: { fontSize: 12, color: '#555' },
+    target: { fontSize: 12 },
     pct: { fontSize: 12, fontWeight: '700' },
-    statsRow: {
-        flexDirection: 'row',
-        gap: 6,
-        marginTop: 8,
-    },
+    statsRow: { flexDirection: 'row', gap: 6, marginTop: 8 },
     statBox: {
-        flex: 1,
-        borderWidth: 1,
-        borderRadius: 8,
-        paddingVertical: 6,
-        alignItems: 'center',
+        flex: 1, borderWidth: 1, borderRadius: 8,
+        paddingVertical: 6, alignItems: 'center',
     },
-    statValue: { fontSize: 16, fontWeight: '700', color: '#222' },
-    statLabel: { fontSize: 11, color: '#666' },
+    statValue: { fontSize: 16, fontWeight: '700' },
+    statLabel: { fontSize: 11 },
 });

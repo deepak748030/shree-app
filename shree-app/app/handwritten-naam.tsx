@@ -25,7 +25,6 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
 
-const TEXT_DARK = '#333333';
 const CACHE_KEY = '@handwritten_naam_cache_v2';
 
 const MANTRAS = [
@@ -255,7 +254,7 @@ export default function HandwrittenNaamScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
             {/* Header */}
             <View
@@ -269,36 +268,36 @@ export default function HandwrittenNaamScreen() {
                 ]}
             >
                 <TouchableOpacity
-                    style={[styles.backBtn, { borderColor: theme.cardBorder }]}
+                    style={[styles.backBtn, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
                     onPress={() => router.back()}
                     activeOpacity={0.7}
                 >
-                    <Ionicons name="chevron-back" size={22} color={TEXT_DARK} />
+                    <Ionicons name="chevron-back" size={22} color={theme.headerText} />
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                    style={[styles.mantraBtn, { borderColor: theme.cardBorder }]}
+                    style={[styles.mantraBtn, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
                     onPress={() => setMantraPickerVisible(true)}
                     activeOpacity={0.7}
                 >
-                    <Text style={styles.mantraBtnText} numberOfLines={1}>
+                    <Text style={[styles.mantraBtnText, { color: theme.text }]} numberOfLines={1}>
                         {selectedMantra}
                     </Text>
-                    <Ionicons name="chevron-down" size={18} color={TEXT_DARK} />
+                    <Ionicons name="chevron-down" size={18} color={theme.text} />
                 </TouchableOpacity>
             </View>
 
             {/* Counters */}
             <View style={styles.countersRow}>
-                <View style={[styles.countCard, { borderColor: theme.cardBorder, backgroundColor: '#FFFFFF' }]}>
-                    <Text style={styles.countLabel}>{t('handwritten_today')}</Text>
+                <View style={[styles.countCard, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}>
+                    <Text style={[styles.countLabel, { color: theme.subText }]}>{t('handwritten_today')}</Text>
                     <View style={styles.countRow}>
                         <Text style={[styles.countValue, { color: theme.accent }]}>{today}</Text>
                         <Ionicons name="create-outline" size={18} color={theme.accent} />
                     </View>
                 </View>
-                <View style={[styles.countCard, { borderColor: theme.cardBorder, backgroundColor: '#FFFFFF' }]}>
-                    <Text style={styles.countLabel}>{t('handwritten_lifetime')}</Text>
+                <View style={[styles.countCard, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}>
+                    <Text style={[styles.countLabel, { color: theme.subText }]}>{t('handwritten_lifetime')}</Text>
                     <View style={styles.countRow}>
                         <Text style={[styles.countValue, { color: theme.accent }]}>{lifetime}</Text>
                         <Ionicons name="checkmark-circle-outline" size={18} color={theme.accent} />
@@ -308,7 +307,7 @@ export default function HandwrittenNaamScreen() {
 
             {/* Drawing canvas */}
             <View
-                style={[styles.canvasWrap, { borderColor: theme.cardBorder }]}
+                style={[styles.canvasWrap, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
                 {...panResponder.panHandlers}
             >
                 <Svg style={StyleSheet.absoluteFill}>
@@ -336,7 +335,7 @@ export default function HandwrittenNaamScreen() {
                 </Svg>
                 {paths.length === 0 && !currentPath ? (
                     <View pointerEvents="none" style={styles.hintWrap}>
-                        <Text style={styles.hintText}>{t('handwritten_hint')}</Text>
+                        <Text style={[styles.hintText, { color: theme.subText }]}>{t('handwritten_hint')}</Text>
                     </View>
                 ) : null}
             </View>
@@ -344,13 +343,13 @@ export default function HandwrittenNaamScreen() {
             {/* Bottom action buttons */}
             <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 12 }]}>
                 <TouchableOpacity
-                    style={[styles.clearBtn, { borderColor: theme.cardBorder, backgroundColor: '#FFFFFF' }]}
+                    style={[styles.clearBtn, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
                     onPress={handleClear}
                     activeOpacity={0.7}
                     disabled={submitting}
                 >
-                    <Ionicons name="refresh" size={18} color={TEXT_DARK} />
-                    <Text style={styles.clearBtnText}>{t('handwritten_clear')}</Text>
+                    <Ionicons name="refresh" size={18} color={theme.text} />
+                    <Text style={[styles.clearBtnText, { color: theme.text }]}>{t('handwritten_clear')}</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -360,11 +359,11 @@ export default function HandwrittenNaamScreen() {
                     disabled={submitting}
                 >
                     {submitting ? (
-                        <ActivityIndicator size="small" color="#FFFFFF" />
+                        <ActivityIndicator size="small" color={theme.isDark ? '#000' : '#FFFFFF'} />
                     ) : (
                         <>
-                            <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                            <Text style={styles.nextBtnText}>{t('handwritten_next')}</Text>
+                            <Ionicons name="arrow-forward" size={18} color={theme.isDark ? '#000' : '#FFFFFF'} />
+                            <Text style={[styles.nextBtnText, { color: theme.isDark ? '#000' : '#FFFFFF' }]}>{t('handwritten_next')}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -379,8 +378,8 @@ export default function HandwrittenNaamScreen() {
             >
                 <Pressable style={styles.modalOverlay} onPress={() => setMantraPickerVisible(false)} />
                 <View style={[styles.pickerSheet, { backgroundColor: theme.bgCream, borderColor: theme.cardBorder }]}>
-                    <View style={styles.pickerHandle} />
-                    <Text style={styles.pickerTitle}>{t('handwritten_pick_mantra')}</Text>
+                    <View style={[styles.pickerHandle, { backgroundColor: theme.divider }]} />
+                    <Text style={[styles.pickerTitle, { color: theme.text }]}>{t('handwritten_pick_mantra')}</Text>
                     {MANTRAS.map((m) => {
                         const active = m === selectedMantra;
                         return (
@@ -390,13 +389,13 @@ export default function HandwrittenNaamScreen() {
                                     styles.pickerItem,
                                     {
                                         borderColor: active ? theme.accent : theme.cardBorder,
-                                        backgroundColor: active ? theme.headerBg : '#FFFFFF',
+                                        backgroundColor: active ? theme.headerBg : theme.cardBg,
                                     },
                                 ]}
                                 onPress={() => handleSelectMantra(m)}
                                 activeOpacity={0.7}
                             >
-                                <Text style={styles.pickerItemText}>{m}</Text>
+                                <Text style={[styles.pickerItemText, { color: theme.text }]}>{m}</Text>
                                 {active ? (
                                     <Ionicons name="checkmark-circle" size={20} color={theme.accent} />
                                 ) : null}
@@ -434,7 +433,6 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#FFFFFF',
         borderWidth: 1,
     },
     mantraBtn: {
@@ -445,10 +443,9 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         height: 38,
         borderRadius: 10,
-        backgroundColor: '#FFFFFF',
         borderWidth: 1,
     },
-    mantraBtnText: { flex: 1, fontSize: 14, fontWeight: '600', color: TEXT_DARK },
+    mantraBtnText: { flex: 1, fontSize: 14, fontWeight: '600' },
     countersRow: { flexDirection: 'row', gap: 6, paddingHorizontal: 6, marginTop: 6 },
     countCard: {
         flex: 1,
@@ -457,7 +454,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         paddingVertical: 8,
     },
-    countLabel: { fontSize: 12, color: '#888', marginBottom: 2 },
+    countLabel: { fontSize: 12, marginBottom: 2 },
     countRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
     countValue: { fontSize: 22, fontWeight: '700' },
     canvasWrap: {
@@ -466,11 +463,10 @@ const styles = StyleSheet.create({
         marginTop: 6,
         borderWidth: 1,
         borderRadius: 14,
-        backgroundColor: '#FFFFFF',
         overflow: 'hidden',
     },
     hintWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-    hintText: { fontSize: 13, color: '#AAAAAA' },
+    hintText: { fontSize: 13 },
     bottomBar: {
         flexDirection: 'row',
         gap: 6,
@@ -488,7 +484,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         borderWidth: 1,
     },
-    clearBtnText: { fontSize: 14, fontWeight: '600', color: TEXT_DARK },
+    clearBtnText: { fontSize: 14, fontWeight: '600' },
     nextBtn: {
         flex: 1.4,
         flexDirection: 'row',
@@ -498,7 +494,7 @@ const styles = StyleSheet.create({
         height: 46,
         borderRadius: 12,
     },
-    nextBtnText: { fontSize: 15, fontWeight: '700', color: '#FFFFFF' },
+    nextBtnText: { fontSize: 15, fontWeight: '700' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
     pickerSheet: {
         position: 'absolute',
@@ -518,13 +514,11 @@ const styles = StyleSheet.create({
         width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#CCCCCC',
         marginBottom: 6,
     },
     pickerTitle: {
         fontSize: 15,
         fontWeight: '700',
-        color: TEXT_DARK,
         paddingHorizontal: 4,
         marginBottom: 2,
     },
@@ -537,5 +531,5 @@ const styles = StyleSheet.create({
         borderRadius: 10,
         borderWidth: 1,
     },
-    pickerItemText: { fontSize: 14, fontWeight: '600', color: TEXT_DARK },
+    pickerItemText: { fontSize: 14, fontWeight: '600' },
 });

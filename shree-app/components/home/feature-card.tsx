@@ -16,14 +16,14 @@ export default function FeatureCard({ iconName, title, subtitle, onPress }: Feat
         <TouchableOpacity
             activeOpacity={0.85}
             onPress={onPress}
-            style={[styles.card, { backgroundColor: theme.bgCream, borderColor: theme.cardBorder }]}
+            style={[styles.card, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}
         >
             <View style={[styles.iconWrap, { backgroundColor: theme.headerBg, borderColor: theme.cardBorder }]}>
                 <Ionicons name={iconName} size={20} color={theme.accent} />
             </View>
             <View style={styles.textCol}>
-                <Text style={styles.title}>{title}</Text>
-                <Text style={styles.subtitle} numberOfLines={2}>{subtitle}</Text>
+                <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
+                <Text style={[styles.subtitle, { color: theme.subText }]} numberOfLines={2}>{subtitle}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={theme.accent} />
         </TouchableOpacity>
@@ -44,6 +44,6 @@ const styles = StyleSheet.create({
         borderWidth: 1, marginRight: 6,
     },
     textCol: { flex: 1 },
-    title: { fontSize: 14, fontWeight: '700', color: '#222' },
-    subtitle: { fontSize: 12, color: '#666', marginTop: 2 },
+    title: { fontSize: 14, fontWeight: '700' },
+    subtitle: { fontSize: 12, marginTop: 2 },
 });

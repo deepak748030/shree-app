@@ -16,9 +16,7 @@ import type { TranslationKeys } from '@/constants/translations';
 import { useLanguage } from '@/contexts/language-context';
 import { THEME_OPTIONS, useAppTheme, type ThemeColors } from '@/contexts/theme-context';
 
-const TEXT_DARK = '#333333';
-
-const THEME_NAME_KEYS: Record<string, TranslationKeys> = {
+const THEME_NAME_KEYS: Record<string, TranslationKeys | undefined> = {
     yellow: 'theme_yellow',
     saffron: 'theme_saffron',
     lotus: 'theme_lotus',
@@ -27,7 +25,18 @@ const THEME_NAME_KEYS: Record<string, TranslationKeys> = {
     sandal: 'theme_sandal',
 };
 
+const THEME_NAME_NATIVE: Record<string, string> = {
+    dark: 'डार्क मोड',
+    yellow: 'सुनहरा पीला',
+    saffron: 'केसरिया',
+    lotus: 'कमल गुलाबी',
+    peacock: 'मोर नीला',
+    tulsi: 'तुलसी हरा',
+    sandal: 'चंदन',
+};
+
 const THEME_NAME_EN: Record<string, string> = {
+    dark: 'Dark Mode',
     yellow: 'Golden Yellow',
     saffron: 'Saffron Orange',
     lotus: 'Lotus Pink',
@@ -40,7 +49,7 @@ export default function ThemeSettingsScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
     const { theme, themeId, setThemeId } = useAppTheme();
-    const { t } = useLanguage();
+    const { language, t } = useLanguage();
     const [saving, setSaving] = useState(false);
     const [sheetVisible, setSheetVisible] = useState(false);
     const [sheetConfig, setSheetConfig] = useState({
@@ -74,27 +83,31 @@ export default function ThemeSettingsScreen() {
 
     const renderThemeItem = ({ item }: { item: ThemeColors }) => {
         const isSelected = item.id === themeId;
+        const tk = THEME_NAME_KEYS[item.id];
+        const nameLocalized = tk
+            ? t(tk)
+            : (language === 'hi' ? THEME_NAME_NATIVE[item.id] : THEME_NAME_EN[item.id]);
         return (
             <TouchableOpacity
                 style={[
                     styles.themeCard,
-                    { borderColor: isSelected ? item.accent : '#E0E0E0' },
+                    { backgroundColor: theme.cardBg, borderColor: isSelected ? item.accent : theme.cardBorder },
                     isSelected && { borderWidth: 2 },
                 ]}
                 onPress={() => handleSelectTheme(item.id)}
                 activeOpacity={0.7}
                 disabled={saving}
             >
-                <View style={styles.themePreview}>
+                <View style={[styles.themePreview, { borderColor: theme.cardBorder }]}>
                     <View style={[styles.previewHeader, { backgroundColor: item.headerBg }]} />
                     <View style={[styles.previewBody, { backgroundColor: item.bgCream }]}>
-                        <View style={[styles.previewCard, { borderColor: item.cardBorder }]} />
-                        <View style={[styles.previewCard, { borderColor: item.cardBorder, width: '60%' }]} />
+                        <View style={[styles.previewCard, { backgroundColor: item.cardBg, borderColor: item.cardBorder }]} />
+                        <View style={[styles.previewCard, { backgroundColor: item.cardBg, borderColor: item.cardBorder, width: '60%' }]} />
                     </View>
                 </View>
                 <View style={styles.themeInfo}>
-                    <Text style={styles.themeName}>{t(THEME_NAME_KEYS[item.id])}</Text>
-                    <Text style={styles.themeNameEn}>{THEME_NAME_EN[item.id]}</Text>
+                    <Text style={[styles.themeName, { color: theme.text }]}>{nameLocalized}</Text>
+                    <Text style={[styles.themeNameEn, { color: theme.subText }]}>{THEME_NAME_EN[item.id]}</Text>
                 </View>
                 {isSelected && (
                     <Ionicons name="checkmark-circle" size={24} color={item.accent} />
@@ -105,13 +118,13 @@ export default function ThemeSettingsScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                        <Ionicons name="arrow-back" size={24} color={theme.headerText} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('theme_header')}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('theme_header')}</Text>
                     <View style={{ width: 32 }} />
                 </View>
             </View>
@@ -137,9 +150,7 @@ export default function ThemeSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-    },
+    container: { flex: 1 },
     headerBg: {},
     header: {
         flexDirection: 'row',
@@ -148,26 +159,14 @@ const styles = StyleSheet.create({
         paddingHorizontal: 6,
         paddingVertical: 10,
     },
-    backButton: {
-        padding: 4,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: 'bold',
-        color: TEXT_DARK,
-    },
-    listContent: {
-        paddingHorizontal: 6,
-        paddingTop: 6,
-        paddingBottom: 30,
-    },
+    backButton: { padding: 4 },
+    headerTitle: { fontSize: 18, fontWeight: 'bold' },
+    listContent: { paddingHorizontal: 6, paddingTop: 6, paddingBottom: 30 },
     themeCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: 10,
         borderWidth: 1,
-        borderColor: '#E0E0E0',
         padding: 10,
     },
     themePreview: {
@@ -176,35 +175,16 @@ const styles = StyleSheet.create({
         borderRadius: 6,
         overflow: 'hidden',
         borderWidth: 1,
-        borderColor: '#E0E0E0',
     },
-    previewHeader: {
-        height: 14,
-    },
-    previewBody: {
-        flex: 1,
-        padding: 3,
-        gap: 2,
-    },
+    previewHeader: { height: 14 },
+    previewBody: { flex: 1, padding: 3, gap: 2 },
     previewCard: {
         height: 6,
         borderRadius: 2,
-        backgroundColor: '#FFFFFF',
         borderWidth: 1,
         width: '80%',
     },
-    themeInfo: {
-        flex: 1,
-        marginLeft: 10,
-    },
-    themeName: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: TEXT_DARK,
-    },
-    themeNameEn: {
-        fontSize: 12,
-        color: TEXT_DARK,
-        opacity: 0.6,
-    },
+    themeInfo: { flex: 1, marginLeft: 10 },
+    themeName: { fontSize: 14, fontWeight: '600' },
+    themeNameEn: { fontSize: 12, opacity: 0.85 },
 });

@@ -3,8 +3,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const TEXT_DARK = '#333333';
-
 interface HomeHeaderProps {
     title: string;
     onMenuPress: () => void;
@@ -15,9 +13,9 @@ export default function HomeHeader({ title, onMenuPress }: HomeHeaderProps) {
     return (
         <View style={[styles.header, { backgroundColor: theme.headerBg }]}>
             <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn} hitSlop={8}>
-                <Ionicons name="menu" size={26} color={TEXT_DARK} />
+                <Ionicons name="menu" size={26} color={theme.headerText} />
             </TouchableOpacity>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, { color: theme.headerText }]}>{title}</Text>
             <View style={{ width: 26 }} />
         </View>
     );
@@ -32,5 +30,5 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
     },
     menuBtn: { padding: 2 },
-    title: { fontSize: 20, fontWeight: 'bold', color: TEXT_DARK },
+    title: { fontSize: 20, fontWeight: 'bold' },
 });

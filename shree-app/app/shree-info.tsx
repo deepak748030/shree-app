@@ -23,7 +23,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
 const HP = 6;
-const TEXT_DARK = '#333333';
 
 export default function HomeScreen() {
     const insets = useSafeAreaInsets();
@@ -82,7 +81,7 @@ export default function HomeScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
             <View style={[styles.statusBarBg, { backgroundColor: theme.headerBg, paddingTop: insets.top }]}>
                 <View style={styles.header}>
@@ -90,9 +89,9 @@ export default function HomeScreen() {
                         style={styles.menuButton}
                         onPress={() => setDrawerVisible(true)}
                     >
-                        <Ionicons name="menu" size={26} color={TEXT_DARK} />
+                        <Ionicons name="menu" size={26} color={theme.headerText} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('app_name')}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('app_name')}</Text>
                     <View style={{ width: 26 }} />
                 </View>
             </View>
@@ -132,14 +131,14 @@ export default function HomeScreen() {
                             </View>
 
                             <Text style={[styles.contentTitle, { color: theme.accent }]}>{displayTitle}</Text>
-                            <Text style={styles.contentSubtitle}>{displaySubtitle}</Text>
+                            <Text style={[styles.contentSubtitle, { color: theme.accent }]}>{displaySubtitle}</Text>
 
                             {displayParagraphs.map((para, index) => (
                                 <Text
                                     key={index}
                                     style={[
                                         styles.paragraph,
-                                        { fontSize: fontSize, lineHeight: fontSize * 1.75 },
+                                        { color: theme.text, fontSize: fontSize, lineHeight: fontSize * 1.75 },
                                     ]}
                                 >
                                     {para}
@@ -176,7 +175,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#333333',
     },
     scrollView: {
         flex: 1,
@@ -212,13 +210,11 @@ const styles = StyleSheet.create({
     contentSubtitle: {
         fontSize: 14,
         textAlign: 'center',
-        color: '#E65100',
         fontStyle: 'italic',
         marginBottom: 12,
     },
     paragraph: {
         textAlign: 'justify',
-        color: '#333333',
         marginBottom: 6,
     },
 });

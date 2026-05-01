@@ -20,8 +20,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 import { fetchTodayImage } from '@/services/api';
 
-const TEXT_DARK = '#333333';
-
 // Fallback image when server is unavailable
 const FALLBACK_IMAGE = require('@/assets/images/shree-ji-logo.png');
 
@@ -91,14 +89,14 @@ export default function DailyQuoteScreen() {
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
             <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                        <Ionicons name="arrow-back" size={24} color={theme.headerText} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('daily_quote_header')}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('daily_quote_header')}</Text>
                     <View style={{ width: 24 }} />
                 </View>
             </View>
@@ -120,7 +118,7 @@ export default function DailyQuoteScreen() {
                         />
                     }
                 >
-                    <View style={[styles.imageCard, { borderColor: theme.cardBorder }]}>
+                    <View style={[styles.imageCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
                         <Image
                             source={imageUrl ? { uri: imageUrl } : FALLBACK_IMAGE}
                             style={styles.quoteImage}
@@ -143,11 +141,11 @@ export default function DailyQuoteScreen() {
                     disabled={sharing}
                 >
                     {sharing ? (
-                        <ActivityIndicator color="#FFFFFF" />
+                        <ActivityIndicator color={theme.isDark ? '#000' : '#FFFFFF'} />
                     ) : (
                         <>
-                            <Ionicons name="share-social" size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
-                            <Text style={styles.shareButtonText}>{t('daily_quote_share')}</Text>
+                            <Ionicons name="share-social" size={20} color={theme.isDark ? '#000' : '#FFFFFF'} style={{ marginRight: 8 }} />
+                            <Text style={[styles.shareButtonText, { color: theme.isDark ? '#000' : '#FFFFFF' }]}>{t('daily_quote_share')}</Text>
                         </>
                     )}
                 </TouchableOpacity>
@@ -187,7 +185,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: TEXT_DARK,
         flex: 1,
         marginLeft: 12,
     },
@@ -197,7 +194,6 @@ const styles = StyleSheet.create({
         paddingBottom: 80,
     },
     imageCard: {
-        backgroundColor: '#FFFFFF',
         borderRadius: 12,
         borderWidth: 1,
         overflow: 'hidden',
@@ -211,7 +207,7 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlign: 'center',
         fontWeight: '500',
-        opacity: 0.8,
+        opacity: 0.9,
     },
     shareButtonContainer: {
         position: 'absolute',
@@ -237,6 +233,5 @@ const styles = StyleSheet.create({
     shareButtonText: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#FFFFFF',
     },
 });

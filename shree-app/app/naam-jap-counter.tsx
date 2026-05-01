@@ -31,9 +31,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TEXT_DARK = '#333333';
-const CIRCLE_BG = '#E0D6A0';
-const CIRCLE_PROGRESS = '#333333';
 const MALA_COUNT = 108;
 const CIRCLE_SIZE = 180;
 const STROKE_WIDTH = 14;
@@ -210,23 +207,23 @@ export default function NaamJapCounterScreen() {
     if (!isLoaded) {
         return (
             <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-                <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+                <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             </View>
         );
     }
 
     return (
         <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style="dark" backgroundColor={theme.headerBg} translucent={false} />
+            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
 
             <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
                 <View style={styles.header}>
                     <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={TEXT_DARK} />
+                        <Ionicons name="arrow-back" size={24} color={theme.headerText} />
                     </TouchableOpacity>
-                    <Text style={styles.headerTitle}>{t('naam_jap_header')}</Text>
+                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('naam_jap_header')}</Text>
                     <TouchableOpacity style={styles.menuDots} onPress={() => setMenuVisible(true)}>
-                        <MaterialIcons name="more-vert" size={24} color={TEXT_DARK} />
+                        <MaterialIcons name="more-vert" size={24} color={theme.headerText} />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -235,25 +232,25 @@ export default function NaamJapCounterScreen() {
                 {displayMode === 'image' && selectedImage ? (
                     <Image source={typeof selectedImage === 'object' && selectedImage?.uri ? { uri: selectedImage.uri } : selectedImage} style={styles.displayImage} contentFit="cover" />
                 ) : (
-                    <Text style={[styles.radhaText, { color: selectedTextStyle.color }]}>राधा</Text>
+                    <Text style={[styles.radhaText, { color: selectedTextStyle.color || theme.text }]}>राधा</Text>
                 )}
 
                 <View style={styles.circleContainer}>
                     <Svg width={CIRCLE_SIZE} height={CIRCLE_SIZE} style={styles.svgCircle}>
-                        <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS} stroke={CIRCLE_BG} strokeWidth={STROKE_WIDTH} fill="none" />
-                        <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS} stroke={CIRCLE_PROGRESS} strokeWidth={STROKE_WIDTH} fill="none" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={strokeDashoffset} strokeLinecap="round" transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`} />
+                        <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS} stroke={theme.mutedBg} strokeWidth={STROKE_WIDTH} fill="none" />
+                        <Circle cx={CIRCLE_SIZE / 2} cy={CIRCLE_SIZE / 2} r={RADIUS} stroke={theme.accent} strokeWidth={STROKE_WIDTH} fill="none" strokeDasharray={CIRCUMFERENCE} strokeDashoffset={strokeDashoffset} strokeLinecap="round" transform={`rotate(-90 ${CIRCLE_SIZE / 2} ${CIRCLE_SIZE / 2})`} />
                     </Svg>
-                    <Text style={styles.countText}>{count}</Text>
+                    <Text style={[styles.countText, { color: theme.text }]}>{count}</Text>
                 </View>
 
-                <Text style={styles.totalCountText}>{currentInMala} / {MALA_COUNT}</Text>
-                <Text style={styles.malaText}>{t('naam_jap_today_mala')}: {malaCount}</Text>
+                <Text style={[styles.totalCountText, { color: theme.subText }]}>{currentInMala} / {MALA_COUNT}</Text>
+                <Text style={[styles.malaText, { color: theme.text }]}>{t('naam_jap_today_mala')}: {malaCount}</Text>
 
-                <View style={styles.rankCard}>
-                    <MaterialIcons name="bar-chart" size={28} color={theme.headerBg} style={styles.rankIcon} />
+                <View style={[styles.rankCard, { backgroundColor: theme.cardBg, borderColor: theme.accent }]}>
+                    <MaterialIcons name="bar-chart" size={28} color={theme.accent} style={styles.rankIcon} />
                     <View>
-                        <Text style={styles.rankLabel}>{t('naam_jap_my_rank')}</Text>
-                        <Text style={styles.rankValue}>{rankDisplay}</Text>
+                        <Text style={[styles.rankLabel, { color: theme.subText }]}>{t('naam_jap_my_rank')}</Text>
+                        <Text style={[styles.rankValue, { color: theme.text }]}>{rankDisplay}</Text>
                     </View>
                 </View>
             </Pressable>
@@ -283,7 +280,7 @@ export default function NaamJapCounterScreen() {
                 onClose={() => setPickImageVisible(false)}
                 onSelectTextStyle={(index) => {
                     updateDisplayMode('text');
-                    const textStyles = [{ color: TEXT_DARK }, { color: theme.headerBg }, { color: '#E53935' }];
+                    const textStyles = [{ color: theme.text }, { color: theme.accent }, { color: '#E53935' }];
                     updateSelectedTextStyle(textStyles[index]);
                     setPickImageVisible(false);
                 }}
@@ -328,7 +325,6 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: TEXT_DARK,
         flex: 1,
         marginLeft: 12,
     },
@@ -366,30 +362,25 @@ const styles = StyleSheet.create({
     countText: {
         fontSize: 48,
         fontWeight: 'bold',
-        color: TEXT_DARK,
     },
     totalCountText: {
         fontSize: 16,
         fontWeight: '500',
-        color: TEXT_DARK,
         marginBottom: 10,
-        opacity: 0.7,
+        opacity: 0.85,
     },
     malaText: {
         fontSize: 22,
         fontWeight: '600',
-        color: TEXT_DARK,
         marginBottom: 30,
     },
     rankCard: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#FFFFFF',
         borderRadius: 12,
         paddingVertical: 12,
         paddingHorizontal: 20,
         borderWidth: 1.5,
-        borderColor: '#333333',
     },
     rankIcon: {
         marginRight: 10,
@@ -397,11 +388,9 @@ const styles = StyleSheet.create({
     rankLabel: {
         fontSize: 14,
         fontWeight: '600',
-        color: TEXT_DARK,
     },
     rankValue: {
         fontSize: 18,
         fontWeight: 'bold',
-        color: TEXT_DARK,
     },
 });

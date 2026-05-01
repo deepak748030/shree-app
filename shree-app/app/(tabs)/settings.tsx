@@ -179,7 +179,7 @@ export default function SettingsScreen() {
             <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
             <View style={{ height: insets.top, backgroundColor: theme.headerBg }} />
 
-            <View style={[styles.header, { backgroundColor: theme.headerBg, borderBottomColor: theme.cardBorder }]}>
+            <View style={[styles.header, { borderBottomColor: theme.cardBorder }]}>
                 <Text style={[styles.headerTitle, { color: textPrimary }]}>{t('Settings' as any)}</Text>
             </View>
 

@@ -28,8 +28,8 @@ export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onM
                     <Text style={styles.avatarText}>{initial}</Text>
                 </View>
                 <View style={styles.textCol}>
-                    <Text style={styles.greeting} numberOfLines={1}>{greeting}</Text>
-                    <Text style={styles.name} numberOfLines={1}>{name}</Text>
+                    <Text style={[styles.greeting, { color: theme.subText }]} numberOfLines={1}>{greeting}</Text>
+                    <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>{name}</Text>
                 </View>
             </View>
 
@@ -68,8 +68,8 @@ const styles = StyleSheet.create({
     },
     avatarText: { color: '#fff', fontSize: 18, fontWeight: '700' },
     textCol: { flex: 1 },
-    greeting: { fontSize: 12, color: '#666' },
-    name: { fontSize: 15, fontWeight: '700', color: '#222' },
+    greeting: { fontSize: 12 },
+    name: { fontSize: 15, fontWeight: '700' },
     noAdsPill: {
         flexDirection: 'row',
         alignItems: 'center',

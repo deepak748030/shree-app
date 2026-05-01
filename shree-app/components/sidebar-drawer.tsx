@@ -35,12 +35,7 @@ const menuItems: DrawerMenuItem[] = [
     { iconName: 'counter', iconLib: 'mc', labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
     { iconName: 'footsteps-outline', labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
     { iconName: 'chatbubble-ellipses-outline', labelKey: 'sidebar_daily_quote', route: '/daily-quote' },
-    { iconName: 'color-palette-outline', labelKey: 'sidebar_theme', route: '/theme-settings' },
-    { iconName: 'language-outline', labelKey: 'sidebar_language', route: '/language-settings' },
-    { iconName: 'share-social-outline', labelKey: 'sidebar_share', route: '/share-app' },
-    { iconName: 'shield-checkmark-outline', labelKey: 'sidebar_privacy', route: '/privacy-policy' },
-    { iconName: 'document-text-outline', labelKey: 'sidebar_terms', route: '/terms-conditions' },
-    { iconName: 'heart-outline', labelKey: 'sidebar_donation', route: '/donation' },
+
 ];
 
 interface SidebarDrawerProps {

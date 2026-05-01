@@ -1,5 +1,5 @@
 import { useAppTheme } from '@/contexts/theme-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
@@ -21,7 +21,7 @@ export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onM
             <View style={styles.left}>
                 {onMenuPress && (
                     <TouchableOpacity onPress={onMenuPress} style={styles.menuBtn} hitSlop={10}>
-                        <Ionicons name="menu" size={34} color={theme.accent} />
+                        <MaterialIcons name="more-vert" size={28} color={theme.accent} />
                     </TouchableOpacity>
                 )}
                 <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
@@ -56,7 +56,7 @@ const styles = StyleSheet.create({
     },
     left: { flexDirection: 'row', alignItems: 'center', flex: 1 },
     menuBtn: {
-        width: 36,
+        width: 22,
         height: 36,
         alignItems: 'center',
         justifyContent: 'center',

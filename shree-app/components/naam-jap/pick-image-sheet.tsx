@@ -1,4 +1,5 @@
 import { useLanguage } from '@/contexts/language-context';
+import { useAppTheme } from '@/contexts/theme-context';
 import { fetchPresetImages, PresetImageData } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -9,9 +10,9 @@ import {
     ActivityIndicator,
     Alert,
     Dimensions,
+    FlatList,
     Modal,
     Pressable,
-    ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -19,16 +20,8 @@ import {
 } from 'react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TEXT_DARK = '#333333';
-const YELLOW_BG = '#FFEB3B';
 const IMAGE_SIZE = (SCREEN_WIDTH - 60) / 3;
 const STORAGE_KEY = '@naam_jap_user_images';
-
-const textStyles = [
-    { label: 'राधा', color: TEXT_DARK, bg: '#FFFFFF', borderColor: '#ccc' },
-    { label: 'राधा', color: YELLOW_BG, bg: '#FFFFFF', borderColor: '#ccc' },
-    { label: 'राधा', color: '#E53935', bg: '#FFFFFF', borderColor: '#ccc' },
-];
 
 interface PickImageSheetProps {
     visible: boolean;
@@ -37,6 +30,14 @@ interface PickImageSheetProps {
     onSelectImage: (imageSource: any) => void;
 }
 
+type Section =
+    | { type: 'text-styles' }
+    | { type: 'section-title'; key: string }
+    | { type: 'user-grid'; uris: string[] }
+    | { type: 'preset-grid'; images: PresetImageData[] }
+    | { type: 'loading' }
+    | { type: 'empty'; key: string };
+
 export default function PickImageSheet({
     visible,
     onClose,
@@ -44,11 +45,11 @@ export default function PickImageSheet({
     onSelectImage,
 }: PickImageSheetProps) {
     const { t } = useLanguage();
+    const { theme } = useAppTheme();
     const [userImages, setUserImages] = useState<string[]>([]);
     const [presetImages, setPresetImages] = useState<PresetImageData[]>([]);
     const [loadingPresets, setLoadingPresets] = useState(false);
 
-    // Load user images + preset images from server
     useEffect(() => {
         if (!visible) return;
         AsyncStorage.getItem(STORAGE_KEY).then((val) => {
@@ -91,86 +92,116 @@ export default function PickImageSheet({
         saveImages(updated);
     }, [userImages, saveImages]);
 
-    const handleSelectUserImage = useCallback((uri: string) => {
-        onSelectImage({ uri });
-    }, [onSelectImage]);
+    const textStyles = [
+        { label: 'राधा', color: theme.text },
+        { label: 'राधा', color: theme.accent },
+        { label: 'राधा', color: '#E53935' },
+    ];
+
+    const sections: Section[] = [
+        { type: 'text-styles' },
+    ];
+    if (userImages.length > 0) {
+        sections.push({ type: 'section-title', key: 'pick_image_my_uploads' });
+        sections.push({ type: 'user-grid', uris: userImages });
+    }
+    sections.push({ type: 'section-title', key: 'pick_image_presets' });
+    if (loadingPresets) sections.push({ type: 'loading' });
+    else if (presetImages.length === 0) sections.push({ type: 'empty', key: 'pick_image_no_uploads' });
+    else sections.push({ type: 'preset-grid', images: presetImages });
+
+    const renderItem = ({ item }: { item: Section }) => {
+        switch (item.type) {
+            case 'text-styles':
+                return (
+                    <View style={styles.textStyleRow}>
+                        {textStyles.map((s, index) => (
+                            <TouchableOpacity
+                                key={index}
+                                style={[styles.textStyleCard, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
+                                onPress={() => onSelectTextStyle(index)}
+                            >
+                                <Text style={[styles.textStyleLabel, { color: s.color }]}>{s.label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                );
+            case 'section-title':
+                return (
+                    <Text style={[styles.sectionTitle, { color: theme.subText }]}>
+                        {t(item.key as any)}
+                    </Text>
+                );
+            case 'user-grid':
+                return (
+                    <View style={styles.imageGrid}>
+                        {item.uris.map((uri, index) => (
+                            <View key={`user-${index}`} style={styles.imageCard}>
+                                <TouchableOpacity
+                                    style={styles.imageCardInner}
+                                    onPress={() => onSelectImage({ uri })}
+                                    activeOpacity={0.8}
+                                >
+                                    <Image source={{ uri }} style={styles.gridImage} contentFit="cover" />
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.deleteBtn}
+                                    onPress={() => handleDeleteImage(index)}
+                                >
+                                    <Ionicons name="trash-outline" size={14} color="#FFF" />
+                                </TouchableOpacity>
+                            </View>
+                        ))}
+                    </View>
+                );
+            case 'preset-grid':
+                return (
+                    <View style={styles.imageGrid}>
+                        {item.images.map((img) => (
+                            <TouchableOpacity
+                                key={img._id}
+                                style={styles.imageCard}
+                                onPress={() => onSelectImage({ uri: img.imageUrl })}
+                            >
+                                <Image source={{ uri: img.imageUrl }} style={styles.gridImage} contentFit="cover" />
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                );
+            case 'loading':
+                return <ActivityIndicator size="small" color={theme.accent} style={{ marginVertical: 20 }} />;
+            case 'empty':
+                return <Text style={[styles.emptyText, { color: theme.subText }]}>{t(item.key as any)}</Text>;
+        }
+    };
 
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose} />
-            <View style={styles.sheet}>
+            <View style={[styles.sheet, { backgroundColor: theme.bgCream }]}>
                 <View style={styles.header}>
-                    <Text style={styles.headerTitle}>{t('pick_image_header')}</Text>
-                    <TouchableOpacity onPress={onClose}>
-                        <Ionicons name="close" size={24} color={TEXT_DARK} />
+                    <Text style={[styles.headerTitle, { color: theme.text }]}>{t('pick_image_header')}</Text>
+                    <TouchableOpacity onPress={onClose} hitSlop={10}>
+                        <Ionicons name="close" size={24} color={theme.text} />
                     </TouchableOpacity>
                 </View>
 
-                <TouchableOpacity style={styles.uploadRow} onPress={handleUpload}>
-                    <Ionicons name="cloud-upload-outline" size={24} color={TEXT_DARK} />
-                    <Text style={styles.uploadText}>{t('pick_image_upload')}</Text>
+                <TouchableOpacity
+                    style={[styles.uploadRow, { backgroundColor: theme.mutedBg, borderColor: theme.cardBorder }]}
+                    onPress={handleUpload}
+                >
+                    <Ionicons name="cloud-upload-outline" size={22} color={theme.accent} />
+                    <Text style={[styles.uploadText, { color: theme.text }]}>{t('pick_image_upload')}</Text>
                 </TouchableOpacity>
 
-                <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-                    {/* Text styles */}
-                    <View style={styles.textStyleRow}>
-                        {textStyles.map((item, index) => (
-                            <TouchableOpacity
-                                key={index}
-                                style={[styles.textStyleCard, { borderColor: item.borderColor }]}
-                                onPress={() => onSelectTextStyle(index)}
-                            >
-                                <Text style={[styles.textStyleLabel, { color: item.color }]}>{item.label}</Text>
-                            </TouchableOpacity>
-                        ))}
-                    </View>
-
-                    {/* User uploaded images */}
-                    {userImages.length > 0 && (
-                        <>
-                            <Text style={styles.sectionTitle}>{t('pick_image_my_uploads')}</Text>
-                            <View style={styles.imageGrid}>
-                                {userImages.map((uri, index) => (
-                                    <View key={`user-${index}`} style={styles.imageCard}>
-                                        <TouchableOpacity
-                                            style={styles.imageCardInner}
-                                            onPress={() => handleSelectUserImage(uri)}
-                                            activeOpacity={0.8}
-                                        >
-                                            <Image source={{ uri }} style={styles.gridImage} contentFit="cover" />
-                                        </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.deleteBtn}
-                                            onPress={() => handleDeleteImage(index)}
-                                        >
-                                            <Ionicons name="trash-outline" size={14} color="#FFF" />
-                                        </TouchableOpacity>
-                                    </View>
-                                ))}
-                            </View>
-                        </>
-                    )}
-
-                    {/* Preset images from server */}
-                    <Text style={styles.sectionTitle}>{t('pick_image_presets')}</Text>
-                    {loadingPresets ? (
-                        <ActivityIndicator size="small" color={TEXT_DARK} style={{ marginVertical: 20 }} />
-                    ) : presetImages.length === 0 ? (
-                        <Text style={styles.emptyText}>{t('pick_image_no_uploads')}</Text>
-                    ) : (
-                        <View style={styles.imageGrid}>
-                            {presetImages.map((img) => (
-                                <TouchableOpacity
-                                    key={img._id}
-                                    style={styles.imageCard}
-                                    onPress={() => onSelectImage({ uri: img.imageUrl })}
-                                >
-                                    <Image source={{ uri: img.imageUrl }} style={styles.gridImage} contentFit="cover" />
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-                    )}
-                </ScrollView>
+                <FlatList
+                    data={sections}
+                    keyExtractor={(_, i) => `s-${i}`}
+                    renderItem={renderItem}
+                    contentContainerStyle={styles.scrollContent}
+                    ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+                    showsVerticalScrollIndicator={false}
+                />
             </View>
         </Modal>
     );
@@ -179,88 +210,80 @@ export default function PickImageSheet({
 const styles = StyleSheet.create({
     overlay: {
         flex: 0.25,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
     },
     sheet: {
         flex: 0.75,
-        backgroundColor: '#FFFFFF',
-        borderTopLeftRadius: 16,
-        borderTopRightRadius: 16,
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
         paddingHorizontal: 6,
-        paddingTop: 16,
+        paddingTop: 14,
     },
     header: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 12,
+        marginBottom: 10,
         paddingHorizontal: 14,
     },
     headerTitle: {
-        fontSize: 20,
+        fontSize: 18,
         fontWeight: 'bold',
-        color: TEXT_DARK,
     },
     uploadRow: {
         flexDirection: 'row',
         alignItems: 'center',
         paddingVertical: 12,
         paddingHorizontal: 14,
-        marginBottom: 8,
-        backgroundColor: '#F5F5F5',
+        marginBottom: 6,
         borderRadius: 10,
         marginHorizontal: 14,
+        borderWidth: StyleSheet.hairlineWidth,
     },
     uploadText: {
-        fontSize: 15,
+        fontSize: 14,
         fontWeight: '600',
-        color: TEXT_DARK,
         marginLeft: 12,
     },
     scrollContent: {
-        paddingBottom: 40,
+        paddingBottom: 30,
         paddingHorizontal: 14,
     },
     sectionTitle: {
-        fontSize: 14,
+        fontSize: 12,
         fontWeight: 'bold',
-        color: TEXT_DARK,
-        opacity: 0.6,
-        marginBottom: 10,
-        marginTop: 8,
+        marginBottom: 6,
+        marginTop: 6,
         textTransform: 'uppercase',
         letterSpacing: 0.5,
     },
     emptyText: {
-        fontSize: 14,
-        color: TEXT_DARK,
-        opacity: 0.5,
+        fontSize: 13,
         textAlign: 'center',
         marginVertical: 20,
     },
     textStyleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        marginBottom: 16,
+        marginBottom: 6,
     },
     textStyleCard: {
         width: IMAGE_SIZE,
         height: IMAGE_SIZE * 0.6,
         borderRadius: 8,
-        borderWidth: 2,
+        borderWidth: StyleSheet.hairlineWidth,
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#FFFFFF',
     },
     textStyleLabel: {
-        fontSize: 32,
+        fontSize: 30,
         fontWeight: 'bold',
     },
     imageGrid: {
         flexDirection: 'row',
         flexWrap: 'wrap',
         justifyContent: 'flex-start',
-        gap: 8,
+        gap: 6,
     },
     imageCard: {
         width: IMAGE_SIZE,

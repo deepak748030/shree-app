@@ -3,6 +3,7 @@ import { useAppTheme } from '@/contexts/theme-context';
 import { fetchLeaderboard, type LeaderboardEntry } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
@@ -53,6 +54,14 @@ export default function LeaderboardScreen() {
         setLoading(true);
         load(period);
     }, [period, load]);
+
+    // Realtime auto-refresh: poll every 15s while focused
+    useFocusEffect(
+        useCallback(() => {
+            const interval = setInterval(() => load(period), 15000);
+            return () => clearInterval(interval);
+        }, [period, load])
+    );
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);

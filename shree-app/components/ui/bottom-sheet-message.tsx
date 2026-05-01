@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/contexts/theme-context';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
@@ -9,9 +10,6 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-
-const YELLOW_BG = '#FFEB3B';
-const TEXT_DARK = '#333333';
 
 type MessageType = 'error' | 'warning' | 'success' | 'info' | 'confirm';
 
@@ -28,10 +26,10 @@ interface BottomSheetMessageProps {
 }
 
 const iconMap: Record<MessageType, { name: keyof typeof Ionicons.glyphMap; color: string }> = {
-    error: { name: 'alert-circle', color: '#D32F2F' },
+    error: { name: 'alert-circle', color: '#E53935' },
     warning: { name: 'warning', color: '#F57C00' },
-    success: { name: 'checkmark-circle', color: '#388E3C' },
-    info: { name: 'information-circle', color: '#1976D2' },
+    success: { name: 'checkmark-circle', color: '#43A047' },
+    info: { name: 'information-circle', color: '#1E88E5' },
     confirm: { name: 'help-circle', color: '#F57C00' },
 };
 
@@ -46,38 +44,42 @@ export default function BottomSheetMessage({
     onConfirm,
     loading = false,
 }: BottomSheetMessageProps) {
+    const { theme } = useAppTheme();
     const icon = iconMap[type];
+    const onAccent = theme.isDark ? '#000' : '#FFFFFF';
+    const confirmBg = type === 'confirm' || type === 'error' || type === 'warning' ? icon.color : theme.accent;
+    const onConfirmText = '#FFFFFF';
 
     return (
         <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
             <Pressable style={styles.overlay} onPress={onClose} />
-            <View style={styles.sheet}>
-                <View style={styles.handle} />
+            <View style={[styles.sheet, { backgroundColor: theme.cardBg, borderTopColor: theme.divider, borderTopWidth: StyleSheet.hairlineWidth }]}>
+                <View style={[styles.handle, { backgroundColor: theme.divider }]} />
                 <View style={styles.iconRow}>
                     <Ionicons name={icon.name} size={32} color={icon.color} />
-                    <Text style={styles.title}>{title}</Text>
+                    <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
                 </View>
-                <Text style={styles.message}>{message}</Text>
+                <Text style={[styles.message, { color: theme.subText }]}>{message}</Text>
                 <View style={styles.buttonRow}>
                     {type === 'confirm' && (
                         <TouchableOpacity
-                            style={[styles.button, styles.cancelButton]}
+                            style={[styles.button, { backgroundColor: theme.mutedBg, borderColor: theme.divider, borderWidth: 1 }]}
                             onPress={onClose}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.cancelButtonText}>{cancelLabel}</Text>
+                            <Text style={[styles.buttonText, { color: theme.text }]}>{cancelLabel}</Text>
                         </TouchableOpacity>
                     )}
                     <TouchableOpacity
-                        style={[styles.button, styles.confirmButton, { backgroundColor: icon.color }]}
+                        style={[styles.button, { backgroundColor: confirmBg }]}
                         onPress={onConfirm || onClose}
                         activeOpacity={0.7}
                         disabled={loading}
                     >
                         {loading ? (
-                            <ActivityIndicator color="#FFFFFF" size="small" />
+                            <ActivityIndicator color={onConfirmText} size="small" />
                         ) : (
-                            <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
+                            <Text style={[styles.buttonText, { color: onConfirmText }]}>{confirmLabel}</Text>
                         )}
                     </TouchableOpacity>
                 </View>
@@ -89,10 +91,9 @@ export default function BottomSheetMessage({
 const styles = StyleSheet.create({
     overlay: {
         flex: 1,
-        backgroundColor: 'rgba(0,0,0,0.3)',
+        backgroundColor: 'rgba(0,0,0,0.4)',
     },
     sheet: {
-        backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 16,
         borderTopRightRadius: 16,
         paddingHorizontal: 6,
@@ -103,7 +104,6 @@ const styles = StyleSheet.create({
         width: 40,
         height: 4,
         borderRadius: 2,
-        backgroundColor: '#DDD',
         alignSelf: 'center',
         marginBottom: 12,
     },
@@ -116,14 +116,11 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 17,
         fontWeight: 'bold',
-        color: TEXT_DARK,
         marginLeft: 10,
         flex: 1,
     },
     message: {
         fontSize: 14,
-        color: TEXT_DARK,
-        opacity: 0.8,
         lineHeight: 20,
         paddingHorizontal: 10,
         marginBottom: 16,
@@ -139,22 +136,8 @@ const styles = StyleSheet.create({
         paddingVertical: 10,
         alignItems: 'center',
     },
-    cancelButton: {
-        backgroundColor: '#F5F5F5',
-        borderWidth: 1,
-        borderColor: '#E0E0E0',
-    },
-    cancelButtonText: {
+    buttonText: {
         fontSize: 15,
         fontWeight: '600',
-        color: TEXT_DARK,
-    },
-    confirmButton: {
-        backgroundColor: TEXT_DARK,
-    },
-    confirmButtonText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#FFFFFF',
     },
 });

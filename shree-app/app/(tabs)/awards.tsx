@@ -4,6 +4,7 @@ import { useAppTheme } from '@/contexts/theme-context';
 import { fetchHandwrittenNaam, fetchUserData } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -80,6 +81,15 @@ export default function AwardsScreen() {
     }, [user?.deviceId]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Realtime auto-refresh: poll every 15s while focused
+    useFocusEffect(
+        useCallback(() => {
+            load();
+            const interval = setInterval(load, 15000);
+            return () => clearInterval(interval);
+        }, [load])
+    );
 
     const onRefresh = useCallback(async () => {
         setRefreshing(true);

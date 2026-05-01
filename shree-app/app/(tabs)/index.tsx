@@ -9,7 +9,7 @@ import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { fetchHandwrittenNaam, fetchUserData, type HandwrittenNaamData, type UserRankData } from '@/services/api';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
@@ -77,6 +77,15 @@ export default function HomeScreen() {
   }, [user?.deviceId]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Realtime auto-refresh: poll every 15s while screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+      const interval = setInterval(loadData, 15000);
+      return () => clearInterval(interval);
+    }, [loadData])
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

@@ -1,8 +1,22 @@
 const Razorpay = require('razorpay');
 
-const razorpay = new Razorpay({
-    key_id: process.env.RAZORPAY_KEY_ID,
-    key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+let instance = null;
 
-module.exports = razorpay;
+function getRazorpay() {
+    if (instance) return instance;
+    const key_id = process.env.RAZORPAY_KEY_ID;
+    const key_secret = process.env.RAZORPAY_KEY_SECRET;
+    if (!key_id || !key_secret) {
+        throw new Error('Razorpay keys not configured (RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET)');
+    }
+    instance = new Razorpay({ key_id, key_secret });
+    return instance;
+}
+
+module.exports = new Proxy({}, {
+    get(_t, prop) {
+        const inst = getRazorpay();
+        const val = inst[prop];
+        return typeof val === 'function' ? val.bind(inst) : val;
+    },
+});

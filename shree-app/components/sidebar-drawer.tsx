@@ -1,5 +1,4 @@
 import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
-import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme } from '@/contexts/theme-context';
 import { fetchHomeContent } from '@/services/api';
@@ -48,7 +47,6 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     const insets = useSafeAreaInsets();
     const { theme } = useAppTheme();
     const { t } = useLanguage();
-    const { isLoggedIn, logout, user } = useAuth();
     const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
     const overlayAnim = useRef(new Animated.Value(0)).current;
     const [logoutSheetVisible, setLogoutSheetVisible] = useState(false);
@@ -78,12 +76,6 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
     }, [visible]);
 
     const [shouldRender, setShouldRender] = React.useState(false);
-
-    const handleLogout = async () => {
-        onClose();
-        await logout();
-        setLogoutSheetVisible(false);
-    };
 
     useEffect(() => { if (visible) setShouldRender(true); }, [visible]);
     useEffect(() => {
@@ -144,27 +136,8 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
                             <Text style={[styles.menuLabel, { color: theme.text }]}>{t(item.labelKey as any)}</Text>
                         </TouchableOpacity>
                     ))}
-
-                    {isLoggedIn && (
-                        <TouchableOpacity
-                            style={[styles.menuItem, styles.logoutItem, { borderTopColor: theme.divider }]}
-                            onPress={() => setLogoutSheetVisible(true)}
-                            activeOpacity={0.6}
-                        >
-                            <View style={styles.menuIconContainer}>
-                                <Ionicons name="log-out-outline" size={22} color="#D32F2F" />
-                            </View>
-                            <Text style={[styles.menuLabel, { color: '#D32F2F' }]}>{t('sidebar_logout' as any)}</Text>
-                        </TouchableOpacity>
-                    )}
                 </ScrollView>
 
-                {isLoggedIn && user && (
-                    <View style={[styles.userInfo, { borderTopColor: theme.divider }]}>
-                        <Ionicons name="person-circle-outline" size={28} color={theme.text} />
-                        <Text style={[styles.userName, { color: theme.text }]} numberOfLines={1}>{user.name}</Text>
-                    </View>
-                )}
             </Animated.View>
 
             <BottomSheetMessage
@@ -174,7 +147,7 @@ export default function SidebarDrawer({ visible, onClose }: SidebarDrawerProps) 
                 title={t('logout_confirm_title' as any)}
                 message={t('logout_confirm_msg' as any)}
                 confirmLabel={t('sidebar_logout' as any)}
-                onConfirm={handleLogout}
+                onConfirm={() => setLogoutSheetVisible(false)}
             />
         </View>
     );

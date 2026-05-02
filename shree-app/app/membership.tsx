@@ -252,6 +252,14 @@ export default function MembershipScreen() {
                             </>
                         ) : null}
                     </View>
+                    <View style={[styles.activeNote, { backgroundColor: theme.mutedBg, borderColor: theme.cardBorder }]}>
+                        <Ionicons name="information-circle" size={14} color={theme.accent} />
+                        <Text style={[styles.activeNoteText, { color: theme.subText }]} numberOfLines={2}>
+                            {language === 'hi'
+                                ? 'आपकी सदस्यता सक्रिय है। समाप्ति के बाद ही आप नई योजना खरीद सकते हैं।'
+                                : 'Your membership is active. You can purchase a new plan only after this one expires.'}
+                        </Text>
+                    </View>
                 </View>
             ) : (
                 <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
@@ -417,6 +425,11 @@ const styles = StyleSheet.create({
     metaLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' },
     metaValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
     metaDivider: { width: 1, alignSelf: 'stretch', marginHorizontal: 10 },
+    activeNote: {
+        flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 12,
+        paddingHorizontal: 10, paddingVertical: 8, borderRadius: 10, borderWidth: 1,
+    },
+    activeNoteText: { fontSize: 11, flex: 1, fontWeight: '600' },
 
     benefitsCard: { marginTop: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 10 },
     benefitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },

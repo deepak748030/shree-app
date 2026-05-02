@@ -135,7 +135,7 @@ export default function AwardsScreen() {
                     <View style={[
                         styles.progressArc,
                         {
-                            borderColor: ACCENT,
+                            borderTopColor: percent > 0 ? ACCENT : 'transparent',
                             borderRightColor: percent > 25 ? ACCENT : 'transparent',
                             borderBottomColor: percent > 50 ? ACCENT : 'transparent',
                             borderLeftColor: percent > 75 ? ACCENT : 'transparent',

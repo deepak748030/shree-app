@@ -418,3 +418,90 @@ export async function updateHandwrittenMantra(
         return false;
     }
 }
+
+// ============ MEMBERSHIP APIs ============
+
+export interface MembershipPlan {
+    _id: string;
+    name_hi: string;
+    name_en: string;
+    description_hi: string;
+    description_en: string;
+    price: number;
+    durationMonths: number;
+    isLifetime: boolean;
+    isBestValue: boolean;
+    sortOrder: number;
+}
+
+export interface MembershipStatus {
+    isActive: boolean;
+    planName_hi?: string;
+    planName_en?: string;
+    isLifetime?: boolean;
+    expiresAt?: string;
+    paidAt?: string;
+}
+
+export interface CreateOrderResponse {
+    orderId: string;
+    amount: number;
+    currency: string;
+    keyId: string;
+    subscriptionId: string;
+    plan: { name_hi: string; name_en: string; price: number };
+}
+
+export async function fetchMembershipPlans(): Promise<MembershipPlan[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/membership/plans`);
+        const data = await res.json();
+        return data.success ? data.response : [];
+    } catch {
+        return [];
+    }
+}
+
+export async function fetchMembershipStatus(deviceId: string): Promise<MembershipStatus> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}`);
+        const data = await res.json();
+        return data.success ? data.response : { isActive: false };
+    } catch {
+        return { isActive: false };
+    }
+}
+
+export async function createMembershipOrder(
+    planId: string, deviceId: string, mobile?: string
+): Promise<CreateOrderResponse | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/membership/create-order`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ planId, deviceId, mobile }),
+        });
+        const data = await res.json();
+        return data.success ? data.response : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function verifyMembershipPayment(
+    razorpay_order_id: string,
+    razorpay_payment_id: string,
+    razorpay_signature: string,
+): Promise<{ ok: boolean; isLifetime?: boolean; expiresAt?: string }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/membership/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ razorpay_order_id, razorpay_payment_id, razorpay_signature }),
+        });
+        const data = await res.json();
+        return { ok: !!data.success, isLifetime: data.response?.isLifetime, expiresAt: data.response?.expiresAt };
+    } catch {
+        return { ok: false };
+    }
+}

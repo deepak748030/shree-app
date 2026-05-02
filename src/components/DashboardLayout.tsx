@@ -16,6 +16,8 @@ import {
     ImageIcon,
     Smartphone,
     Heart,
+    Crown,
+    PenLine,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -30,6 +32,8 @@ const navItems = [
     { to: '/preset-images', icon: ImageIcon, label: 'Preset Images' },
     { to: '/app-version', icon: Smartphone, label: 'App Version' },
     { to: '/donation-settings', icon: Heart, label: 'Donation Settings' },
+    { to: '/membership-plans', icon: Crown, label: 'Membership Plans' },
+    { to: '/handwritten-naam', icon: PenLine, label: 'Handwritten Naam' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

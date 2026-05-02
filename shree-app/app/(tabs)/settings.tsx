@@ -3,27 +3,22 @@ import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
 import { useAppTheme, THEME_OPTIONS } from '@/contexts/theme-context';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
     FlatList,
     StyleSheet,
-    Switch,
     Text,
     TouchableOpacity,
     View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const BELL_KEY = '@bell_sound_enabled';
-const REMINDER_KEY = '@daily_reminder_enabled';
-
 type Row =
     | { type: 'header'; key: string; titleKey: string }
     | { type: 'profile' }
-    | { type: 'toggle'; key: string; titleKey: string; descKey: string; icon: keyof typeof Ionicons.glyphMap; storageKey: string; defaultValue: boolean }
     | { type: 'nav'; key: string; titleKey: string; descKey?: string; valueKey?: string; icon: keyof typeof Ionicons.glyphMap; route?: string; action?: 'logout' };
 
 export default function SettingsScreen() {
@@ -39,37 +34,17 @@ export default function SettingsScreen() {
     const cardBg = isDark ? '#1A1A1A' : '#FFFFFF';
     const sectionLabel = theme.accent;
 
-    const [bellSound, setBellSound] = useState(true);
-    const [dailyReminder, setDailyReminder] = useState(false);
     const [logoutSheet, setLogoutSheet] = useState(false);
-
-    useEffect(() => {
-        AsyncStorage.getItem(BELL_KEY).then((v) => { if (v !== null) setBellSound(v === '1'); });
-        AsyncStorage.getItem(REMINDER_KEY).then((v) => { if (v !== null) setDailyReminder(v === '1'); });
-    }, []);
-
-    const toggleBell = async (v: boolean) => {
-        setBellSound(v);
-        await AsyncStorage.setItem(BELL_KEY, v ? '1' : '0');
-    };
-    const toggleReminder = async (v: boolean) => {
-        setDailyReminder(v);
-        await AsyncStorage.setItem(REMINDER_KEY, v ? '1' : '0');
-    };
 
     const themeName = THEME_OPTIONS.find((tm) => tm.id === themeId)?.id || 'dark';
     const themeLabel = themeName.charAt(0).toUpperCase() + themeName.slice(1);
 
     const rows: Row[] = [
         { type: 'profile' },
-        { type: 'header', key: 'h1', titleKey: 'settings_preferences' },
-        { type: 'toggle', key: 'bell', titleKey: 'settings_bell_sound', descKey: 'settings_bell_sound_desc', icon: 'notifications', storageKey: BELL_KEY, defaultValue: true },
         { type: 'header', key: 'h2', titleKey: 'settings_appearance' },
         { type: 'nav', key: 'lang', titleKey: 'settings_language', valueKey: language === 'hi' ? 'हिंदी' : 'English', icon: 'globe-outline', route: '/language-settings' },
         { type: 'header', key: 'h3', titleKey: 'settings_customize' },
         { type: 'nav', key: 'theme', titleKey: 'settings_theme', valueKey: themeLabel, icon: 'color-palette-outline', route: '/theme-settings' },
-        { type: 'header', key: 'h4', titleKey: 'settings_daily_reminder_section' },
-        { type: 'toggle', key: 'reminder', titleKey: 'settings_daily_reminder', descKey: 'settings_daily_reminder_desc', icon: 'alarm-outline', storageKey: REMINDER_KEY, defaultValue: false },
         { type: 'header', key: 'h5', titleKey: 'settings_about' },
         { type: 'nav', key: 'membership', titleKey: 'settings_membership', icon: 'star-outline', route: '/membership' },
         { type: 'nav', key: 'donation', titleKey: 'settings_donation', icon: 'heart-outline', route: '/donation' },
@@ -104,14 +79,22 @@ export default function SettingsScreen() {
         }
         if (item.type === 'profile') {
             const initial = (user?.name?.[0] || 'G').toUpperCase();
+            const hasImage = !!user?.profileImage;
             return (
                 <TouchableOpacity
                     style={[styles.profileCard, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}
                     activeOpacity={0.8}
-                    onPress={() => !isLoggedIn && router.push('/' as any)}
+                    onPress={() => {
+                        if (!isLoggedIn) router.push('/' as any);
+                        else router.push('/profile-edit' as any);
+                    }}
                 >
                     <View style={[styles.avatar, { borderColor: theme.accent, backgroundColor: theme.accent + '22' }]}>
-                        <Text style={[styles.avatarText, { color: theme.accent }]}>{initial}</Text>
+                        {hasImage ? (
+                            <Image source={{ uri: user!.profileImage! }} style={styles.avatarImage} contentFit="cover" />
+                        ) : (
+                            <Text style={[styles.avatarText, { color: theme.accent }]}>{initial}</Text>
+                        )}
                     </View>
                     <View style={{ flex: 1, marginLeft: 12 }}>
                         <Text style={[styles.profileName, { color: textPrimary }]} numberOfLines={1}>
@@ -123,29 +106,6 @@ export default function SettingsScreen() {
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={textMuted} />
                 </TouchableOpacity>
-            );
-        }
-        if (item.type === 'toggle') {
-            const value = item.key === 'bell' ? bellSound : dailyReminder;
-            const onChange = item.key === 'bell' ? toggleBell : toggleReminder;
-            return (
-                <View style={[styles.row, { backgroundColor: cardBg, borderColor: theme.cardBorder }]}>
-                    <View style={[styles.iconBox, { backgroundColor: theme.accent + '22' }]}>
-                        <Ionicons name={item.icon} size={18} color={theme.accent} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 10 }}>
-                        <Text style={[styles.rowTitle, { color: textPrimary }]}>{t(item.titleKey as any)}</Text>
-                        <Text style={[styles.rowDesc, { color: textMuted }]} numberOfLines={2}>
-                            {t(item.descKey as any)}
-                        </Text>
-                    </View>
-                    <Switch
-                        value={value}
-                        onValueChange={onChange}
-                        trackColor={{ false: '#444', true: theme.accent }}
-                        thumbColor="#FFFFFF"
-                    />
-                </View>
             );
         }
         // nav
@@ -235,7 +195,9 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'hidden',
     },
+    avatarImage: { width: '100%', height: '100%' },
     avatarText: { fontSize: 20, fontWeight: '800' },
     profileName: { fontSize: 16, fontWeight: '700' },
     profileSub: { fontSize: 12, marginTop: 2 },

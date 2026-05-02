@@ -69,13 +69,13 @@ export function MembershipPlansPage() {
 
     return (
         <div className="space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <h1 className="text-2xl font-bold">Membership Plans</h1>
-                    <p className="text-sm text-muted-foreground mt-1">Create plans with price (₹) and duration in months.</p>
+                    <h1 className="text-xl sm:text-2xl font-bold">Membership Plans</h1>
+                    <p className="text-xs sm:text-sm text-muted-foreground mt-1">Create plans with price (₹) and duration in months.</p>
                 </div>
                 <button onClick={() => setEditing({ ...empty })}
-                    className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90">
+                    className="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 w-full sm:w-auto">
                     <Plus className="w-4 h-4" /> Add Plan
                 </button>
             </div>
@@ -122,8 +122,8 @@ export function MembershipPlansPage() {
             </div>
 
             {editing && (
-                <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
-                    <div className="bg-card rounded-2xl border border-border w-full max-w-2xl max-h-[90vh] overflow-auto">
+                <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4">
+                    <div className="bg-card rounded-t-2xl sm:rounded-2xl border border-border w-full sm:max-w-2xl max-h-[92vh] overflow-auto">
                         <div className="flex items-center justify-between p-4 border-b border-border sticky top-0 bg-card">
                             <h2 className="font-bold">{editing._id ? 'Edit Plan' : 'New Plan'}</h2>
                             <button onClick={() => setEditing(null)} className="p-1 rounded hover:bg-muted"><X className="w-5 h-5" /></button>

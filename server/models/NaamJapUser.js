@@ -32,6 +32,11 @@ const naamJapUserSchema = new mongoose.Schema({
         trim: true,
         maxlength: 100,
     },
+    profileImage: {
+        type: String,
+        default: '',
+        trim: true,
+    },
     totalCount: {
         type: Number,
         default: 0,

@@ -1,18 +1,21 @@
 import { useAppTheme } from '@/contexts/theme-context';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 interface GreetingBarProps {
     greeting: string;
     name: string;
+    profileImage?: string | null;
     showNoAds?: boolean;
     noAdsLabel?: string;
     onMenuPress?: () => void;
     onNoAdsPress?: () => void;
+    onAvatarPress?: () => void;
 }
 
-export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onMenuPress, onNoAdsPress }: GreetingBarProps) {
+export default function GreetingBar({ greeting, name, profileImage, showNoAds, noAdsLabel, onMenuPress, onNoAdsPress, onAvatarPress }: GreetingBarProps) {
     const { theme } = useAppTheme();
     const initial = (name || '?').charAt(0).toUpperCase();
 
@@ -24,9 +27,15 @@ export default function GreetingBar({ greeting, name, showNoAds, noAdsLabel, onM
                         <MaterialIcons name="more-vert" size={28} color={theme.accent} />
                     </TouchableOpacity>
                 )}
-                <View style={[styles.avatar, { backgroundColor: theme.primary }]}>
-                    <Text style={styles.avatarText}>{initial}</Text>
-                </View>
+                <TouchableOpacity onPress={onAvatarPress} activeOpacity={onAvatarPress ? 0.7 : 1}>
+                    <View style={[styles.avatar, { backgroundColor: theme.primary, borderColor: theme.accent }]}>
+                        {profileImage ? (
+                            <Image source={{ uri: profileImage }} style={styles.avatarImage} contentFit="cover" />
+                        ) : (
+                            <Text style={styles.avatarText}>{initial}</Text>
+                        )}
+                    </View>
+                </TouchableOpacity>
                 <View style={styles.textCol}>
                     <Text style={[styles.greeting, { color: theme.subText }]} numberOfLines={1}>{greeting}</Text>
                     <Text style={[styles.name, { color: theme.text }]} numberOfLines={1}>{name}</Text>
@@ -65,7 +74,10 @@ const styles = StyleSheet.create({
     avatar: {
         width: 42, height: 42, borderRadius: 21,
         alignItems: 'center', justifyContent: 'center', marginRight: 6,
+        overflow: 'hidden',
+        borderWidth: 1.5,
     },
+    avatarImage: { width: '100%', height: '100%' },
     avatarText: { color: '#fff', fontSize: 18, fontWeight: '700' },
     textCol: { flex: 1 },
     greeting: { fontSize: 12 },

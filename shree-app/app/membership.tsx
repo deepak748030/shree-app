@@ -13,6 +13,7 @@ import {
     type MembershipStatus,
 } from '@/services/api';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -28,6 +29,8 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HP = 6;
+const PLANS_CACHE_KEY = '@membership_plans_cache';
+const STATUS_CACHE_KEY_PREFIX = '@membership_status_cache_';
 
 export default function MembershipScreen() {
     const { theme } = useAppTheme();
@@ -51,19 +54,57 @@ export default function MembershipScreen() {
         visible: false, type: 'success', title: '', message: '',
     });
 
+    // 1) Hydrate from cache (instant) — runs once
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const [cachedPlans, cachedStatusRaw] = await Promise.all([
+                    AsyncStorage.getItem(PLANS_CACHE_KEY),
+                    deviceId ? AsyncStorage.getItem(STATUS_CACHE_KEY_PREFIX + deviceId) : Promise.resolve(null),
+                ]);
+                if (cancelled) return;
+                if (cachedPlans) {
+                    const list = JSON.parse(cachedPlans) as MembershipPlan[];
+                    if (Array.isArray(list) && list.length) {
+                        setPlans(list);
+                        const best = list.find(p => p.isBestValue) || list[0];
+                        setSelected((s) => s ?? best._id);
+                        setLoading(false);
+                    }
+                }
+                if (cachedStatusRaw) {
+                    const st = JSON.parse(cachedStatusRaw) as MembershipStatus;
+                    setStatus(st);
+                    setLoading(false);
+                }
+            } catch { }
+        })();
+        return () => { cancelled = true; };
+    }, [deviceId]);
+
+    // 2) Fresh fetch in background
     const load = useCallback(async () => {
-        setLoading(true);
-        const [list, st] = await Promise.all([
-            fetchMembershipPlans(),
-            deviceId ? fetchMembershipStatus(deviceId) : Promise.resolve({ isActive: false } as MembershipStatus),
-        ]);
-        setPlans(list);
-        setStatus(st);
-        if (list.length && !selected) {
-            const best = list.find(p => p.isBestValue) || list[0];
-            setSelected(best._id);
+        try {
+            const [list, st] = await Promise.all([
+                fetchMembershipPlans(),
+                deviceId ? fetchMembershipStatus(deviceId) : Promise.resolve({ isActive: false } as MembershipStatus),
+            ]);
+            if (list.length) {
+                setPlans(list);
+                AsyncStorage.setItem(PLANS_CACHE_KEY, JSON.stringify(list)).catch(() => { });
+                if (!selected) {
+                    const best = list.find(p => p.isBestValue) || list[0];
+                    setSelected(best._id);
+                }
+            }
+            setStatus(st);
+            if (deviceId) {
+                AsyncStorage.setItem(STATUS_CACHE_KEY_PREFIX + deviceId, JSON.stringify(st)).catch(() => { });
+            }
+        } finally {
+            setLoading(false);
         }
-        setLoading(false);
     }, [deviceId]); // eslint-disable-line
 
     useEffect(() => { load(); }, [load]);
@@ -157,29 +198,70 @@ export default function MembershipScreen() {
 
     const ListHeader = (
         <View>
-            {/* Hero / Status card */}
-            <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-                <View style={[styles.heroIconWrap, { backgroundColor: theme.mutedBg, borderColor: theme.accent }]}>
-                    <Ionicons name={status.isActive ? 'shield-checkmark' : 'ribbon'} size={28} color={status.isActive ? '#22A06B' : theme.accent} />
+            {status.isActive ? (
+                <View style={[styles.activeCard, { backgroundColor: theme.cardBg, borderColor: '#22A06B' }]}>
+                    <View style={styles.activeTopRow}>
+                        <View style={[styles.activeIconWrap, { backgroundColor: theme.isDark ? '#0E2A1F' : '#E8F7EF', borderColor: '#22A06B' }]}>
+                            <Ionicons name="shield-checkmark" size={26} color="#22A06B" />
+                        </View>
+                        <View style={[styles.activeBadge, { backgroundColor: '#22A06B' }]}>
+                            <Ionicons name="checkmark-circle" size={11} color="#fff" />
+                            <Text style={styles.activeBadgeText}>{language === 'hi' ? 'सक्रिय' : 'ACTIVE'}</Text>
+                        </View>
+                    </View>
+                    <Text style={[styles.activeTitle, { color: theme.text }]}>
+                        {language === 'hi' ? 'सदस्यता सक्रिय है' : 'Membership Active'}
+                    </Text>
+                    {(status.planName_hi || status.planName_en) && (
+                        <View style={[styles.planChip, { backgroundColor: theme.mutedBg, borderColor: theme.cardBorder }]}>
+                            <Ionicons name={status.isLifetime ? 'infinite' : 'ribbon'} size={13} color={theme.accent} />
+                            <Text style={[styles.planChipText, { color: theme.text }]} numberOfLines={1}>
+                                {language === 'hi' ? (status.planName_hi || status.planName_en) : (status.planName_en || status.planName_hi)}
+                            </Text>
+                        </View>
+                    )}
+                    <View style={styles.activeMetaRow}>
+                        {status.isLifetime ? (
+                            <View style={styles.metaCol}>
+                                <Text style={[styles.metaLabel, { color: theme.subText }]}>
+                                    {language === 'hi' ? 'अवधि' : 'Validity'}
+                                </Text>
+                                <Text style={[styles.metaValue, { color: theme.text }]}>
+                                    {language === 'hi' ? 'आजीवन' : 'Lifetime'}
+                                </Text>
+                            </View>
+                        ) : status.expiresAt ? (
+                            <>
+                                <View style={styles.metaCol}>
+                                    <Text style={[styles.metaLabel, { color: theme.subText }]}>
+                                        {language === 'hi' ? 'समाप्ति' : 'Expires'}
+                                    </Text>
+                                    <Text style={[styles.metaValue, { color: theme.text }]}>
+                                        {new Date(status.expiresAt).toLocaleDateString(language === 'hi' ? 'hi-IN' : 'en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    </Text>
+                                </View>
+                                <View style={[styles.metaDivider, { backgroundColor: theme.cardBorder }]} />
+                                <View style={styles.metaCol}>
+                                    <Text style={[styles.metaLabel, { color: theme.subText }]}>
+                                        {language === 'hi' ? 'शेष दिन' : 'Days left'}
+                                    </Text>
+                                    <Text style={[styles.metaValue, { color: '#22A06B' }]}>
+                                        {Math.max(0, Math.ceil((new Date(status.expiresAt).getTime() - Date.now()) / 86400000))}
+                                    </Text>
+                                </View>
+                            </>
+                        ) : null}
+                    </View>
                 </View>
-                {status.isActive ? (
-                    <>
-                        <Text style={[styles.heroTitle, { color: theme.text }]}>{language === 'hi' ? 'सक्रिय सदस्यता' : 'Active Membership'}</Text>
-                        <Text style={[styles.heroSubtitle, { color: theme.subText }]}>
-                            {status.isLifetime
-                                ? (language === 'hi' ? 'आजीवन सदस्य' : 'Lifetime member')
-                                : status.expiresAt
-                                    ? `${language === 'hi' ? 'समाप्ति' : 'Expires'}: ${new Date(status.expiresAt).toLocaleDateString()}`
-                                    : ''}
-                        </Text>
-                    </>
-                ) : (
-                    <>
-                        <Text style={[styles.heroTitle, { color: theme.text }]}>{t('membership_hero_title' as any)}</Text>
-                        <Text style={[styles.heroSubtitle, { color: theme.subText }]}>{t('membership_hero_subtitle' as any)}</Text>
-                    </>
-                )}
-            </View>
+            ) : (
+                <View style={[styles.heroCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
+                    <View style={[styles.heroIconWrap, { backgroundColor: theme.mutedBg, borderColor: theme.accent }]}>
+                        <Ionicons name="ribbon" size={28} color={theme.accent} />
+                    </View>
+                    <Text style={[styles.heroTitle, { color: theme.text }]}>{t('membership_hero_title' as any)}</Text>
+                    <Text style={[styles.heroSubtitle, { color: theme.subText }]}>{t('membership_hero_subtitle' as any)}</Text>
+                </View>
+            )}
 
             {/* Benefits */}
             <View style={[styles.benefitsCard, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
@@ -198,7 +280,9 @@ export default function MembershipScreen() {
                 ))}
             </View>
 
-            <Text style={[styles.sectionLabel, { color: theme.subText }]}>{language === 'hi' ? 'योजना चुनें' : 'Choose a plan'}</Text>
+            {!status.isActive && (
+                <Text style={[styles.sectionLabel, { color: theme.subText }]}>{language === 'hi' ? 'योजना चुनें' : 'Choose a plan'}</Text>
+            )}
         </View>
     );
 
@@ -238,7 +322,7 @@ export default function MembershipScreen() {
                 <View style={{ width: 28 }} />
             </View>
 
-            {loading ? (
+            {loading && plans.length === 0 && !status.isActive ? (
                 <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                     <ActivityIndicator size="large" color={theme.accent} />
                 </View>
@@ -309,6 +393,30 @@ const styles = StyleSheet.create({
     },
     heroTitle: { fontSize: 18, fontWeight: '800', marginTop: 2 },
     heroSubtitle: { fontSize: 12, marginTop: 4, textAlign: 'center' },
+
+    activeCard: { borderRadius: 16, borderWidth: 1.5, paddingVertical: 14, paddingHorizontal: 14 },
+    activeTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+    activeIconWrap: {
+        width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5,
+    },
+    activeBadge: {
+        flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
+    },
+    activeBadgeText: { color: '#fff', fontSize: 10, fontWeight: '800', letterSpacing: 0.5 },
+    activeTitle: { fontSize: 17, fontWeight: '800', marginTop: 2 },
+    planChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', marginTop: 6,
+        paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8, borderWidth: 1, maxWidth: '100%',
+    },
+    planChipText: { fontSize: 12, fontWeight: '700' },
+    activeMetaRow: {
+        flexDirection: 'row', alignItems: 'center', marginTop: 12, paddingTop: 12,
+        borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(127,127,127,0.25)',
+    },
+    metaCol: { flex: 1 },
+    metaLabel: { fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' },
+    metaValue: { fontSize: 14, fontWeight: '800', marginTop: 2 },
+    metaDivider: { width: 1, alignSelf: 'stretch', marginHorizontal: 10 },
 
     benefitsCard: { marginTop: 6, borderRadius: 12, borderWidth: 1, paddingVertical: 6, paddingHorizontal: 10 },
     benefitRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 5 },

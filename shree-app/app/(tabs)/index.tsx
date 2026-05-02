@@ -49,7 +49,7 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const { t } = useLanguage();
-  const { user } = useAuth();
+  const { user, updateAuthUser } = useAuth();
 
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -71,10 +71,16 @@ export default function HomeScreen() {
         fetchUserData(user.deviceId),
         fetchHandwrittenNaam(user.deviceId),
       ]);
-      if (data) setUserData(data);
+      if (data) {
+        setUserData(data);
+        // Keep AuthContext profileImage in sync
+        if (user && data.user?.profileImage !== undefined && data.user.profileImage !== user.profileImage) {
+          updateAuthUser({ ...user, profileImage: data.user.profileImage });
+        }
+      }
       if (hw) setHandwritten(hw);
     } catch { }
-  }, [user?.deviceId]);
+  }, [user?.deviceId]); // eslint-disable-line
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -121,10 +127,12 @@ export default function HomeScreen() {
           <GreetingBar
             greeting={t(getGreetingKey() as any)}
             name={user?.name || t('home_guest_user')}
+            profileImage={userData?.user?.profileImage || user?.profileImage || null}
             showNoAds
             noAdsLabel={t('home_no_ads')}
             onMenuPress={() => setDrawerVisible(true)}
             onNoAdsPress={() => router.push('/membership')}
+            onAvatarPress={() => router.push('/profile-edit' as any)}
           />
         );
       case 'goal':

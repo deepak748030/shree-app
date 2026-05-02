@@ -71,6 +71,7 @@ export interface NaamJapUser {
     mobile: string;
     name: string;
     city: string;
+    profileImage?: string;
     totalCount: number;
     totalMalas: number;
     lastSyncAt: string;
@@ -161,6 +162,33 @@ export async function registerNaamJapUser(
         return await response.json();
     } catch {
         return { success: false };
+    }
+}
+
+// Update profile (name + optional image)
+export async function updateProfile(
+    deviceId: string,
+    name: string,
+    imageUri?: string | null,
+): Promise<{ success: boolean; response?: NaamJapUser; message?: string }> {
+    try {
+        const formData = new FormData();
+        formData.append('deviceId', deviceId);
+        formData.append('name', name);
+        if (imageUri) {
+            const filename = imageUri.split('/').pop() || `profile_${Date.now()}.jpg`;
+            const ext = filename.split('.').pop()?.toLowerCase() || 'jpg';
+            const mime = ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg';
+            // @ts-ignore - RN FormData file
+            formData.append('image', { uri: imageUri, name: filename, type: mime });
+        }
+        const response = await fetch(`${API_BASE_URL}/naam-jap/profile/update`, {
+            method: 'POST',
+            body: formData,
+        });
+        return await response.json();
+    } catch {
+        return { success: false, message: 'Network error' };
     }
 }
 

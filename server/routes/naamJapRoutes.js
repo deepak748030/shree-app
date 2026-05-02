@@ -1,8 +1,43 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
 const router = express.Router();
+
+// Multer for in-memory image upload
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => {
+        if (file.mimetype.startsWith('image/')) cb(null, true);
+        else cb(new Error('Only image files are allowed'), false);
+    },
+});
+
+const uploadToCloudinary = (buffer) => new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+        { folder: 'profile-images', resource_type: 'image', quality: 'auto', fetch_format: 'auto', transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }] },
+        (error, result) => { if (error) reject(error); else resolve(result); }
+    );
+    stream.end(buffer);
+});
+
+const deleteFromCloudinary = async (imageUrl) => {
+    try {
+        if (!imageUrl) return;
+        const parts = imageUrl.split('/');
+        const uploadIndex = parts.indexOf('upload');
+        if (uploadIndex === -1) return;
+        const pathParts = parts.slice(uploadIndex + 2);
+        const publicId = pathParts.join('/').replace(/\.[^/.]+$/, '');
+        await cloudinary.uploader.destroy(publicId);
+    } catch (err) {
+        console.error('Cloudinary delete error:', err.message);
+    }
+};
+
 
 // Admin auth middleware
 const authMiddleware = async (req, res, next) => {
@@ -163,6 +198,39 @@ router.post('/register', async (req, res) => {
     } catch (error) {
         console.error('NaamJap register error:', error);
         res.status(500).json({ success: false, message: 'Failed to register user' });
+    }
+});
+
+// POST /api/naam-jap/profile/update - Update name and/or upload profile image (multipart)
+router.post('/profile/update', upload.single('image'), async (req, res) => {
+    try {
+        const { deviceId, name } = req.body;
+        if (!deviceId) {
+            return res.status(400).json({ success: false, message: 'deviceId is required' });
+        }
+        const user = await NaamJapUser.findOne({ deviceId });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (typeof name === 'string' && name.trim()) {
+            user.name = name.trim().slice(0, 100);
+        }
+
+        if (req.file) {
+            const result = await uploadToCloudinary(req.file.buffer);
+            // Delete old image if it was on cloudinary
+            if (user.profileImage) {
+                deleteFromCloudinary(user.profileImage).catch(() => { });
+            }
+            user.profileImage = result.secure_url;
+        }
+
+        await user.save();
+        res.json({ success: true, response: user });
+    } catch (error) {
+        console.error('Profile update error:', error);
+        res.status(500).json({ success: false, message: 'Failed to update profile' });
     }
 });
 
@@ -416,6 +484,9 @@ router.get('/user/:deviceId', async (req, res) => {
                 user: {
                     name: user.name,
                     city: user.city,
+                    mobile: user.mobile,
+                    profileImage: user.profileImage || '',
+                    deviceId: user.deviceId,
                     totalCount: user.totalCount,
                     totalMalas: user.totalMalas,
                     lastSyncAt: user.lastSyncAt,
@@ -634,6 +705,9 @@ router.get('/user/:deviceId/daily/:date', async (req, res) => {
                 user: {
                     name: user.name,
                     city: user.city,
+                    mobile: user.mobile,
+                    profileImage: user.profileImage || '',
+                    deviceId: user.deviceId,
                     totalCount: user.totalCount,
                     totalMalas: user.totalMalas,
                     lastSyncAt: user.lastSyncAt,

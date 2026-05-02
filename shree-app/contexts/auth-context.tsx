@@ -11,6 +11,7 @@ interface AuthContextType {
     isLoggedIn: boolean;
     loading: boolean;
     setAuthUser: (user: NaamJapUser, mobile: string) => Promise<void>;
+    updateAuthUser: (user: NaamJapUser) => Promise<void>;
     logout: () => Promise<void>;
 }
 
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextType>({
     isLoggedIn: false,
     loading: true,
     setAuthUser: async () => { },
+    updateAuthUser: async () => { },
     logout: async () => { },
 });
 
@@ -87,6 +89,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setMobile(mob);
     };
 
+    const updateAuthUser = async (userData: NaamJapUser) => {
+        await AsyncStorage.setItem(AUTH_USER_KEY, JSON.stringify(userData));
+        setUser(userData);
+    };
+
     const logout = async () => {
         await AsyncStorage.clear();
         setUser(null);
@@ -94,7 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     return (
-        <AuthContext.Provider value={{ user, mobile, isLoggedIn: !!user, loading, setAuthUser, logout }}>
+        <AuthContext.Provider value={{ user, mobile, isLoggedIn: !!user, loading, setAuthUser, updateAuthUser, logout }}>
             {children}
         </AuthContext.Provider>
     );

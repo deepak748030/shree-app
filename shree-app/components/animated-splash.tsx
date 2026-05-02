@@ -1,3 +1,4 @@
+import { useAppTheme } from '@/contexts/theme-context';
 import { Image } from 'expo-image';
 import React, { useEffect, useRef } from 'react';
 import { Animated, Dimensions, StyleSheet } from 'react-native';
@@ -9,6 +10,7 @@ interface AnimatedSplashProps {
 }
 
 export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
+    const { theme } = useAppTheme();
     const logoScale = useRef(new Animated.Value(0.3)).current;
     const logoOpacity = useRef(new Animated.Value(0)).current;
     const textOpacity = useRef(new Animated.Value(0)).current;
@@ -73,12 +75,12 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
     }, []);
 
     return (
-        <Animated.View style={[styles.container, { opacity: fadeOut }]}>
+        <Animated.View style={[styles.container, { opacity: fadeOut, backgroundColor: theme.bgCream }]}>
             {/* Glow circle behind logo */}
             <Animated.View
                 style={[
                     styles.glow,
-                    { opacity: glowOpacity },
+                    { opacity: glowOpacity, backgroundColor: theme.accent },
                 ]}
             />
 
@@ -104,6 +106,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
                 style={[
                     styles.appName,
                     {
+                        color: theme.accent,
                         opacity: textOpacity,
                         transform: [{ translateY: textTranslateY }],
                     },
@@ -116,6 +119,7 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
                 style={[
                     styles.tagline,
                     {
+                        color: theme.subText,
                         opacity: textOpacity,
                         transform: [{ translateY: textTranslateY }],
                     },
@@ -130,7 +134,6 @@ export default function AnimatedSplash({ onFinish }: AnimatedSplashProps) {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#FFFDE7',
         alignItems: 'center',
         justifyContent: 'center',
     },
@@ -139,7 +142,6 @@ const styles = StyleSheet.create({
         width: 280,
         height: 280,
         borderRadius: 140,
-        backgroundColor: '#FFD700',
     },
     logoContainer: {
         width: 200,
@@ -154,13 +156,11 @@ const styles = StyleSheet.create({
     appName: {
         fontSize: 36,
         fontWeight: 'bold',
-        color: '#B8860B',
         marginTop: 20,
         letterSpacing: 2,
     },
     tagline: {
         fontSize: 16,
-        color: '#8B6914',
         marginTop: 8,
         fontStyle: 'italic',
     },

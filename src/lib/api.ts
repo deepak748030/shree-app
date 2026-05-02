@@ -237,4 +237,65 @@ export const sendPushNotification = async (title: string, body: string) => {
     return response.data as { success: boolean; message?: string; response: { sent: number; failed: number; total: number } }
 }
 
+// Subscriptions (Admin)
+export interface SubscriptionItem {
+    _id: string
+    deviceId: string
+    mobile: string
+    userName?: string
+    userCity?: string
+    planSnapshot?: {
+        name_hi?: string
+        name_en?: string
+        price?: number
+        durationMonths?: number
+        isLifetime?: boolean
+    }
+    razorpayOrderId: string
+    razorpayPaymentId?: string
+    amount: number
+    currency: string
+    status: 'created' | 'paid' | 'failed' | 'refunded' | 'paused' | 'cancelled'
+    startsAt?: string | null
+    expiresAt?: string | null
+    paidAt?: string | null
+    pausedAt?: string | null
+    cancelledAt?: string | null
+    cancelReason?: string
+    createdAt: string
+    computedActive?: boolean
+    isExpired?: boolean
+}
+
+export interface SubscriptionsResponse {
+    items: SubscriptionItem[]
+    pagination: { page: number; limit: number; total: number; pages: number }
+    stats: {
+        byStatus: Record<string, { count: number; amount: number }>
+        activeOnPage: number
+    }
+}
+
+export const listSubscriptions = async (params: { page?: number; status?: string; search?: string } = {}) => {
+    const response = await api.get('/membership/admin/subscriptions', {
+        params: { page: params.page || 1, limit: 50, status: params.status || '', search: params.search || '' },
+    })
+    return response.data as { success: boolean; response: SubscriptionsResponse }
+}
+
+export const pauseSubscription = async (id: string) => {
+    const response = await api.post(`/membership/admin/subscriptions/${id}/pause`)
+    return response.data
+}
+
+export const resumeSubscription = async (id: string) => {
+    const response = await api.post(`/membership/admin/subscriptions/${id}/resume`)
+    return response.data
+}
+
+export const cancelSubscription = async (id: string, reason?: string) => {
+    const response = await api.post(`/membership/admin/subscriptions/${id}/cancel`, { reason })
+    return response.data
+}
+
 export default api

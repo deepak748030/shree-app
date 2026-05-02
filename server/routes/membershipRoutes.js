@@ -4,6 +4,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const MembershipPlan = require('../models/MembershipPlan');
 const Subscription = require('../models/Subscription');
+const NaamJapUser = require('../models/NaamJapUser');
 const razorpay = require('../config/razorpay');
 const router = express.Router();
 
@@ -246,19 +247,139 @@ router.get('/admin/subscriptions', authMiddleware, async (req, res) => {
         const limit = Math.min(100, parseInt(req.query.limit) || 50);
         const filter = {};
         if (req.query.status) filter.status = req.query.status;
-        const [items, total] = await Promise.all([
+        const search = (req.query.search || '').trim();
+        if (search) {
+            filter.$or = [
+                { mobile: { $regex: search, $options: 'i' } },
+                { deviceId: { $regex: search, $options: 'i' } },
+                { razorpayOrderId: { $regex: search, $options: 'i' } },
+                { razorpayPaymentId: { $regex: search, $options: 'i' } },
+            ];
+        }
+        const [items, total, stats] = await Promise.all([
             Subscription.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
             Subscription.countDocuments(filter),
+            Subscription.aggregate([
+                { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+            ]),
         ]);
+
+        // Attach user info (name/city) for each subscription via NaamJapUser by mobile or deviceId
+        const deviceIds = [...new Set(items.map(i => i.deviceId).filter(Boolean))];
+        const mobiles = [...new Set(items.map(i => i.mobile).filter(Boolean))];
+        const users = await NaamJapUser.find({
+            $or: [
+                { deviceId: { $in: deviceIds } },
+                { mobile: { $in: mobiles } },
+            ],
+        }).select('name city mobile deviceId').lean();
+
+        const byDevice = new Map(users.map(u => [u.deviceId, u]));
+        const byMobile = new Map(users.map(u => [u.mobile, u]));
+
+        const now = new Date();
+        const enriched = items.map(s => {
+            const u = byDevice.get(s.deviceId) || byMobile.get(s.mobile) || null;
+            const isLifetime = !!s.planSnapshot?.isLifetime;
+            const expired = !isLifetime && s.expiresAt && new Date(s.expiresAt) < now;
+            return {
+                ...s,
+                userName: u?.name || '',
+                userCity: u?.city || '',
+                computedActive: s.status === 'paid' && (isLifetime || !expired),
+                isExpired: expired,
+            };
+        });
+
+        // Aggregate active count (paid + not expired)
+        const activeCount = enriched.filter(e => e.computedActive).length;
+
         res.json({
             success: true,
             response: {
-                items,
+                items: enriched,
                 pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+                stats: {
+                    byStatus: stats.reduce((acc, s) => { acc[s._id] = { count: s.count, amount: s.amount }; return acc; }, {}),
+                    activeOnPage: activeCount,
+                },
             },
         });
     } catch (err) {
+        console.error('List subs error:', err);
         res.status(500).json({ success: false, message: 'Failed' });
+    }
+});
+
+// POST /api/membership/admin/subscriptions/:id/pause
+router.post('/admin/subscriptions/:id/pause', authMiddleware, async (req, res) => {
+    try {
+        const sub = await Subscription.findById(req.params.id);
+        if (!sub) return res.status(404).json({ success: false, message: 'Subscription not found' });
+        if (sub.status !== 'paid') {
+            return res.status(400).json({ success: false, message: `Cannot pause a ${sub.status} subscription` });
+        }
+        const now = new Date();
+        // Capture remaining time so resume can extend expiresAt
+        if (!sub.planSnapshot?.isLifetime && sub.expiresAt) {
+            const remaining = new Date(sub.expiresAt).getTime() - now.getTime();
+            sub.pausedRemainingMs = Math.max(0, remaining);
+        } else {
+            sub.pausedRemainingMs = null;
+        }
+        sub.status = 'paused';
+        sub.pausedAt = now;
+        await sub.save();
+        res.json({ success: true, response: sub });
+    } catch (err) {
+        console.error('Pause sub error:', err);
+        res.status(500).json({ success: false, message: 'Failed to pause' });
+    }
+});
+
+// POST /api/membership/admin/subscriptions/:id/resume
+router.post('/admin/subscriptions/:id/resume', authMiddleware, async (req, res) => {
+    try {
+        const sub = await Subscription.findById(req.params.id);
+        if (!sub) return res.status(404).json({ success: false, message: 'Subscription not found' });
+        if (sub.status !== 'paused') {
+            return res.status(400).json({ success: false, message: `Cannot resume a ${sub.status} subscription` });
+        }
+        const now = new Date();
+        // Re-apply remaining duration from when it was paused
+        if (!sub.planSnapshot?.isLifetime && sub.pausedRemainingMs != null) {
+            sub.expiresAt = new Date(now.getTime() + sub.pausedRemainingMs);
+        }
+        sub.status = 'paid';
+        sub.pausedAt = null;
+        sub.pausedRemainingMs = null;
+        await sub.save();
+        res.json({ success: true, response: sub });
+    } catch (err) {
+        console.error('Resume sub error:', err);
+        res.status(500).json({ success: false, message: 'Failed to resume' });
+    }
+});
+
+// POST /api/membership/admin/subscriptions/:id/cancel
+router.post('/admin/subscriptions/:id/cancel', authMiddleware, async (req, res) => {
+    try {
+        const { reason } = req.body || {};
+        const sub = await Subscription.findById(req.params.id);
+        if (!sub) return res.status(404).json({ success: false, message: 'Subscription not found' });
+        if (sub.status === 'cancelled') {
+            return res.status(400).json({ success: false, message: 'Already cancelled' });
+        }
+        sub.status = 'cancelled';
+        sub.cancelledAt = new Date();
+        sub.cancelReason = (reason || '').toString().slice(0, 300);
+        // End access immediately
+        sub.expiresAt = sub.cancelledAt;
+        await sub.save();
+        res.json({ success: true, response: sub });
+    } catch (err) {
+        console.error('Cancel sub error:', err);
+        res.status(500).json({ success: false, message: 'Failed to cancel' });
     }
 });
 

@@ -91,7 +91,7 @@ function AppContent() {
   if (shouldShowMobileAuth) {
     return (
       <>
-        <StatusBar style="dark" />
+        <StatusBar style="auto" />
         <MobileAuthScreen onDone={() => setShowMobileAuth(false)} />
       </>
     );
@@ -114,6 +114,7 @@ function AppContent() {
         <Stack.Screen name="language-settings" options={{ headerShown: false }} />
         <Stack.Screen name="membership" options={{ headerShown: false }} />
         <Stack.Screen name="handwritten-naam" options={{ headerShown: false }} />
+        <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <LanguagePickerModal
@@ -127,23 +128,27 @@ function AppContent() {
   );
 }
 
+function SplashGate({ onFinish }: { onFinish: () => void }) {
+  return (
+    <>
+      <StatusBar style="auto" translucent={false} />
+      <AnimatedSplash onFinish={onFinish} />
+    </>
+  );
+}
+
 export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
-
-  if (showSplash) {
-    return (
-      <>
-        <StatusBar style="light" backgroundColor="#1a1a1a" translucent={false} />
-        <AnimatedSplash onFinish={() => setShowSplash(false)} />
-      </>
-    );
-  }
 
   return (
     <AppThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <AppContent />
+          {showSplash ? (
+            <SplashGate onFinish={() => setShowSplash(false)} />
+          ) : (
+            <AppContent />
+          )}
         </AuthProvider>
       </LanguageProvider>
     </AppThemeProvider>

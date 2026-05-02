@@ -1,9 +1,9 @@
 import { useAuth } from '@/contexts/auth-context';
 import { useLanguage } from '@/contexts/language-context';
+import { useAppTheme } from '@/contexts/theme-context';
 import { authByMobile, registerNaamJapUser } from '@/services/api';
 import { useDeviceId } from '@/hooks/use-device-id';
 import { getExpoPushToken } from '@/hooks/use-notifications';
-import { Alert } from 'react-native';
 import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 import React, { useState } from 'react';
 import {
@@ -28,6 +28,7 @@ type Step = 'mobile' | 'register';
 export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
     const { setAuthUser } = useAuth();
     const { language } = useLanguage();
+    const { theme } = useAppTheme();
     const deviceId = useDeviceId();
     const isHi = language === 'hi';
 
@@ -191,9 +192,16 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
         }
     };
 
+    const inputBase = {
+        backgroundColor: theme.cardBg,
+        borderColor: theme.cardBorder,
+        color: theme.text,
+    };
+    const disabled = { backgroundColor: theme.mutedBg, color: theme.subText };
+
     return (
         <KeyboardAvoidingView
-            style={styles.container}
+            style={[styles.container, { backgroundColor: theme.bgCream }]}
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
             <ScrollView
@@ -207,12 +215,12 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                     resizeMode="contain"
                 />
 
-                <Text style={styles.title}>
+                <Text style={[styles.title, { color: theme.accent }]}>
                     {step === 'mobile'
                         ? (isHi ? 'मोबाइल नंबर दर्ज करें' : 'Enter Mobile Number')
                         : (isHi ? 'पंजीकरण करें' : 'Register')}
                 </Text>
-                <Text style={styles.subtitle}>
+                <Text style={[styles.subtitle, { color: theme.subText }]}>
                     {step === 'mobile'
                         ? (isHi ? 'अपना मोबाइल नंबर डालकर आगे बढ़ें' : 'Enter your mobile number to continue')
                         : (isHi ? 'अपनी जानकारी भरें' : 'Fill in your details')}
@@ -220,15 +228,15 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
 
                 {step === 'mobile' ? (
                     <View style={styles.formContainer}>
-                        <Text style={styles.label}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
+                        <Text style={[styles.label, { color: theme.text }]}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
                         <View style={styles.mobileRow}>
-                            <View style={styles.prefixBox}>
-                                <Text style={styles.prefixText}>+91</Text>
+                            <View style={[styles.prefixBox, inputBase]}>
+                                <Text style={[styles.prefixText, { color: theme.text }]}>+91</Text>
                             </View>
                             <TextInput
-                                style={[styles.input, styles.mobileInput]}
+                                style={[styles.input, styles.mobileInput, inputBase]}
                                 placeholder={isHi ? 'मोबाइल नंबर' : 'Mobile Number'}
-                                placeholderTextColor="#888"
+                                placeholderTextColor={theme.subText}
                                 keyboardType="phone-pad"
                                 maxLength={10}
                                 value={mobile}
@@ -236,15 +244,15 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                             />
                         </View>
                         <TouchableOpacity
-                            style={styles.submitBtn}
+                            style={[styles.submitBtn, { backgroundColor: theme.accent }]}
                             onPress={handleMobileSubmit}
                             activeOpacity={0.7}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#1a1a1a" size="small" />
+                                <ActivityIndicator color={theme.isDark ? '#000' : '#fff'} size="small" />
                             ) : (
-                                <Text style={styles.submitBtnText}>
+                                <Text style={[styles.submitBtnText, { color: theme.isDark ? '#000' : '#fff' }]}>
                                     {isHi ? 'आगे बढ़ें' : 'Continue'}
                                 </Text>
                             )}
@@ -252,48 +260,48 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                     </View>
                 ) : (
                     <View style={styles.formContainer}>
-                        <Text style={styles.label}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
+                        <Text style={[styles.label, { color: theme.text }]}>{isHi ? 'मोबाइल नंबर' : 'Mobile Number'}</Text>
                         <View style={styles.mobileRow}>
-                            <View style={[styles.prefixBox, styles.inputDisabled]}>
-                                <Text style={[styles.prefixText, { color: '#888' }]}>+91</Text>
+                            <View style={[styles.prefixBox, inputBase, disabled]}>
+                                <Text style={[styles.prefixText, { color: theme.subText }]}>+91</Text>
                             </View>
                             <TextInput
-                                style={[styles.input, styles.mobileInput, styles.inputDisabled]}
+                                style={[styles.input, styles.mobileInput, inputBase, disabled]}
                                 value={mobile}
                                 editable={false}
                             />
                         </View>
 
-                        <Text style={styles.label}>{isHi ? 'नाम' : 'Name'}</Text>
+                        <Text style={[styles.label, { color: theme.text }]}>{isHi ? 'नाम' : 'Name'}</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, inputBase]}
                             placeholder={isHi ? 'अपना नाम दर्ज करें' : 'Enter your name'}
-                            placeholderTextColor="#888"
+                            placeholderTextColor={theme.subText}
                             maxLength={100}
                             value={name}
                             onChangeText={setName}
                         />
 
-                        <Text style={styles.label}>{isHi ? 'शहर' : 'City'}</Text>
+                        <Text style={[styles.label, { color: theme.text }]}>{isHi ? 'शहर' : 'City'}</Text>
                         <TextInput
-                            style={styles.input}
+                            style={[styles.input, inputBase]}
                             placeholder={isHi ? 'अपना शहर दर्ज करें' : 'Enter your city'}
-                            placeholderTextColor="#888"
+                            placeholderTextColor={theme.subText}
                             maxLength={100}
                             value={city}
                             onChangeText={setCity}
                         />
 
                         <TouchableOpacity
-                            style={styles.submitBtn}
+                            style={[styles.submitBtn, { backgroundColor: theme.accent }]}
                             onPress={handleRegister}
                             activeOpacity={0.7}
                             disabled={loading}
                         >
                             {loading ? (
-                                <ActivityIndicator color="#1a1a1a" size="small" />
+                                <ActivityIndicator color={theme.isDark ? '#000' : '#fff'} size="small" />
                             ) : (
-                                <Text style={styles.submitBtnText}>
+                                <Text style={[styles.submitBtnText, { color: theme.isDark ? '#000' : '#fff' }]}>
                                     {isHi ? 'पंजीकरण करें' : 'Register'}
                                 </Text>
                             )}
@@ -304,7 +312,7 @@ export default function MobileAuthScreen({ onDone }: MobileAuthScreenProps) {
                             onPress={() => setStep('mobile')}
                             activeOpacity={0.7}
                         >
-                            <Text style={styles.backBtnText}>
+                            <Text style={[styles.backBtnText, { color: theme.accent }]}>
                                 {isHi ? '← वापस जाएं' : '← Go Back'}
                             </Text>
                         </TouchableOpacity>

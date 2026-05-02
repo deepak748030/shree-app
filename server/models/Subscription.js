@@ -16,10 +16,14 @@ const subscriptionSchema = new mongoose.Schema({
     razorpaySignature: { type: String, default: '' },
     amount: { type: Number, required: true }, // in paise
     currency: { type: String, default: 'INR' },
-    status: { type: String, enum: ['created', 'paid', 'failed', 'refunded'], default: 'created', index: true },
+    status: { type: String, enum: ['created', 'paid', 'failed', 'refunded', 'paused', 'cancelled'], default: 'created', index: true },
     startsAt: { type: Date, default: null },
     expiresAt: { type: Date, default: null },
     paidAt: { type: Date, default: null },
+    pausedAt: { type: Date, default: null },
+    pausedRemainingMs: { type: Number, default: null }, // remaining duration when paused (for non-lifetime)
+    cancelledAt: { type: Date, default: null },
+    cancelReason: { type: String, default: '' },
 }, { timestamps: true });
 
 subscriptionSchema.index({ deviceId: 1, status: 1, expiresAt: -1 });

@@ -298,4 +298,73 @@ export const cancelSubscription = async (id: string, reason?: string) => {
     return response.data
 }
 
+// Rewards (Admin)
+export interface RewardItem {
+    _id?: string
+    title_hi: string
+    title_en: string
+    description_hi: string
+    description_en: string
+    japTarget: number
+    stepsTarget: number
+    rewardAmount: number
+    type: 'lifetime' | 'daily'
+    icon: string
+    isActive: boolean
+    sortOrder: number
+    claimCount?: number
+    totalPayout?: number
+}
+
+export const listRewardsAdmin = async () => {
+    const response = await api.get('/rewards/admin/list')
+    return response.data as { success: boolean; response: RewardItem[] }
+}
+export const createReward = async (data: Partial<RewardItem>) => {
+    const response = await api.post('/rewards/admin', data)
+    return response.data
+}
+export const updateReward = async (id: string, data: Partial<RewardItem>) => {
+    const response = await api.put(`/rewards/admin/${id}`, data)
+    return response.data
+}
+export const deleteReward = async (id: string) => {
+    const response = await api.delete(`/rewards/admin/${id}`)
+    return response.data
+}
+
+// Withdrawals (Admin)
+export interface WithdrawalItem {
+    _id: string
+    deviceId: string
+    mobile: string
+    userName: string
+    amount: number
+    upiId: string
+    status: 'pending' | 'approved' | 'paid' | 'rejected'
+    adminNote: string
+    processedAt: string | null
+    paidAt: string | null
+    createdAt: string
+}
+
+export const listWithdrawals = async (params: { page?: number; status?: string; search?: string } = {}) => {
+    const response = await api.get('/rewards/admin/withdrawals', {
+        params: { page: params.page || 1, limit: 50, status: params.status || '', search: params.search || '' },
+    })
+    return response.data as {
+        success: boolean
+        response: {
+            items: WithdrawalItem[]
+            pagination: { page: number; limit: number; total: number; pages: number }
+            stats: Record<string, { count: number; amount: number }>
+        }
+    }
+}
+
+export const actOnWithdrawal = async (id: string, action: 'approve' | 'paid' | 'reject', note?: string) => {
+    const response = await api.post(`/rewards/admin/withdrawals/${id}/action`, { action, note })
+    return response.data
+}
+
 export default api

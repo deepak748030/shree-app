@@ -19,6 +19,8 @@ import {
     Crown,
     PenLine,
     BadgeCheck,
+    Trophy,
+    Wallet,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -36,6 +38,8 @@ const navItems = [
     { to: '/membership-plans', icon: Crown, label: 'Membership Plans' },
     { to: '/subscriptions', icon: BadgeCheck, label: 'Subscriptions' },
     { to: '/handwritten-naam', icon: PenLine, label: 'Handwritten Naam' },
+    { to: '/rewards', icon: Trophy, label: 'Rewards' },
+    { to: '/withdrawals', icon: Wallet, label: 'Withdrawals' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

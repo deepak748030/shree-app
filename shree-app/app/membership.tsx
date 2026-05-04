@@ -7,7 +7,7 @@ import { useDeviceId } from '@/hooks/use-device-id';
 import {
     createMembershipOrder,
     fetchMembershipPlans,
-    fetchMembershipStatus,
+    fetchMembershipStatusSafe,
     verifyMembershipPayment,
     type MembershipPlan,
     type MembershipStatus,
@@ -88,7 +88,7 @@ export default function MembershipScreen() {
         try {
             const [list, st] = await Promise.all([
                 fetchMembershipPlans(),
-                deviceId ? fetchMembershipStatus(deviceId) : Promise.resolve({ isActive: false } as MembershipStatus),
+                deviceId ? fetchMembershipStatusSafe(deviceId) : Promise.resolve(null),
             ]);
             if (list.length) {
                 setPlans(list);
@@ -98,8 +98,11 @@ export default function MembershipScreen() {
                     setSelected(best._id);
                 }
             }
-            setStatus(st);
-            if (deviceId) {
+            // Only overwrite status when the server returned a real answer.
+            // If null (network/server error), keep whatever cached state we have so
+            // a logged-in user with active membership doesn't briefly see "buy plan".
+            if (st && deviceId) {
+                setStatus(st);
                 AsyncStorage.setItem(STATUS_CACHE_KEY_PREFIX + deviceId, JSON.stringify(st)).catch(() => { });
             }
         } finally {

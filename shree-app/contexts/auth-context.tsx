@@ -5,6 +5,12 @@ import { type NaamJapUser, validateSession } from '@/services/api';
 const AUTH_USER_KEY = '@auth_user';
 const AUTH_MOBILE_KEY = '@auth_mobile';
 
+async function clearAuthKeys() {
+    try {
+        await AsyncStorage.multiRemove([AUTH_USER_KEY, AUTH_MOBILE_KEY]);
+    } catch { }
+}
+
 interface AuthContextType {
     user: NaamJapUser | null;
     mobile: string | null;
@@ -58,13 +64,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     const result = await validateSession(savedMobile, parsedUser.deviceId);
                     if (!result.valid) {
                         // User deleted/deactivated on server - auto logout
-                        await AsyncStorage.clear();
+                        await clearAuthKeys();
                         setUser(null);
                         setMobile(null);
                     } else if (result.user) {
                         // Verify server returned complete user data
                         if (!result.user.name || !result.user.mobile || !result.user.deviceId) {
-                            await AsyncStorage.clear();
+                            await clearAuthKeys();
                             setUser(null);
                             setMobile(null);
                         } else {
@@ -75,7 +81,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                     }
                 } else if (savedUser || savedMobile) {
                     // Partial data - clear everything
-                    await AsyncStorage.clear();
+                    await clearAuthKeys();
                 }
             } catch { }
             setLoading(false);
@@ -95,7 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const logout = async () => {
-        await AsyncStorage.clear();
+        // Only clear auth keys. Keep device-bound caches like membership status,
+        // wallet, language, theme, etc. — they're tied to deviceId, not to the
+        // current login session.
+        await clearAuthKeys();
         setUser(null);
         setMobile(null);
     };

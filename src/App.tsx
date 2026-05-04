@@ -15,6 +15,8 @@ import { DonationSettingsPage } from './pages/DonationSettingsPage'
 import { MembershipPlansPage } from './pages/MembershipPlansPage'
 import { SubscriptionsPage } from './pages/SubscriptionsPage'
 import { HandwrittenNaamPage } from './pages/HandwrittenNaamPage'
+import { RewardsPage } from './pages/RewardsPage'
+import { WithdrawalsPage } from './pages/WithdrawalsPage'
 import { TermsConditionsPage } from './pages/TermsConditionsPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { DeleteAccountPage } from './pages/DeleteAccountPage'
@@ -47,6 +49,8 @@ function App() {
                         <Route path="membership-plans" element={<MembershipPlansPage />} />
                         <Route path="subscriptions" element={<SubscriptionsPage />} />
                         <Route path="handwritten-naam" element={<HandwrittenNaamPage />} />
+                        <Route path="rewards" element={<RewardsPage />} />
+                        <Route path="withdrawals" element={<WithdrawalsPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

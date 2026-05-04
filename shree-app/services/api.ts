@@ -500,6 +500,19 @@ export async function fetchMembershipStatus(deviceId: string): Promise<Membershi
     }
 }
 
+// Returns null on network/server errors so callers can avoid clobbering a cached active state.
+export async function fetchMembershipStatusSafe(deviceId: string): Promise<MembershipStatus | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}`);
+        if (!res.ok) return null;
+        const data = await res.json();
+        if (data && data.success && data.response) return data.response as MembershipStatus;
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 export async function createMembershipOrder(
     planId: string, deviceId: string, mobile?: string
 ): Promise<CreateOrderResponse | null> {
@@ -531,5 +544,127 @@ export async function verifyMembershipPayment(
         return { ok: !!data.success, isLifetime: data.response?.isLifetime, expiresAt: data.response?.expiresAt };
     } catch {
         return { ok: false };
+    }
+}
+
+// ============ REWARDS / WALLET APIs ============
+
+export interface RewardServer {
+    _id: string;
+    title_hi: string;
+    title_en: string;
+    description_hi: string;
+    description_en: string;
+    japTarget: number;
+    stepsTarget: number;
+    rewardAmount: number;
+    type: 'lifetime' | 'daily';
+    icon: string;
+    isActive: boolean;
+    sortOrder: number;
+    currentJap: number;
+    currentSteps: number;
+    unlocked: boolean;
+    claimed: boolean;
+}
+
+export interface RewardsListResponse {
+    rewards: RewardServer[];
+    isMember: boolean;
+}
+
+export async function fetchRewards(deviceId: string): Promise<RewardsListResponse | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/rewards?deviceId=${encodeURIComponent(deviceId)}`);
+        const data = await res.json();
+        return data.success ? data.response : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function claimReward(
+    deviceId: string,
+    rewardId: string,
+): Promise<{ ok: boolean; amount?: number; balance?: number; message?: string; code?: string }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/rewards/claim`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, rewardId }),
+        });
+        const data = await res.json();
+        return {
+            ok: !!data.success,
+            amount: data.response?.amount,
+            balance: data.response?.balance,
+            message: data.message,
+            code: data.code,
+        };
+    } catch {
+        return { ok: false, message: 'Network error' };
+    }
+}
+
+export interface WalletInfo {
+    deviceId: string;
+    balance: number;
+    totalEarned: number;
+    totalWithdrawn: number;
+}
+export interface WalletTxn {
+    _id: string;
+    type: 'credit_reward' | 'debit_withdrawal' | 'debit_withdrawal_reverted';
+    amount: number;
+    rewardTitle?: string;
+    note?: string;
+    createdAt: string;
+}
+
+export async function fetchWallet(deviceId: string): Promise<{ wallet: WalletInfo; transactions: WalletTxn[]; isMember: boolean } | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/rewards/wallet/${deviceId}`);
+        const data = await res.json();
+        return data.success ? data.response : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function requestWithdrawal(
+    deviceId: string,
+    amount: number,
+    upiId: string,
+): Promise<{ ok: boolean; balance?: number; message?: string; code?: string }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/rewards/wallet/withdraw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, amount, upiId }),
+        });
+        const data = await res.json();
+        return { ok: !!data.success, balance: data.response?.balance, message: data.message, code: data.code };
+    } catch {
+        return { ok: false, message: 'Network error' };
+    }
+}
+
+export interface WithdrawalEntry {
+    _id: string;
+    amount: number;
+    upiId: string;
+    status: 'pending' | 'approved' | 'paid' | 'rejected';
+    adminNote?: string;
+    createdAt: string;
+    paidAt?: string | null;
+}
+
+export async function fetchUserWithdrawals(deviceId: string): Promise<WithdrawalEntry[]> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/rewards/wallet/${deviceId}/withdrawals`);
+        const data = await res.json();
+        return data.success ? data.response : [];
+    } catch {
+        return [];
     }
 }

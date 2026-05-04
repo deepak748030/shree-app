@@ -114,6 +114,7 @@ function AppContent() {
         <Stack.Screen name="language-settings" options={{ headerShown: false }} />
         <Stack.Screen name="membership" options={{ headerShown: false }} />
         <Stack.Screen name="handwritten-naam" options={{ headerShown: false }} />
+        <Stack.Screen name="wallet" options={{ headerShown: false }} />
         <Stack.Screen name="profile-edit" options={{ headerShown: false }} />
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>

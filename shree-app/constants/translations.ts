@@ -27,6 +27,7 @@ const hi = {
     sidebar_privacy: 'गोपनीयता नीति',
     sidebar_terms: 'नियम और शर्तें',
     sidebar_donation: 'दान करें',
+    sidebar_wallet: 'मेरा वॉलेट',
 
     // Theme settings
     theme_header: 'थीम बदलें',
@@ -304,6 +305,7 @@ const en: typeof hi = {
     sidebar_privacy: 'Privacy Policy',
     sidebar_terms: 'Terms & Conditions',
     sidebar_donation: 'Donate',
+    sidebar_wallet: 'My Wallet',
 
     // Theme settings
     theme_header: 'Change Theme',

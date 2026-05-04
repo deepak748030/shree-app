@@ -1,16 +1,10 @@
 const mongoose = require('mongoose');
 
-const walletTransactionSchema = new mongoose.Schema({
+const rewardClaimSchema = new mongoose.Schema({
     deviceId: { type: String, required: true, index: true, trim: true },
-    mobile: { type: String, default: '', trim: true },
-    type: { type: String, enum: ['credit_reward', 'debit_withdrawal', 'debit_withdrawal_reverted'], required: true },
-    amount: { type: Number, required: true }, // INR (positive number; type indicates direction)
-    rewardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reward', default: null },
-    rewardTitle: { type: String, default: '' },
-    withdrawalId: { type: mongoose.Schema.Types.ObjectId, ref: 'WithdrawalRequest', default: null },
-    note: { type: String, default: '' },
+    rewardId: { type: mongoose.Schema.Types.ObjectId, ref: 'Reward', required: true, index: true },
 }, { timestamps: true });
 
-walletTransactionSchema.index({ deviceId: 1, createdAt: -1 });
+rewardClaimSchema.index({ deviceId: 1, rewardId: 1 }, { unique: true });
 
-module.exports = mongoose.model('WalletTransaction', walletTransactionSchema);
+module.exports = mongoose.model('RewardClaim', rewardClaimSchema);

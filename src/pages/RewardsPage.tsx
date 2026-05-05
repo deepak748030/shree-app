@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Save, X, Trophy, IndianRupee, Footprints, Sparkles, PenLine } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Save, X, Trophy, IndianRupee, Footprints, Sparkles, PenLine, Search, ChevronLeft, ChevronRight } from 'lucide-react'
 import {
     listRewardsAdmin, createReward, updateReward, deleteReward, type RewardItem,
 } from '../lib/api'
@@ -17,6 +17,10 @@ export function RewardsPage() {
     const [saving, setSaving] = useState(false)
     const [deletingId, setDeletingId] = useState<string | null>(null)
     const [msg, setMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+    const [search, setSearch] = useState('')
+    const [filter, setFilter] = useState<'all' | 'active' | 'inactive' | 'daily' | 'lifetime'>('all')
+    const [page, setPage] = useState(1)
+    const PAGE_SIZE = 12
 
     const load = async () => {
         try {
@@ -60,6 +64,21 @@ export function RewardsPage() {
     const totalPayout = items.reduce((s, r) => s + (r.totalPayout || 0), 0)
     const totalClaims = items.reduce((s, r) => s + (r.claimCount || 0), 0)
 
+    const filtered = items.filter(r => {
+        if (filter === 'active' && !r.isActive) return false
+        if (filter === 'inactive' && r.isActive) return false
+        if (filter === 'daily' && r.type !== 'daily') return false
+        if (filter === 'lifetime' && r.type !== 'lifetime') return false
+        if (search.trim()) {
+            const q = search.trim().toLowerCase()
+            return (r.title_en + ' ' + r.title_hi + ' ' + (r.description_en || '') + ' ' + (r.description_hi || '')).toLowerCase().includes(q)
+        }
+        return true
+    })
+    const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+    const safePage = Math.min(page, pages)
+    const paged = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+
     return (
         <div className="space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -86,9 +105,27 @@ export function RewardsPage() {
                 <Stat label="Total payout" value={`₹${totalPayout.toLocaleString('en-IN')}`} />
             </div>
 
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex flex-wrap gap-1">
+                    {(['all', 'active', 'inactive', 'daily', 'lifetime'] as const).map(s => (
+                        <button key={s} onClick={() => { setFilter(s); setPage(1) }}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border capitalize ${filter === s ? 'bg-primary text-primary-foreground border-primary' : 'bg-background border-border hover:bg-muted'}`}>
+                            {s}
+                        </button>
+                    ))}
+                </div>
+                <div className="flex-1 relative">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
+                    <input value={search} onChange={e => { setSearch(e.target.value); setPage(1) }}
+                        placeholder="Search title or description"
+                        className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {items.length === 0 && <div className="col-span-full text-center text-sm text-muted-foreground py-10">No rewards yet. Click "Add Reward".</div>}
-                {items.map(r => (
+                {filtered.length === 0 && <div className="col-span-full text-center text-sm text-muted-foreground py-10">{items.length === 0 ? 'No rewards yet. Click "Add Reward".' : 'No rewards match your filters.'}</div>}
+                {paged.map(r => (
                     <div key={r._id} className="bg-card border border-border rounded-xl p-4 relative">
                         <div className="flex items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
@@ -143,6 +180,16 @@ export function RewardsPage() {
                     </div>
                 ))}
             </div>
+
+            {pages > 1 && (
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs text-muted-foreground">Page {safePage} of {pages} · {filtered.length} total</span>
+                    <div className="flex gap-2">
+                        <button disabled={safePage <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-2 border border-border rounded-lg disabled:opacity-40 hover:bg-muted"><ChevronLeft className="w-4 h-4" /></button>
+                        <button disabled={safePage >= pages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg disabled:opacity-40 hover:bg-muted"><ChevronRight className="w-4 h-4" /></button>
+                    </div>
+                </div>
+            )}
 
             {editing && (
                 <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center sm:p-4">

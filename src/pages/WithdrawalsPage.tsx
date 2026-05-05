@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2, Search, CheckCircle2, XCircle, IndianRupee, BadgeCheck, Clock } from 'lucide-react'
+import { Loader2, Search, CheckCircle2, XCircle, IndianRupee, BadgeCheck, Clock, ChevronLeft, ChevronRight } from 'lucide-react'
 import { listWithdrawals, actOnWithdrawal, type WithdrawalItem } from '../lib/api'
 
 const STATUSES = ['', 'pending', 'approved', 'paid', 'rejected']
@@ -7,6 +7,8 @@ const STATUSES = ['', 'pending', 'approved', 'paid', 'rejected']
 export function WithdrawalsPage() {
     const [items, setItems] = useState<WithdrawalItem[]>([])
     const [stats, setStats] = useState<Record<string, { count: number; amount: number }>>({})
+    const [pagination, setPagination] = useState<{ page: number; pages: number; total: number; limit: number }>({ page: 1, pages: 1, total: 0, limit: 50 })
+    const [page, setPage] = useState(1)
     const [loading, setLoading] = useState(true)
     const [busyId, setBusyId] = useState<string | null>(null)
     const [status, setStatus] = useState<string>('pending')
@@ -16,14 +18,16 @@ export function WithdrawalsPage() {
     const load = async () => {
         setLoading(true)
         try {
-            const res = await listWithdrawals({ status, search })
+            const res = await listWithdrawals({ status, search, page })
             if (res.success) {
                 setItems(res.response.items)
                 setStats(res.response.stats || {})
+                setPagination(res.response.pagination)
             }
         } finally { setLoading(false) }
     }
-    useEffect(() => { load() }, [status]) // eslint-disable-line
+    useEffect(() => { load() }, [status, page]) // eslint-disable-line
+    useEffect(() => { setPage(1) }, [status])
 
     const act = async (id: string, action: 'approve' | 'paid' | 'reject') => {
         let note = ''
@@ -78,65 +82,112 @@ export function WithdrawalsPage() {
                 <div className="flex-1 flex gap-2">
                     <div className="flex-1 relative">
                         <Search className="w-4 h-4 absolute left-3 top-2.5 text-muted-foreground" />
-                        <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()}
+                        <input value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && (page === 1 ? load() : setPage(1))}
                             placeholder="Search mobile / UPI / name"
                             className="w-full pl-9 pr-3 py-2 rounded-lg border border-border bg-background text-sm" />
                     </div>
-                    <button onClick={load} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90">Search</button>
+                    <button onClick={() => page === 1 ? load() : setPage(1)} className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90">Search</button>
                 </div>
             </div>
 
-            <div className="bg-card border border-border rounded-xl overflow-x-auto">
+            <div className="bg-card border border-border rounded-xl overflow-hidden">
                 {loading ? (
                     <div className="flex items-center justify-center py-16"><Loader2 className="w-7 h-7 animate-spin text-primary" /></div>
                 ) : items.length === 0 ? (
                     <div className="text-center text-sm text-muted-foreground py-12">No withdrawal requests.</div>
                 ) : (
-                    <table className="w-full text-sm min-w-[760px]">
-                        <thead className="bg-muted/50 text-xs text-muted-foreground">
-                            <tr>
-                                <th className="text-left px-3 py-2">User</th>
-                                <th className="text-left px-3 py-2">UPI</th>
-                                <th className="text-right px-3 py-2">Amount</th>
-                                <th className="text-left px-3 py-2">Status</th>
-                                <th className="text-left px-3 py-2">Requested</th>
-                                <th className="text-right px-3 py-2">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
+                    <>
+                        {/* Desktop table */}
+                        <div className="hidden md:block overflow-x-auto">
+                            <table className="w-full text-sm min-w-[760px]">
+                                <thead className="bg-muted/50 text-xs text-muted-foreground">
+                                    <tr>
+                                        <th className="text-left px-3 py-2">User</th>
+                                        <th className="text-left px-3 py-2">UPI</th>
+                                        <th className="text-right px-3 py-2">Amount</th>
+                                        <th className="text-left px-3 py-2">Status</th>
+                                        <th className="text-left px-3 py-2">Requested</th>
+                                        <th className="text-right px-3 py-2">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {items.map(w => (
+                                        <tr key={w._id} className="border-t border-border hover:bg-muted/30">
+                                            <td className="px-3 py-2">
+                                                <div className="font-medium">{w.userName || '—'}</div>
+                                                <div className="text-xs text-muted-foreground">{w.mobile || '—'}</div>
+                                            </td>
+                                            <td className="px-3 py-2 font-mono text-xs">{w.upiId}</td>
+                                            <td className="px-3 py-2 text-right font-bold">₹{w.amount.toLocaleString('en-IN')}</td>
+                                            <td className="px-3 py-2"><StatusPill status={w.status} /></td>
+                                            <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(w.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
+                                            <td className="px-3 py-2 text-right">
+                                                <div className="flex gap-1 justify-end flex-wrap">
+                                                    {w.status === 'pending' && (
+                                                        <button disabled={busyId === w._id} onClick={() => act(w._id, 'approve')}
+                                                            className="px-2 py-1 rounded text-xs bg-blue-600 text-white hover:opacity-90 disabled:opacity-50">Approve</button>
+                                                    )}
+                                                    {(w.status === 'pending' || w.status === 'approved') && (
+                                                        <>
+                                                            <button disabled={busyId === w._id} onClick={() => act(w._id, 'paid')}
+                                                                className="px-2 py-1 rounded text-xs bg-emerald-600 text-white hover:opacity-90 disabled:opacity-50">Mark Paid</button>
+                                                            <button disabled={busyId === w._id} onClick={() => act(w._id, 'reject')}
+                                                                className="px-2 py-1 rounded text-xs bg-red-600 text-white hover:opacity-90 disabled:opacity-50">Reject</button>
+                                                        </>
+                                                    )}
+                                                    {busyId === w._id && <Loader2 className="w-3 h-3 animate-spin self-center" />}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        {/* Mobile cards */}
+                        <div className="md:hidden divide-y divide-border">
                             {items.map(w => (
-                                <tr key={w._id} className="border-t border-border">
-                                    <td className="px-3 py-2">
-                                        <div className="font-medium">{w.userName || '—'}</div>
-                                        <div className="text-xs text-muted-foreground">{w.mobile || '—'}</div>
-                                    </td>
-                                    <td className="px-3 py-2 font-mono text-xs">{w.upiId}</td>
-                                    <td className="px-3 py-2 text-right font-bold">₹{w.amount.toLocaleString('en-IN')}</td>
-                                    <td className="px-3 py-2"><StatusPill status={w.status} /></td>
-                                    <td className="px-3 py-2 text-xs text-muted-foreground">{new Date(w.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</td>
-                                    <td className="px-3 py-2 text-right">
-                                        <div className="flex gap-1 justify-end flex-wrap">
-                                            {w.status === 'pending' && (
-                                                <button disabled={busyId === w._id} onClick={() => act(w._id, 'approve')}
-                                                    className="px-2 py-1 rounded text-xs bg-blue-600 text-white hover:opacity-90 disabled:opacity-50">Approve</button>
-                                            )}
-                                            {(w.status === 'pending' || w.status === 'approved') && (
-                                                <>
-                                                    <button disabled={busyId === w._id} onClick={() => act(w._id, 'paid')}
-                                                        className="px-2 py-1 rounded text-xs bg-emerald-600 text-white hover:opacity-90 disabled:opacity-50">Mark Paid</button>
-                                                    <button disabled={busyId === w._id} onClick={() => act(w._id, 'reject')}
-                                                        className="px-2 py-1 rounded text-xs bg-red-600 text-white hover:opacity-90 disabled:opacity-50">Reject</button>
-                                                </>
-                                            )}
-                                            {busyId === w._id && <Loader2 className="w-3 h-3 animate-spin self-center" />}
+                                <div key={w._id} className="p-3">
+                                    <div className="flex items-start justify-between gap-2">
+                                        <div className="min-w-0">
+                                            <div className="font-medium truncate">{w.userName || '—'}</div>
+                                            <div className="text-xs text-muted-foreground truncate">{w.mobile || '—'}</div>
+                                            <div className="text-xs font-mono text-muted-foreground truncate mt-0.5">{w.upiId}</div>
                                         </div>
-                                    </td>
-                                </tr>
+                                        <div className="text-right">
+                                            <div className="font-bold">₹{w.amount.toLocaleString('en-IN')}</div>
+                                            <div className="mt-1"><StatusPill status={w.status} /></div>
+                                        </div>
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground mt-1">{new Date(w.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</div>
+                                    <div className="flex gap-1 flex-wrap mt-2">
+                                        {w.status === 'pending' && (
+                                            <button disabled={busyId === w._id} onClick={() => act(w._id, 'approve')} className="flex-1 px-2 py-1.5 rounded text-xs bg-blue-600 text-white hover:opacity-90 disabled:opacity-50">Approve</button>
+                                        )}
+                                        {(w.status === 'pending' || w.status === 'approved') && (
+                                            <>
+                                                <button disabled={busyId === w._id} onClick={() => act(w._id, 'paid')} className="flex-1 px-2 py-1.5 rounded text-xs bg-emerald-600 text-white hover:opacity-90 disabled:opacity-50">Mark Paid</button>
+                                                <button disabled={busyId === w._id} onClick={() => act(w._id, 'reject')} className="flex-1 px-2 py-1.5 rounded text-xs bg-red-600 text-white hover:opacity-90 disabled:opacity-50">Reject</button>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
+                        </div>
+                    </>
                 )}
             </div>
+
+            {pagination.pages > 1 && (
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                    <span className="text-xs text-muted-foreground">
+                        Page {pagination.page} of {pagination.pages} · {pagination.total} total
+                    </span>
+                    <div className="flex gap-2">
+                        <button disabled={page <= 1} onClick={() => setPage(p => Math.max(1, p - 1))} className="p-2 border border-border rounded-lg disabled:opacity-40 hover:bg-muted"><ChevronLeft className="w-4 h-4" /></button>
+                        <button disabled={page >= pagination.pages} onClick={() => setPage(p => p + 1)} className="p-2 border border-border rounded-lg disabled:opacity-40 hover:bg-muted"><ChevronRight className="w-4 h-4" /></button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

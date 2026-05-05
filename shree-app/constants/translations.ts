@@ -219,6 +219,7 @@ const hi = {
     tab_home: 'होम',
     tab_leaderboard: 'लीडरबोर्ड',
     tab_awards: 'पुरस्कार',
+    tab_rewards: 'पुरस्कार',
     tab_settings: 'सेटिंग्स',
 
     // Leaderboard
@@ -279,6 +280,7 @@ const hi = {
     settings_theme: 'थीम',
     settings_membership: 'सदस्यता',
     settings_donation: 'दान करें',
+    settings_wallet: 'वॉलेट',
     settings_share_app: 'ऐप शेयर करें',
     settings_about_us: 'हमारे बारे में',
     settings_privacy: 'गोपनीयता नीति',
@@ -497,6 +499,7 @@ const en: typeof hi = {
     tab_home: 'Home',
     tab_leaderboard: 'Leaderboard',
     tab_awards: 'Awards',
+    tab_rewards: 'Rewards',
     tab_settings: 'Settings',
 
     // Leaderboard
@@ -557,6 +560,7 @@ const en: typeof hi = {
     settings_theme: 'Theme',
     settings_membership: 'Membership',
     settings_donation: 'Donation',
+    settings_wallet: 'Wallet',
     settings_share_app: 'Share App',
     settings_about_us: 'About Us',
     settings_privacy: 'Privacy Policy',

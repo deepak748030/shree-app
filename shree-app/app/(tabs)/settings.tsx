@@ -46,6 +46,7 @@ export default function SettingsScreen() {
         { type: 'header', key: 'h3', titleKey: 'settings_customize' },
         { type: 'nav', key: 'theme', titleKey: 'settings_theme', valueKey: themeLabel, icon: 'color-palette-outline', route: '/theme-settings' },
         { type: 'header', key: 'h5', titleKey: 'settings_about' },
+        { type: 'nav', key: 'wallet', titleKey: 'settings_wallet', icon: 'wallet-outline', route: '/wallet' },
         { type: 'nav', key: 'membership', titleKey: 'settings_membership', icon: 'star-outline', route: '/membership' },
         { type: 'nav', key: 'donation', titleKey: 'settings_donation', icon: 'heart-outline', route: '/donation' },
         { type: 'nav', key: 'share', titleKey: 'settings_share_app', icon: 'share-social-outline', route: '/share-app' },

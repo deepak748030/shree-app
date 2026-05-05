@@ -76,11 +76,11 @@ export default function TabLayout() {
       />
 
       <Tabs.Screen
-        name="awards"
+        name="rewards"
         options={{
-          title: t('tab_awards' as any),
+          title: t('tab_rewards' as any),
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'medal' : 'medal-outline'} size={22} color={color} />
+            <Ionicons name={focused ? 'gift' : 'gift-outline'} size={22} color={color} />
           ),
         }}
       />

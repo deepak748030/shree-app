@@ -17,8 +17,10 @@ export default function TabLayout() {
   const borderTop = isDark ? '#222222' : '#EEEEEE';
 
   // Bottom safe-area padding (Android nav bar / iOS home indicator)
-  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 8 : 0);
-  const tabBarHeight = 56 + bottomInset;
+  // Use a generous minimum so on phones with on-screen gesture/nav bars the
+  // tab labels never sit behind the system navigation.
+  const bottomInset = Math.max(insets.bottom, Platform.OS === 'android' ? 16 : 8);
+  const tabBarHeight = 60 + bottomInset;
 
   return (
     <Tabs
@@ -31,7 +33,7 @@ export default function TabLayout() {
           fontSize: 11,
           fontWeight: '700',
           marginTop: 2,
-          marginBottom: 0,
+          marginBottom: 2,
           includeFontPadding: false,
         },
         tabBarItemStyle: {
@@ -42,8 +44,8 @@ export default function TabLayout() {
           borderTopColor: borderTop,
           borderTopWidth: StyleSheet.hairlineWidth,
           height: tabBarHeight,
-          paddingTop: 6,
-          paddingBottom: bottomInset,
+          paddingTop: 8,
+          paddingBottom: bottomInset + 4,
           // No floating margin/radius — keep flush so labels aren't clipped
           elevation: 8,
           shadowColor: '#000',
@@ -79,6 +81,16 @@ export default function TabLayout() {
           title: t('tab_awards' as any),
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'medal' : 'medal-outline'} size={22} color={color} />
+          ),
+        }}
+      />
+
+      <Tabs.Screen
+        name="wallet"
+        options={{
+          title: t('tab_wallet' as any),
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'wallet' : 'wallet-outline'} size={22} color={color} />
           ),
         }}
       />

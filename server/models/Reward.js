@@ -5,9 +5,10 @@ const rewardSchema = new mongoose.Schema({
     title_en: { type: String, required: true, trim: true, maxlength: 100 },
     description_hi: { type: String, default: '', trim: true, maxlength: 500 },
     description_en: { type: String, default: '', trim: true, maxlength: 500 },
-    // Both must be reached (AND)
-    japTarget: { type: Number, required: true, min: 0 },
-    stepsTarget: { type: Number, required: true, min: 0 },
+    // All set targets (>0) must be reached (AND). At least one must be > 0.
+    japTarget: { type: Number, default: 0, min: 0 },
+    stepsTarget: { type: Number, default: 0, min: 0 },
+    handwrittenTarget: { type: Number, default: 0, min: 0 },
     // Reward amount in INR (rupees)
     rewardAmount: { type: Number, required: true, min: 0 },
     // 'lifetime' = compares against user's totalCount + totalSteps

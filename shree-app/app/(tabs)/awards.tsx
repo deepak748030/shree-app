@@ -137,8 +137,13 @@ export default function AwardsScreen() {
     );
 
     const renderReward = (item: RewardServer) => {
-        const japProgress = item.japTarget > 0 ? Math.min(100, Math.round((item.currentJap / item.japTarget) * 100)) : 100;
-        const stepsProgress = item.stepsTarget > 0 ? Math.min(100, Math.round((item.currentSteps / item.stepsTarget) * 100)) : 100;
+        const japCur = Number(item.currentJap) || 0;
+        const stepsCur = Number(item.currentSteps) || 0;
+        const hwCur = Number(item.currentHandwritten) || 0;
+        const hwTarget = Number(item.handwrittenTarget) || 0;
+        const japProgress = item.japTarget > 0 ? Math.min(100, Math.round((japCur / item.japTarget) * 100)) : 0;
+        const stepsProgress = item.stepsTarget > 0 ? Math.min(100, Math.round((stepsCur / item.stepsTarget) * 100)) : 0;
+        const hwProgress = hwTarget > 0 ? Math.min(100, Math.round((hwCur / hwTarget) * 100)) : 0;
         const circleColor = item.unlocked ? ACCENT : (isDark ? '#3A3A3A' : '#C8C8C8');
         const titleColor = item.unlocked ? textPrimary : (isDark ? '#BDBDBD' : '#555555');
 
@@ -173,9 +178,9 @@ export default function AwardsScreen() {
 
                     {/* Jap progress */}
                     {item.japTarget > 0 && (
-                        <View style={{ marginTop: 8 }}>
+                        <View style={{ marginTop: 6 }}>
                             <Text style={[styles.progressLabel, { color: textMuted }]}>
-                                {isHindi ? 'जप' : 'Jap'}: {Math.min(item.currentJap, item.japTarget)} / {item.japTarget}
+                                {isHindi ? 'जप' : 'Jap'}: {Math.min(japCur, item.japTarget)} / {item.japTarget}
                             </Text>
                             <View style={[styles.progressTrack, { backgroundColor: trackBg }]}>
                                 <View style={[styles.progressFill, { width: `${japProgress}%`, backgroundColor: '#4CAF50' }]} />
@@ -185,9 +190,9 @@ export default function AwardsScreen() {
 
                     {/* Steps progress */}
                     {item.stepsTarget > 0 && (
-                        <View style={{ marginTop: 6 }}>
+                        <View style={{ marginTop: 5 }}>
                             <Text style={[styles.progressLabel, { color: textMuted }]}>
-                                {isHindi ? 'कदम' : 'Steps'}: {Math.min(item.currentSteps, item.stepsTarget)} / {item.stepsTarget}
+                                {isHindi ? 'कदम' : 'Steps'}: {Math.min(stepsCur, item.stepsTarget)} / {item.stepsTarget}
                             </Text>
                             <View style={[styles.progressTrack, { backgroundColor: trackBg }]}>
                                 <View style={[styles.progressFill, { width: `${stepsProgress}%`, backgroundColor: '#2196F3' }]} />
@@ -195,8 +200,20 @@ export default function AwardsScreen() {
                         </View>
                     )}
 
+                    {/* Handwritten progress */}
+                    {hwTarget > 0 && (
+                        <View style={{ marginTop: 5 }}>
+                            <Text style={[styles.progressLabel, { color: textMuted }]}>
+                                {isHindi ? 'लिखित नाम' : 'Handwritten'}: {Math.min(hwCur, hwTarget)} / {hwTarget}
+                            </Text>
+                            <View style={[styles.progressTrack, { backgroundColor: trackBg }]}>
+                                <View style={[styles.progressFill, { width: `${hwProgress}%`, backgroundColor: '#9C27B0' }]} />
+                            </View>
+                        </View>
+                    )}
+
                     {/* Action button */}
-                    <View style={{ marginTop: 10 }}>
+                    <View style={{ marginTop: 8 }}>
                         {item.claimed ? (
                             <View style={[styles.claimedBadge, { backgroundColor: ACCENT + '22', borderColor: ACCENT }]}>
                                 <Ionicons name="checkmark-circle" size={14} color={ACCENT} />
@@ -353,44 +370,44 @@ const styles = StyleSheet.create({
     awardCard: {
         flexDirection: 'row',
         alignItems: 'flex-start',
-        padding: 14,
-        borderRadius: 14,
+        padding: 10,
+        borderRadius: 12,
         borderWidth: 1,
     },
-    milestoneWrap: { width: 64, alignItems: 'center', justifyContent: 'center', paddingTop: 4 },
+    milestoneWrap: { width: 54, alignItems: 'center', justifyContent: 'center', paddingTop: 2 },
     milestoneOuter: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         borderWidth: 2,
         alignItems: 'center',
         justifyContent: 'center',
     },
     milestoneInner: {
-        width: 50,
-        height: 50,
-        borderRadius: 25,
+        width: 42,
+        height: 42,
+        borderRadius: 21,
         borderWidth: 1,
         borderStyle: 'dashed',
         alignItems: 'center',
         justifyContent: 'center',
     },
-    milestoneNumber: { fontSize: 13, fontWeight: '900', lineHeight: 16 },
-    awardTitle: { fontSize: 15, fontWeight: '800' },
-    awardDesc: { fontSize: 12, marginTop: 3 },
+    milestoneNumber: { fontSize: 12, fontWeight: '900', lineHeight: 14 },
+    awardTitle: { fontSize: 14, fontWeight: '800' },
+    awardDesc: { fontSize: 11, marginTop: 2 },
     progressTrack: { height: 6, borderRadius: 3, marginTop: 3, overflow: 'hidden' },
     progressFill: { height: '100%', borderRadius: 3 },
-    progressLabel: { fontSize: 11, fontWeight: '600' },
+    progressLabel: { fontSize: 10, fontWeight: '600' },
     claimBtn: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 10,
+        paddingVertical: 6,
+        paddingHorizontal: 14,
+        borderRadius: 8,
         alignSelf: 'flex-start',
     },
-    claimBtnText: { color: '#FFF', fontWeight: '800', fontSize: 13 },
+    claimBtnText: { color: '#FFF', fontWeight: '800', fontSize: 12 },
     claimedBadge: {
         flexDirection: 'row',
         alignItems: 'center',

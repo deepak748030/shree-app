@@ -307,6 +307,7 @@ export interface RewardItem {
     description_en: string
     japTarget: number
     stepsTarget: number
+    handwrittenTarget: number
     rewardAmount: number
     type: 'lifetime' | 'daily'
     icon: string

@@ -9,6 +9,7 @@ const WithdrawalRequest = require('../models/WithdrawalRequest');
 const NaamJapUser = require('../models/NaamJapUser');
 const Subscription = require('../models/Subscription');
 const StepTracker = require('../models/StepTracker');
+const HandwrittenNaam = require('../models/HandwrittenNaam');
 const router = express.Router();
 
 // Auth middleware
@@ -42,13 +43,17 @@ async function isMember(deviceId) {
 // GET /api/rewards?deviceId=xxx — list rewards with user progress
 router.get('/', async (req, res) => {
     try {
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
         const { deviceId } = req.query;
         if (!deviceId) return res.status(400).json({ success: false, message: 'deviceId required' });
 
-        const [rewards, user, steps, claims, memberStatus] = await Promise.all([
+        const [rewards, user, steps, hw, claims, memberStatus] = await Promise.all([
             Reward.find({ isActive: true }).sort({ sortOrder: 1 }).lean(),
             NaamJapUser.findOne({ deviceId }).lean(),
             StepTracker.findOne({ deviceId }).lean(),
+            HandwrittenNaam.findOne({ deviceId }).lean(),
             RewardClaim.find({ deviceId }).lean(),
             isMember(deviceId),
         ]);
@@ -59,23 +64,30 @@ router.get('/', async (req, res) => {
         const todayStr = new Date().toISOString().slice(0, 10);
         const todayCount = user?.dailyCounts?.find(d => d.date === todayStr)?.count || 0;
         const todaySteps = steps?.dailySteps?.find(d => d.date === todayStr)?.steps || 0;
+        const todayHandwritten = hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
 
         const totalJap = user?.totalCount || 0;
         const totalSteps = steps?.totalSteps || 0;
+        const totalHandwritten = hw?.lifetimeCount || 0;
 
         const enriched = rewards.map(r => {
-            const userJap = r.type === 'daily' ? todayCount : totalJap;
-            const userSteps = r.type === 'daily' ? todaySteps : totalSteps;
-            const japProgress = r.japTarget > 0 ? Math.min(userJap / r.japTarget, 1) : 1;
-            const stepsProgress = r.stepsTarget > 0 ? Math.min(userSteps / r.stepsTarget, 1) : 1;
-            const unlocked = japProgress >= 1 && stepsProgress >= 1;
+            const isDaily = r.type === 'daily';
+            const currentJap = isDaily ? todayCount : totalJap;
+            const currentSteps = isDaily ? todaySteps : totalSteps;
+            const currentHandwritten = isDaily ? todayHandwritten : totalHandwritten;
+            const handwrittenTarget = r.handwrittenTarget || 0;
+            const japOk = !r.japTarget || currentJap >= r.japTarget;
+            const stepsOk = !r.stepsTarget || currentSteps >= r.stepsTarget;
+            const hwOk = !handwrittenTarget || currentHandwritten >= handwrittenTarget;
+            const hasAnyTarget = (r.japTarget > 0) || (r.stepsTarget > 0) || (handwrittenTarget > 0);
+            const unlocked = hasAnyTarget && japOk && stepsOk && hwOk;
             const claimed = claimedSet.has(String(r._id));
             return {
                 ...r,
-                userJap,
-                userSteps,
-                japProgress,
-                stepsProgress,
+                handwrittenTarget,
+                currentJap,
+                currentSteps,
+                currentHandwritten,
                 unlocked,
                 claimed,
             };
@@ -232,16 +244,23 @@ router.get('/admin/list', authMiddleware, async (req, res) => {
 // POST /api/rewards/admin
 router.post('/admin', authMiddleware, async (req, res) => {
     try {
-        const { title_hi, title_en, description_hi, description_en, japTarget, stepsTarget, rewardAmount, type, icon, isActive, sortOrder } = req.body;
-        if (!title_hi || !title_en || japTarget == null || stepsTarget == null || rewardAmount == null) {
+        const { title_hi, title_en, description_hi, description_en, japTarget, stepsTarget, handwrittenTarget, rewardAmount, type, icon, isActive, sortOrder } = req.body;
+        if (!title_hi || !title_en || rewardAmount == null) {
             return res.status(400).json({ success: false, message: 'Required fields missing' });
+        }
+        const jt = Number(japTarget) || 0;
+        const st = Number(stepsTarget) || 0;
+        const ht = Number(handwrittenTarget) || 0;
+        if (jt <= 0 && st <= 0 && ht <= 0) {
+            return res.status(400).json({ success: false, message: 'At least one target (jap, steps, or handwritten) must be greater than 0' });
         }
         const reward = await Reward.create({
             title_hi, title_en,
             description_hi: description_hi || '',
             description_en: description_en || '',
-            japTarget: Number(japTarget),
-            stepsTarget: Number(stepsTarget),
+            japTarget: jt,
+            stepsTarget: st,
+            handwrittenTarget: ht,
             rewardAmount: Number(rewardAmount),
             type: type || 'lifetime',
             icon: icon || 'trophy',
@@ -259,7 +278,7 @@ router.post('/admin', authMiddleware, async (req, res) => {
 router.put('/admin/:id', authMiddleware, async (req, res) => {
     try {
         const updates = {};
-        const fields = ['title_hi', 'title_en', 'description_hi', 'description_en', 'japTarget', 'stepsTarget', 'rewardAmount', 'type', 'icon', 'isActive', 'sortOrder'];
+        const fields = ['title_hi', 'title_en', 'description_hi', 'description_en', 'japTarget', 'stepsTarget', 'handwrittenTarget', 'rewardAmount', 'type', 'icon', 'isActive', 'sortOrder'];
         fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
         const reward = await Reward.findByIdAndUpdate(req.params.id, updates, { new: true });
         if (!reward) return res.status(404).json({ success: false, message: 'Not found' });

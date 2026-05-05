@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Plus, Pencil, Trash2, Loader2, Save, X, Trophy, IndianRupee, Footprints, Sparkles } from 'lucide-react'
+import { Plus, Pencil, Trash2, Loader2, Save, X, Trophy, IndianRupee, Footprints, Sparkles, PenLine } from 'lucide-react'
 import {
     listRewardsAdmin, createReward, updateReward, deleteReward, type RewardItem,
 } from '../lib/api'
 
 const empty: RewardItem = {
     title_hi: '', title_en: '', description_hi: '', description_en: '',
-    japTarget: 108, stepsTarget: 1000, rewardAmount: 10,
+    japTarget: 108, stepsTarget: 1000, handwrittenTarget: 0, rewardAmount: 10,
     type: 'lifetime', icon: 'trophy', isActive: true, sortOrder: 0,
 }
 
@@ -31,8 +31,11 @@ export function RewardsPage() {
         if (!editing.title_hi || !editing.title_en) {
             setMsg({ type: 'error', text: 'Title (Hindi & English) required.' }); return
         }
-        if (editing.japTarget < 0 || editing.stepsTarget < 0 || editing.rewardAmount < 0) {
+        if (editing.japTarget < 0 || editing.stepsTarget < 0 || editing.handwrittenTarget < 0 || editing.rewardAmount < 0) {
             setMsg({ type: 'error', text: 'Targets and reward amount must be 0 or more.' }); return
+        }
+        if ((editing.japTarget || 0) <= 0 && (editing.stepsTarget || 0) <= 0 && (editing.handwrittenTarget || 0) <= 0) {
+            setMsg({ type: 'error', text: 'Set at least one target (jap, steps, or handwritten) greater than 0.' }); return
         }
         setSaving(true); setMsg(null)
         try {
@@ -108,12 +111,21 @@ export function RewardsPage() {
                             <IndianRupee className="w-5 h-5" />{r.rewardAmount}
                         </div>
                         <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
-                                <Trophy className="w-3.5 h-3.5" /> {r.japTarget.toLocaleString('en-IN')} jap
-                            </div>
-                            <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-200">
-                                <Footprints className="w-3.5 h-3.5" /> {r.stepsTarget.toLocaleString('en-IN')} steps
-                            </div>
+                            {r.japTarget > 0 && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-amber-50 text-amber-700 border border-amber-200">
+                                    <Trophy className="w-3.5 h-3.5" /> {r.japTarget.toLocaleString('en-IN')} jap
+                                </div>
+                            )}
+                            {r.stepsTarget > 0 && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 text-green-700 border border-green-200">
+                                    <Footprints className="w-3.5 h-3.5" /> {r.stepsTarget.toLocaleString('en-IN')} steps
+                                </div>
+                            )}
+                            {r.handwrittenTarget > 0 && (
+                                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
+                                    <PenLine className="w-3.5 h-3.5" /> {r.handwrittenTarget.toLocaleString('en-IN')} hw
+                                </div>
+                            )}
                         </div>
                         {r.description_en && <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{r.description_en}</p>}
                         <div className="mt-2 text-[11px] text-muted-foreground">
@@ -148,12 +160,16 @@ export function RewardsPage() {
                                 <input value={editing.title_en} onChange={e => setEditing({ ...editing, title_en: e.target.value })}
                                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" placeholder="Devotee" />
                             </Field>
-                            <Field label="Jap target *">
+                            <Field label="Jap target">
                                 <input type="number" min={0} value={editing.japTarget} onChange={e => setEditing({ ...editing, japTarget: Number(e.target.value) })}
                                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
                             </Field>
-                            <Field label="Steps target *">
+                            <Field label="Steps target">
                                 <input type="number" min={0} value={editing.stepsTarget} onChange={e => setEditing({ ...editing, stepsTarget: Number(e.target.value) })}
+                                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+                            </Field>
+                            <Field label="Handwritten target">
+                                <input type="number" min={0} value={editing.handwrittenTarget} onChange={e => setEditing({ ...editing, handwrittenTarget: Number(e.target.value) })}
                                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
                             </Field>
                             <Field label="Reward amount (₹) *">
@@ -190,7 +206,7 @@ export function RewardsPage() {
                             </div>
                         </div>
                         <div className="px-4 pb-3 text-xs text-muted-foreground">
-                            Note: Both jap and steps targets must be reached to unlock. Only paid members can claim. ₹ amount is credited to user's wallet.
+                            Note: Set one or more targets (jap, steps, handwritten). User must reach all targets that are set. Only paid members can claim. ₹ amount is credited to user's wallet.
                         </div>
                         <div className="p-4 border-t border-border flex justify-end gap-2 sticky bottom-0 bg-card">
                             <button onClick={() => setEditing(null)} className="px-4 py-2 border border-border rounded-lg text-sm">Cancel</button>

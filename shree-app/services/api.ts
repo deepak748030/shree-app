@@ -557,6 +557,7 @@ export interface RewardServer {
     description_en: string;
     japTarget: number;
     stepsTarget: number;
+    handwrittenTarget: number;
     rewardAmount: number;
     type: 'lifetime' | 'daily';
     icon: string;
@@ -564,6 +565,7 @@ export interface RewardServer {
     sortOrder: number;
     currentJap: number;
     currentSteps: number;
+    currentHandwritten: number;
     unlocked: boolean;
     claimed: boolean;
 }
@@ -575,7 +577,10 @@ export interface RewardsListResponse {
 
 export async function fetchRewards(deviceId: string): Promise<RewardsListResponse | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/rewards?deviceId=${encodeURIComponent(deviceId)}`);
+        const res = await fetch(`${API_BASE_URL}/rewards?deviceId=${encodeURIComponent(deviceId)}&t=${Date.now()}`, {
+            cache: 'no-store',
+            headers: { 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
+        });
         const data = await res.json();
         return data.success ? data.response : null;
     } catch {

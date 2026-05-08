@@ -9,7 +9,6 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     RefreshControl,
     StyleSheet,
@@ -18,6 +17,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 
 type Row =
     | { kind: 'header'; unlocked: number; total: number }
@@ -43,6 +43,12 @@ export default function AwardsScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [loading, setLoading] = useState(true);
     const [claiming, setClaiming] = useState<string | null>(null);
+    const [sheetVisible, setSheetVisible] = useState(false);
+    const [sheet, setSheet] = useState({ type: 'info' as 'success' | 'error' | 'info', title: '', message: '' });
+    const showSheet = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+        setSheet({ type, title, message });
+        setSheetVisible(true);
+    };
 
     const isHindi = language === 'hi';
 
@@ -78,16 +84,17 @@ export default function AwardsScreen() {
         try {
             const res = await claimReward(user.deviceId, rewardId);
             if (res.ok) {
-                Alert.alert(
+                showSheet(
+                    'success',
                     isHindi ? 'बधाई!' : 'Congratulations!',
                     isHindi ? `₹${res.amount} आपके वॉलेट में जोड़ दिए गए` : `₹${res.amount} added to your wallet`,
                 );
                 await load();
             } else {
-                Alert.alert(isHindi ? 'त्रुटि' : 'Error', res.message || (isHindi ? 'कुछ गलत हुआ' : 'Something went wrong'));
+                showSheet('error', isHindi ? 'त्रुटि' : 'Error', res.message || (isHindi ? 'कुछ गलत हुआ' : 'Something went wrong'));
             }
         } catch {
-            Alert.alert(isHindi ? 'त्रुटि' : 'Error', isHindi ? 'नेटवर्क त्रुटि' : 'Network error');
+            showSheet('error', isHindi ? 'त्रुटि' : 'Error', isHindi ? 'नेटवर्क त्रुटि' : 'Network error');
         }
         setClaiming(null);
     }, [user?.deviceId, isHindi, load]);
@@ -316,6 +323,13 @@ export default function AwardsScreen() {
                         </Text>
                     </View>
                 }
+            />
+            <BottomSheetMessage
+                visible={sheetVisible}
+                onClose={() => setSheetVisible(false)}
+                type={sheet.type}
+                title={sheet.title}
+                message={sheet.message}
             />
         </SafeAreaView>
     );

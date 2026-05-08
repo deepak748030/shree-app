@@ -1,5 +1,6 @@
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -38,11 +39,19 @@ export default function ShareAppScreen() {
     const { t, language } = useLanguage();
     const deviceId = useDeviceId();
     const { user, mobile } = useAuth();
+    const isDark = theme.id === 'dark';
+
+    const screenBg = isDark ? '#0A0A0A' : theme.bgCream;
+    const cardBg = isDark ? '#161616' : '#FFFFFF';
+    const cardBorder = isDark ? '#222' : '#ECECEC';
+    const textPrimary = isDark ? '#F5F5F5' : '#1A1A1A';
+    const textMuted = isDark ? '#9A9A9A' : '#777777';
+    const ACCENT = theme.accent;
 
     const [sharing, setSharing] = useState(false);
     const [sheetVisible, setSheetVisible] = useState(false);
     const [sheetConfig, setSheetConfig] = useState({
-        type: 'success' as 'success' | 'error',
+        type: 'success' as 'success' | 'error' | 'info',
         title: '',
         message: '',
     });
@@ -76,7 +85,7 @@ export default function ShareAppScreen() {
         return () => { alive = false; };
     }, [deviceId]);
 
-    const showSheet = (type: 'success' | 'error', title: string, message: string) => {
+    const showSheet = (type: 'success' | 'error' | 'info', title: string, message: string) => {
         setSheetConfig({ type, title, message });
         setSheetVisible(true);
     };
@@ -142,126 +151,176 @@ export default function ShareAppScreen() {
         }
     };
 
-    const onPrimary = theme.isDark ? '#000' : '#FFFFFF';
     const refTitle = language === 'hi' ? settings?.title_hi : settings?.title_en;
     const refDescription = language === 'hi' ? settings?.description_hi : settings?.description_en;
     const refHowItWorks = language === 'hi' ? settings?.howItWorks_hi : settings?.howItWorks_en;
 
-    const stats = t('referral_stats')
-        .replace('{count}', String(myCode?.usageCount || 0))
-        .replace('{earned}', String(myCode?.totalEarned || 0));
+    const usageCount = myCode?.usageCount || 0;
+    const totalEarned = myCode?.totalEarned || 0;
+
+    const heroColors = (isDark
+        ? ['#2A1F08', '#0F0A02']
+        : [ACCENT + '33', ACCENT + '0D']) as readonly [string, string];
 
     return (
-        <View style={[styles.container, { backgroundColor: theme.bgCream }]}>
-            <StatusBar style={theme.isDark ? 'light' : 'dark'} backgroundColor={theme.headerBg} translucent={false} />
-            <View style={[styles.headerBg, { paddingTop: insets.top, backgroundColor: theme.headerBg }]}>
-                <View style={styles.header}>
-                    <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                        <Ionicons name="arrow-back" size={24} color={theme.headerText} />
-                    </TouchableOpacity>
-                    <Text style={[styles.headerTitle, { color: theme.headerText }]}>{t('share_header')}</Text>
-                    <View style={{ width: 32 }} />
-                </View>
+        <View style={[styles.container, { backgroundColor: screenBg }]}>
+            <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={screenBg} translucent={false} />
+
+            {/* Header */}
+            <View style={[styles.headerWrap, { paddingTop: insets.top + 6, backgroundColor: screenBg }]}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn} hitSlop={10}>
+                    <Ionicons name="arrow-back" size={22} color={textPrimary} />
+                </TouchableOpacity>
+                <Text style={[styles.headerTitle, { color: textPrimary }]}>{t('share_header')}</Text>
+                <View style={{ width: 36 }} />
             </View>
 
             <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-                <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-                    <Image source={require('@/assets/images/shree-ji-logo.png')} style={styles.logo} contentFit="contain" />
-                    <Text style={[styles.appName, { color: theme.accent }]}>{t('app_name')}</Text>
-                    <Text style={[styles.tagline, { color: theme.subText }]}>{t('share_tagline')}</Text>
-                    <Text style={[styles.description, { color: theme.text }]}>{t('share_description')}</Text>
-
-                    <TouchableOpacity
-                        style={[styles.shareButton, { backgroundColor: theme.accent }]}
-                        onPress={handleShare}
-                        activeOpacity={0.7}
-                        disabled={sharing}
+                <ScrollView
+                    contentContainerStyle={styles.content}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    {/* Hero */}
+                    <LinearGradient
+                        colors={heroColors}
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[styles.hero, { borderColor: ACCENT + '33' }]}
                     >
-                        {sharing ? (
-                            <ActivityIndicator color={onPrimary} size="small" />
-                        ) : (
-                            <>
-                                <Ionicons name="share-social" size={22} color={onPrimary} />
-                                <Text style={[styles.shareButtonText, { color: onPrimary }]}>{t('share_button')}</Text>
-                            </>
-                        )}
-                    </TouchableOpacity>
+                        <View style={[styles.logoRing, { borderColor: ACCENT + '55', backgroundColor: cardBg }]}>
+                            <Image source={require('@/assets/images/shree-ji-logo.png')} style={styles.logo} contentFit="contain" />
+                        </View>
+                        <Text style={[styles.appName, { color: ACCENT }]}>{t('app_name')}</Text>
+                        <Text style={[styles.tagline, { color: textMuted }]}>{t('share_tagline')}</Text>
+                        <Text style={[styles.description, { color: textPrimary }]}>{t('share_description')}</Text>
 
-                    <TouchableOpacity
-                        style={[styles.copyButton, { borderColor: theme.cardBorder, backgroundColor: theme.cardBg }]}
-                        onPress={handleCopyLink}
-                        activeOpacity={0.7}
-                    >
-                        <MaterialCommunityIcons name="content-copy" size={20} color={theme.text} />
-                        <Text style={[styles.copyButtonText, { color: theme.text }]}>{t('share_copy_link')}</Text>
-                    </TouchableOpacity>
+                        <View style={styles.heroBtnRow}>
+                            <TouchableOpacity
+                                style={[styles.shareBtn, { backgroundColor: ACCENT }]}
+                                onPress={handleShare}
+                                activeOpacity={0.85}
+                                disabled={sharing}
+                            >
+                                {sharing ? (
+                                    <ActivityIndicator color="#FFF" size="small" />
+                                ) : (
+                                    <>
+                                        <Ionicons name="share-social" size={18} color="#FFF" />
+                                        <Text style={styles.shareBtnText}>{t('share_button')}</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={[styles.copyBtn, { borderColor: ACCENT + '66', backgroundColor: cardBg }]}
+                                onPress={handleCopyLink}
+                                activeOpacity={0.85}
+                            >
+                                <MaterialCommunityIcons name="link-variant" size={18} color={ACCENT} />
+                                <Text style={[styles.copyBtnText, { color: ACCENT }]}>{t('share_copy_link')}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </LinearGradient>
 
                     {/* Referral block */}
                     {settings?.isEnabled && (
-                        <View style={[styles.refBlock, { backgroundColor: theme.cardBg, borderColor: theme.cardBorder }]}>
-                            {!!refTitle && (
-                                <Text style={[styles.refTitle, { color: theme.accent }]}>{refTitle}</Text>
-                            )}
-                            {!!refDescription && (
-                                <Text style={[styles.refDesc, { color: theme.subText }]}>{refDescription}</Text>
-                            )}
+                        <View style={[styles.refBlock, { backgroundColor: cardBg, borderColor: cardBorder }]}>
+                            <View style={styles.refHeaderRow}>
+                                <View style={[styles.refIconBox, { backgroundColor: ACCENT + '22' }]}>
+                                    <Ionicons name="gift" size={18} color={ACCENT} />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    {!!refTitle && (
+                                        <Text style={[styles.refTitle, { color: textPrimary }]}>{refTitle}</Text>
+                                    )}
+                                    {!!refDescription && (
+                                        <Text style={[styles.refDesc, { color: textMuted }]}>{refDescription}</Text>
+                                    )}
+                                </View>
+                            </View>
 
                             {loadingRef ? (
-                                <ActivityIndicator color={theme.accent} style={{ marginVertical: 12 }} />
+                                <ActivityIndicator color={ACCENT} style={{ marginVertical: 16 }} />
                             ) : (
                                 <>
-                                    <Text style={[styles.refLabel, { color: theme.subText }]}>{t('referral_your_code')}</Text>
+                                    {/* Stats row */}
+                                    <View style={styles.statsRow}>
+                                        <View style={[styles.statCard, { backgroundColor: isDark ? '#1E1E1E' : '#F7F7F7', borderColor: cardBorder }]}>
+                                            <Ionicons name="people" size={16} color={ACCENT} />
+                                            <Text style={[styles.statValue, { color: textPrimary }]}>{usageCount}</Text>
+                                            <Text style={[styles.statLabel, { color: textMuted }]}>
+                                                {language === 'hi' ? 'दोस्त' : 'Friends'}
+                                            </Text>
+                                        </View>
+                                        <View style={[styles.statCard, { backgroundColor: isDark ? '#1E1E1E' : '#F7F7F7', borderColor: cardBorder }]}>
+                                            <Ionicons name="cash" size={16} color="#22C55E" />
+                                            <Text style={[styles.statValue, { color: textPrimary }]}>₹{totalEarned}</Text>
+                                            <Text style={[styles.statLabel, { color: textMuted }]}>
+                                                {language === 'hi' ? 'कमाया' : 'Earned'}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Text style={[styles.refLabel, { color: textMuted }]}>{t('referral_your_code')}</Text>
                                     <TouchableOpacity
                                         onPress={handleCopyCode}
                                         activeOpacity={0.7}
-                                        style={[styles.codeBox, { borderColor: theme.accent, backgroundColor: theme.bgCream }]}
+                                        style={[styles.codeBox, { borderColor: ACCENT, backgroundColor: ACCENT + '11' }]}
                                     >
-                                        <Text style={[styles.codeText, { color: theme.accent }]}>
+                                        <Text style={[styles.codeText, { color: ACCENT }]}>
                                             {myCode?.referralCode || '—'}
                                         </Text>
-                                        <MaterialCommunityIcons name="content-copy" size={18} color={theme.accent} />
+                                        <View style={[styles.copyChip, { backgroundColor: ACCENT }]}>
+                                            <MaterialCommunityIcons name="content-copy" size={14} color="#FFF" />
+                                            <Text style={styles.copyChipText}>{t('referral_copy')}</Text>
+                                        </View>
                                     </TouchableOpacity>
 
-                                    <Text style={[styles.refStats, { color: theme.text }]}>{stats}</Text>
-
                                     {!!refHowItWorks && (
-                                        <View style={{ marginTop: 12 }}>
-                                            <Text style={[styles.refHowTitle, { color: theme.text }]}>{t('referral_how_it_works')}</Text>
-                                            <Text style={[styles.refHow, { color: theme.subText }]}>{refHowItWorks}</Text>
+                                        <View style={[styles.howBox, { backgroundColor: isDark ? '#1A1A1A' : '#FAFAFA', borderColor: cardBorder }]}>
+                                            <View style={styles.howHeaderRow}>
+                                                <Ionicons name="information-circle" size={16} color={ACCENT} />
+                                                <Text style={[styles.refHowTitle, { color: textPrimary }]}>{t('referral_how_it_works')}</Text>
+                                            </View>
+                                            <Text style={[styles.refHow, { color: textMuted }]}>{refHowItWorks}</Text>
                                         </View>
                                     )}
 
                                     {/* Apply input */}
                                     {!myCode?.hasAppliedCode ? (
-                                        <View style={{ marginTop: 16, width: '100%' }}>
-                                            <Text style={[styles.refLabel, { color: theme.subText }]}>{t('referral_have_code')}</Text>
+                                        <View style={{ marginTop: 14 }}>
+                                            <Text style={[styles.refLabel, { color: textMuted }]}>{t('referral_have_code')}</Text>
                                             <View style={styles.inputRow}>
                                                 <TextInput
                                                     value={codeInput}
                                                     onChangeText={(v) => setCodeInput(v.toUpperCase())}
                                                     placeholder={t('referral_enter_code')}
-                                                    placeholderTextColor={theme.subText}
+                                                    placeholderTextColor={textMuted}
                                                     autoCapitalize="characters"
-                                                    style={[styles.input, { borderColor: theme.cardBorder, color: theme.text, backgroundColor: theme.bgCream }]}
+                                                    style={[styles.input, { borderColor: cardBorder, color: textPrimary, backgroundColor: isDark ? '#1E1E1E' : '#F7F7F7' }]}
                                                 />
                                                 <TouchableOpacity
                                                     onPress={handleApplyCode}
                                                     disabled={applying || !codeInput.trim()}
-                                                    style={[styles.applyBtn, { backgroundColor: theme.accent, opacity: applying || !codeInput.trim() ? 0.6 : 1 }]}
+                                                    activeOpacity={0.85}
+                                                    style={[styles.applyBtn, { backgroundColor: ACCENT, opacity: applying || !codeInput.trim() ? 0.5 : 1 }]}
                                                 >
                                                     {applying ? (
-                                                        <ActivityIndicator size="small" color={onPrimary} />
+                                                        <ActivityIndicator size="small" color="#FFF" />
                                                     ) : (
-                                                        <Text style={[styles.applyText, { color: onPrimary }]}>{t('referral_apply')}</Text>
+                                                        <Text style={styles.applyText}>{t('referral_apply')}</Text>
                                                     )}
                                                 </TouchableOpacity>
                                             </View>
                                         </View>
                                     ) : (
-                                        <Text style={[styles.appliedNote, { color: theme.subText }]}>
-                                            {t('referral_already_applied')}
-                                            {myCode?.appliedCode ? ` (${myCode.appliedCode})` : ''}
-                                        </Text>
+                                        <View style={[styles.appliedBox, { backgroundColor: '#22C55E22', borderColor: '#22C55E55' }]}>
+                                            <Ionicons name="checkmark-circle" size={16} color="#22C55E" />
+                                            <Text style={[styles.appliedText, { color: '#22C55E' }]}>
+                                                {t('referral_already_applied')}
+                                                {myCode?.appliedCode ? ` (${myCode.appliedCode})` : ''}
+                                            </Text>
+                                        </View>
                                     )}
                                 </>
                             )}
@@ -283,59 +342,95 @@ export default function ShareAppScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1 },
-    headerBg: {},
-    header: {
+    headerWrap: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        paddingHorizontal: 6,
-        paddingVertical: 10,
+        paddingHorizontal: 12,
+        paddingBottom: 10,
     },
-    backButton: { padding: 4 },
-    headerTitle: { fontSize: 18, fontWeight: 'bold' },
-    content: { alignItems: 'center', paddingHorizontal: 16, paddingBottom: 32, paddingTop: 12 },
-    logo: { width: 110, height: 110, marginBottom: 6 },
-    appName: { fontSize: 26, fontWeight: 'bold', marginBottom: 4 },
-    tagline: { fontSize: 15, marginBottom: 12 },
-    description: { fontSize: 14, opacity: 0.9, textAlign: 'center', lineHeight: 20, paddingHorizontal: 12, marginBottom: 18 },
-    shareButton: {
-        flexDirection: 'row', alignItems: 'center',
-        borderRadius: 10, paddingVertical: 12, paddingHorizontal: 32,
-        marginBottom: 8, gap: 8,
+    iconBtn: { padding: 6 },
+    headerTitle: { fontSize: 18, fontWeight: '900', letterSpacing: 0.3 },
+    content: { padding: 14, paddingBottom: 32 },
+
+    hero: {
+        borderRadius: 20,
+        borderWidth: 1,
+        alignItems: 'center',
+        paddingHorizontal: 16,
+        paddingTop: 18,
+        paddingBottom: 16,
     },
-    shareButtonText: { fontSize: 16, fontWeight: 'bold' },
-    copyButton: {
-        flexDirection: 'row', alignItems: 'center',
-        borderRadius: 10, borderWidth: 1,
-        paddingVertical: 10, paddingHorizontal: 24, gap: 8,
+    logoRing: {
+        width: 96, height: 96, borderRadius: 48,
+        borderWidth: 2, alignItems: 'center', justifyContent: 'center',
+        marginBottom: 10,
     },
-    copyButtonText: { fontSize: 15, fontWeight: '600' },
+    logo: { width: 80, height: 80 },
+    appName: { fontSize: 22, fontWeight: '900', letterSpacing: 0.5 },
+    tagline: { fontSize: 13, marginTop: 2, fontWeight: '600' },
+    description: { fontSize: 13, textAlign: 'center', lineHeight: 19, marginTop: 10, paddingHorizontal: 6 },
+
+    heroBtnRow: { flexDirection: 'row', gap: 10, marginTop: 16, width: '100%' },
+    shareBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 6, borderRadius: 12, paddingVertical: 12,
+    },
+    shareBtnText: { color: '#FFF', fontWeight: '800', fontSize: 14 },
+    copyBtn: {
+        flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        gap: 6, borderRadius: 12, paddingVertical: 12, borderWidth: 1.5,
+    },
+    copyBtnText: { fontWeight: '800', fontSize: 14 },
 
     refBlock: {
-        marginTop: 22,
-        width: '100%',
-        borderRadius: 14,
-        borderWidth: 1,
-        padding: 16,
+        marginTop: 16, borderRadius: 16, borderWidth: 1, padding: 14,
     },
-    refTitle: { fontSize: 18, fontWeight: 'bold', textAlign: 'center', marginBottom: 4 },
-    refDesc: { fontSize: 13, textAlign: 'center', marginBottom: 12, lineHeight: 18 },
-    refLabel: { fontSize: 12, fontWeight: '600', marginBottom: 6 },
+    refHeaderRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 12 },
+    refIconBox: {
+        width: 36, height: 36, borderRadius: 10,
+        alignItems: 'center', justifyContent: 'center',
+    },
+    refTitle: { fontSize: 16, fontWeight: '800' },
+    refDesc: { fontSize: 12, marginTop: 2, lineHeight: 17 },
+
+    statsRow: { flexDirection: 'row', gap: 10, marginBottom: 14 },
+    statCard: {
+        flex: 1, borderRadius: 12, borderWidth: 1,
+        paddingVertical: 12, alignItems: 'center', gap: 4,
+    },
+    statValue: { fontSize: 18, fontWeight: '900' },
+    statLabel: { fontSize: 11, fontWeight: '600' },
+
+    refLabel: { fontSize: 11, fontWeight: '700', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.6 },
     codeBox: {
-        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-        borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 10,
-        paddingVertical: 14, paddingHorizontal: 16, gap: 10,
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        borderWidth: 1.5, borderStyle: 'dashed', borderRadius: 12,
+        paddingVertical: 12, paddingHorizontal: 14,
     },
-    codeText: { fontSize: 22, fontWeight: '800', letterSpacing: 1.5 },
-    refStats: { fontSize: 13, textAlign: 'center', marginTop: 10, fontWeight: '600' },
-    refHowTitle: { fontSize: 13, fontWeight: '700', marginBottom: 4 },
+    codeText: { fontSize: 20, fontWeight: '900', letterSpacing: 1.5 },
+    copyChip: {
+        flexDirection: 'row', alignItems: 'center', gap: 4,
+        paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8,
+    },
+    copyChipText: { color: '#FFF', fontSize: 11, fontWeight: '700' },
+
+    howBox: { marginTop: 14, borderWidth: 1, borderRadius: 12, padding: 12 },
+    howHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    refHowTitle: { fontSize: 13, fontWeight: '800' },
     refHow: { fontSize: 12, lineHeight: 18 },
+
     inputRow: { flexDirection: 'row', gap: 8, alignItems: 'center' },
     input: {
         flex: 1, borderWidth: 1, borderRadius: 10,
-        paddingVertical: 10, paddingHorizontal: 12, fontSize: 14,
+        paddingVertical: 10, paddingHorizontal: 12, fontSize: 14, fontWeight: '600',
     },
     applyBtn: { paddingVertical: 11, paddingHorizontal: 18, borderRadius: 10 },
-    applyText: { fontWeight: '700', fontSize: 14 },
-    appliedNote: { fontSize: 12, marginTop: 14, textAlign: 'center', fontStyle: 'italic' },
+    applyText: { fontWeight: '800', fontSize: 14, color: '#FFF' },
+
+    appliedBox: {
+        flexDirection: 'row', alignItems: 'center', gap: 8,
+        marginTop: 14, borderRadius: 10, borderWidth: 1, padding: 10,
+    },
+    appliedText: { fontSize: 12, fontWeight: '700', flex: 1 },
 });

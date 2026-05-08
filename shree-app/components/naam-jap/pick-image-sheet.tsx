@@ -8,7 +8,6 @@ import * as ImagePicker from 'expo-image-picker';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     Dimensions,
     FlatList,
     Modal,
@@ -18,6 +17,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
+import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const IMAGE_SIZE = (SCREEN_WIDTH - 60) / 3;
@@ -49,6 +49,7 @@ export default function PickImageSheet({
     const [userImages, setUserImages] = useState<string[]>([]);
     const [presetImages, setPresetImages] = useState<PresetImageData[]>([]);
     const [loadingPresets, setLoadingPresets] = useState(false);
+    const [permVisible, setPermVisible] = useState(false);
 
     useEffect(() => {
         if (!visible) return;
@@ -71,7 +72,7 @@ export default function PickImageSheet({
     const handleUpload = useCallback(async () => {
         const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (status !== 'granted') {
-            Alert.alert(t('error'), 'Gallery permission is required to upload images.');
+            setPermVisible(true);
             return;
         }
         const result = await ImagePicker.launchImageLibraryAsync({
@@ -203,6 +204,13 @@ export default function PickImageSheet({
                     showsVerticalScrollIndicator={false}
                 />
             </View>
+            <BottomSheetMessage
+                visible={permVisible}
+                onClose={() => setPermVisible(false)}
+                type="warning"
+                title={t('error')}
+                message="Gallery permission is required to upload images."
+            />
         </Modal>
     );
 }

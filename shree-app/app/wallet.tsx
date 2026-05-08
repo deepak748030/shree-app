@@ -17,7 +17,6 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useState } from 'react';
 import {
     ActivityIndicator,
-    Alert,
     FlatList,
     RefreshControl,
     StyleSheet,
@@ -27,6 +26,7 @@ import {
     View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import BottomSheetMessage from '@/components/ui/bottom-sheet-message';
 
 type ListItem =
     | { kind: 'balance' }
@@ -61,6 +61,12 @@ export default function WalletScreen() {
     const [upiId, setUpiId] = useState('');
     const [amount, setAmount] = useState('');
     const [submitting, setSubmitting] = useState(false);
+    const [sheetVisible, setSheetVisible] = useState(false);
+    const [sheet, setSheet] = useState({ type: 'info' as 'success' | 'error' | 'info', title: '', message: '' });
+    const showSheet = (type: 'success' | 'error' | 'info', title: string, message: string) => {
+        setSheet({ type, title, message });
+        setSheetVisible(true);
+    };
 
     const load = useCallback(async () => {
         if (!user?.deviceId) return;
@@ -95,15 +101,15 @@ export default function WalletScreen() {
         if (!user?.deviceId) return;
         const amt = parseFloat(amount);
         if (!amt || amt <= 0) {
-            Alert.alert(isHindi ? 'त्रुटि' : 'Error', isHindi ? 'सही राशि दर्ज करें' : 'Enter a valid amount');
+            showSheet('error', isHindi ? 'त्रुटि' : 'Error', isHindi ? 'सही राशि दर्ज करें' : 'Enter a valid amount');
             return;
         }
         if (!upiId.trim() || !upiId.includes('@')) {
-            Alert.alert(isHindi ? 'त्रुटि' : 'Error', isHindi ? 'सही UPI ID दर्ज करें' : 'Enter a valid UPI ID');
+            showSheet('error', isHindi ? 'त्रुटि' : 'Error', isHindi ? 'सही UPI ID दर्ज करें' : 'Enter a valid UPI ID');
             return;
         }
         if (wallet && amt > wallet.balance) {
-            Alert.alert(isHindi ? 'त्रुटि' : 'Error', isHindi ? 'अपर्याप्त शेष' : 'Insufficient balance');
+            showSheet('error', isHindi ? 'त्रुटि' : 'Error', isHindi ? 'अपर्याप्त शेष' : 'Insufficient balance');
             return;
         }
 
@@ -111,7 +117,8 @@ export default function WalletScreen() {
         try {
             const res = await requestWithdrawal(user.deviceId, amt, upiId.trim());
             if (res.ok) {
-                Alert.alert(
+                showSheet(
+                    'success',
                     isHindi ? 'सफल' : 'Success',
                     isHindi ? 'निकासी अनुरोध भेजा गया' : 'Withdrawal request submitted',
                 );
@@ -119,10 +126,10 @@ export default function WalletScreen() {
                 setUpiId('');
                 await load();
             } else {
-                Alert.alert(isHindi ? 'त्रुटि' : 'Error', res.message || (isHindi ? 'कुछ गलत हुआ' : 'Something went wrong'));
+                showSheet('error', isHindi ? 'त्रुटि' : 'Error', res.message || (isHindi ? 'कुछ गलत हुआ' : 'Something went wrong'));
             }
         } catch {
-            Alert.alert(isHindi ? 'त्रुटि' : 'Error', isHindi ? 'नेटवर्क त्रुटि' : 'Network error');
+            showSheet('error', isHindi ? 'त्रुटि' : 'Error', isHindi ? 'नेटवर्क त्रुटि' : 'Network error');
         }
         setSubmitting(false);
     }, [user?.deviceId, amount, upiId, wallet, isHindi, load]);
@@ -341,6 +348,13 @@ export default function WalletScreen() {
                 refreshControl={
                     <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={[ACCENT]} tintColor={ACCENT} />
                 }
+            />
+            <BottomSheetMessage
+                visible={sheetVisible}
+                onClose={() => setSheetVisible(false)}
+                type={sheet.type}
+                title={sheet.title}
+                message={sheet.message}
             />
         </SafeAreaView>
     );

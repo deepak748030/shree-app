@@ -342,7 +342,7 @@ export default function WalletScreen() {
                 data={listData}
                 keyExtractor={(_, i) => `w-${i}`}
                 renderItem={renderItem}
-                contentContainerStyle={{ padding: 12, paddingBottom: 32 }}
+                contentContainerStyle={{ padding: 6, paddingBottom: 32 }}
                 ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
                 showsVerticalScrollIndicator={false}
                 refreshControl={
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
     headerWrap: {
         flexDirection: 'row',
         alignItems: 'center',
-        paddingHorizontal: 12,
+        paddingHorizontal: 6,
         paddingVertical: 12,
     },
     backBtn: { marginRight: 8, padding: 4 },

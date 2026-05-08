@@ -351,7 +351,7 @@ const styles = StyleSheet.create({
     },
     iconBtn: { padding: 6 },
     headerTitle: { fontSize: 18, fontWeight: '900', letterSpacing: 0.3 },
-    content: { padding: 14, paddingBottom: 32 },
+    content: { padding: 6, paddingBottom: 32 },
 
     hero: {
         borderRadius: 20,

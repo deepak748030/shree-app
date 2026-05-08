@@ -88,7 +88,7 @@ export default function MembershipScreen() {
         try {
             const [list, st] = await Promise.all([
                 fetchMembershipPlans(),
-                deviceId ? fetchMembershipStatusSafe(deviceId) : Promise.resolve(null),
+                deviceId ? fetchMembershipStatusSafe(deviceId, mobile) : Promise.resolve(null),
             ]);
             if (list.length) {
                 setPlans(list);
@@ -108,7 +108,7 @@ export default function MembershipScreen() {
         } finally {
             setLoading(false);
         }
-    }, [deviceId]); // eslint-disable-line
+    }, [deviceId, mobile]); // eslint-disable-line
 
     useEffect(() => { load(); }, [load]);
 
@@ -137,7 +137,13 @@ export default function MembershipScreen() {
 
     const onPaymentSuccess = async (data: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
         setCheckout(null);
-        const result = await verifyMembershipPayment(data.razorpay_order_id, data.razorpay_payment_id, data.razorpay_signature);
+        const result = await verifyMembershipPayment(
+            data.razorpay_order_id,
+            data.razorpay_payment_id,
+            data.razorpay_signature,
+            deviceId || undefined,
+            mobile,
+        );
         if (result.ok) {
             setSheet({
                 visible: true,

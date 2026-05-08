@@ -490,9 +490,10 @@ export async function fetchMembershipPlans(): Promise<MembershipPlan[]> {
     }
 }
 
-export async function fetchMembershipStatus(deviceId: string): Promise<MembershipStatus> {
+export async function fetchMembershipStatus(deviceId: string, mobile?: string | null): Promise<MembershipStatus> {
     try {
-        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}`);
+        const qs = mobile ? `?mobile=${encodeURIComponent(mobile)}` : '';
+        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}${qs}`);
         const data = await res.json();
         return data.success ? data.response : { isActive: false };
     } catch {
@@ -501,9 +502,10 @@ export async function fetchMembershipStatus(deviceId: string): Promise<Membershi
 }
 
 // Returns null on network/server errors so callers can avoid clobbering a cached active state.
-export async function fetchMembershipStatusSafe(deviceId: string): Promise<MembershipStatus | null> {
+export async function fetchMembershipStatusSafe(deviceId: string, mobile?: string | null): Promise<MembershipStatus | null> {
     try {
-        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}`);
+        const qs = mobile ? `?mobile=${encodeURIComponent(mobile)}` : '';
+        const res = await fetch(`${API_BASE_URL}/membership/status/${deviceId}${qs}`);
         if (!res.ok) return null;
         const data = await res.json();
         if (data && data.success && data.response) return data.response as MembershipStatus;
@@ -533,12 +535,14 @@ export async function verifyMembershipPayment(
     razorpay_order_id: string,
     razorpay_payment_id: string,
     razorpay_signature: string,
+    deviceId?: string,
+    mobile?: string | null,
 ): Promise<{ ok: boolean; isLifetime?: boolean; expiresAt?: string }> {
     try {
         const res = await fetch(`${API_BASE_URL}/membership/verify`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ razorpay_order_id, razorpay_payment_id, razorpay_signature }),
+            body: JSON.stringify({ razorpay_order_id, razorpay_payment_id, razorpay_signature, deviceId, mobile }),
         });
         const data = await res.json();
         return { ok: !!data.success, isLifetime: data.response?.isLifetime, expiresAt: data.response?.expiresAt };

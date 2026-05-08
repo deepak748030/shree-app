@@ -42,15 +42,35 @@ router.get('/key', (req, res) => {
 });
 
 // GET /api/membership/status/:deviceId - active subscription
+// Optional ?mobile=... so a paid subscription is found even after the user
+// logs out / re-installs / switches device but logs back in with same mobile.
 router.get('/status/:deviceId', async (req, res) => {
     try {
         const { deviceId } = req.params;
+        const rawMobile = (req.query.mobile || '').toString().trim().replace(/[^0-9]/g, '');
         const now = new Date();
+
+        const orClauses = [{ deviceId }];
+        if (rawMobile && rawMobile.length >= 10) {
+            orClauses.push({ mobile: rawMobile });
+        }
+
         const sub = await Subscription.findOne({
-            deviceId,
+            $or: orClauses,
             status: 'paid',
-            $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
-        }).sort({ expiresAt: -1 });
+            $and: [{ $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] }],
+        }).sort({ expiresAt: -1, paidAt: -1 });
+
+        // If we found one tied to a different deviceId, migrate it to the
+        // current device so future device-only lookups also succeed.
+        if (sub && sub.deviceId !== deviceId) {
+            try {
+                sub.deviceId = deviceId;
+                await sub.save();
+            } catch (e) {
+                console.warn('status: deviceId migrate skipped:', e.message);
+            }
+        }
         if (!sub) return res.json({ success: true, response: { isActive: false } });
         res.json({
             success: true,
@@ -81,17 +101,43 @@ router.post('/create-order', async (req, res) => {
             return res.status(404).json({ success: false, message: 'Plan not found' });
         }
 
+        const trimmedMobile = (mobile || '').toString().trim().replace(/[^0-9]/g, '');
+
+        // Guard: if user already has an active paid subscription (by device or
+        // mobile), don't let them create another order.
+        const now = new Date();
+        const activeOr = [{ deviceId }];
+        if (trimmedMobile.length >= 10) activeOr.push({ mobile: trimmedMobile });
+        const activeSub = await Subscription.findOne({
+            $or: activeOr,
+            status: 'paid',
+            $and: [{ $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] }],
+        });
+        if (activeSub) {
+            return res.status(400).json({
+                success: false,
+                message: 'You already have an active membership',
+            });
+        }
+
+        // Cleanup: mark any stale unpaid orders from previous abandoned attempts
+        // for this device as cancelled so they don't accumulate.
+        await Subscription.updateMany(
+            { deviceId, status: 'created' },
+            { $set: { status: 'cancelled', cancelledAt: new Date(), cancelReason: 'abandoned' } }
+        );
+
         const amountPaise = Math.round(plan.price * 100);
         const order = await razorpay.orders.create({
             amount: amountPaise,
             currency: 'INR',
             receipt: `mem_${Date.now()}`,
-            notes: { planId: String(plan._id), deviceId, mobile: mobile || '' },
+            notes: { planId: String(plan._id), deviceId, mobile: trimmedMobile },
         });
 
         const sub = await Subscription.create({
             deviceId,
-            mobile: mobile || '',
+            mobile: trimmedMobile,
             planId: plan._id,
             planSnapshot: {
                 name_hi: plan.name_hi,
@@ -130,7 +176,7 @@ router.post('/create-order', async (req, res) => {
 // POST /api/membership/verify - verify razorpay payment
 router.post('/verify', async (req, res) => {
     try {
-        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = req.body;
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature, deviceId, mobile } = req.body;
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
             return res.status(400).json({ success: false, message: 'Missing fields' });
         }
@@ -163,6 +209,13 @@ router.post('/verify', async (req, res) => {
         sub.paidAt = now;
         sub.startsAt = now;
         sub.expiresAt = expiresAt;
+        // Always store the latest deviceId/mobile that completed the payment so
+        // future status lookups (on either) succeed even after re-install/login.
+        if (deviceId) sub.deviceId = deviceId;
+        if (mobile) {
+            const m = String(mobile).trim().replace(/[^0-9]/g, '');
+            if (m) sub.mobile = m;
+        }
         await sub.save();
 
         res.json({

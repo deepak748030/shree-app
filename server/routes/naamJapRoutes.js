@@ -112,15 +112,34 @@ router.post('/auth-mobile', async (req, res) => {
         let user = await NaamJapUser.findOne({ mobile: trimmedMobile });
 
         if (user) {
-            // Update deviceId if different
-            if (user.deviceId !== deviceId) {
-                user.deviceId = deviceId;
+            // Existing user — try to update deviceId / pushToken, but never block
+            // login if the update fails (e.g. deviceId unique conflict). The
+            // user MUST be returned so the app logs in instead of asking them
+            // to register again.
+            const needsDeviceUpdate = user.deviceId !== deviceId;
+            const needsTokenUpdate = pushToken && user.pushToken !== pushToken;
+
+            if (needsDeviceUpdate || needsTokenUpdate) {
+                try {
+                    if (needsDeviceUpdate) {
+                        // If another stale record holds this deviceId, free it
+                        // first so the unique index doesn't reject our save.
+                        await NaamJapUser.updateMany(
+                            { deviceId, _id: { $ne: user._id } },
+                            { $set: { deviceId: `orphan_${user._id}_${Date.now()}` } }
+                        );
+                        user.deviceId = deviceId;
+                    }
+                    if (needsTokenUpdate) {
+                        user.pushToken = pushToken;
+                    }
+                    await user.save();
+                } catch (saveErr) {
+                    console.error('auth-mobile: non-fatal save error:', saveErr.message);
+                    // fall through — still return the user as logged in
+                }
             }
-            // Update push token if provided
-            if (pushToken) {
-                user.pushToken = pushToken;
-            }
-            await user.save();
+
             return res.json({
                 success: true,
                 isNewUser: false,

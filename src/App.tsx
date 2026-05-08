@@ -17,6 +17,7 @@ import { SubscriptionsPage } from './pages/SubscriptionsPage'
 import { HandwrittenNaamPage } from './pages/HandwrittenNaamPage'
 import { RewardsPage } from './pages/RewardsPage'
 import { WithdrawalsPage } from './pages/WithdrawalsPage'
+import { ReferralPage } from './pages/ReferralPage'
 import { TermsConditionsPage } from './pages/TermsConditionsPage'
 import { PrivacyPolicyPage } from './pages/PrivacyPolicyPage'
 import { DeleteAccountPage } from './pages/DeleteAccountPage'
@@ -51,6 +52,7 @@ function App() {
                         <Route path="handwritten-naam" element={<HandwrittenNaamPage />} />
                         <Route path="rewards" element={<RewardsPage />} />
                         <Route path="withdrawals" element={<WithdrawalsPage />} />
+                        <Route path="referrals" element={<ReferralPage />} />
                         <Route path="settings" element={<SettingsPage />} />
                     </Route>
                     <Route path="*" element={<Navigate to="/" replace />} />

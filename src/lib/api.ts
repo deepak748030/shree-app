@@ -368,4 +368,65 @@ export const actOnWithdrawal = async (id: string, action: 'approve' | 'paid' | '
     return response.data
 }
 
+
+// ===== Referrals (Admin) =====
+export interface ReferralSettingsData {
+    isEnabled: boolean
+    referrerBonus: number
+    refereeBonus: number
+    eligibility: 'members_only' | 'non_members_only' | 'both'
+    title_hi: string
+    title_en: string
+    description_hi: string
+    description_en: string
+    howItWorks_hi: string
+    howItWorks_en: string
+}
+
+export interface ReferralUseItem {
+    _id: string
+    referralCode: string
+    referrerDeviceId: string
+    referrerMobile: string
+    refereeDeviceId: string
+    refereeMobile: string
+    refereeName: string
+    status: 'pending' | 'credited' | 'rejected'
+    bonusCredited: number
+    refereeBonusCredited: number
+    creditedAt: string | null
+    note: string
+    createdAt: string
+}
+
+export const getReferralSettings = async () => {
+    const response = await api.get('/referrals/admin/settings')
+    return response.data as { success: boolean; response: ReferralSettingsData }
+}
+export const updateReferralSettings = async (data: Partial<ReferralSettingsData>) => {
+    const response = await api.put('/referrals/admin/settings', data)
+    return response.data
+}
+export const listReferralUses = async (params: { page?: number; status?: string; search?: string } = {}) => {
+    const response = await api.get('/referrals/admin/list', {
+        params: { page: params.page || 1, limit: 50, status: params.status || '', search: params.search || '' },
+    })
+    return response.data as {
+        success: boolean
+        response: {
+            items: ReferralUseItem[]
+            pagination: { page: number; limit: number; total: number; pages: number }
+            stats: Record<string, { count: number; amount: number }>
+        }
+    }
+}
+export const getReferralStats = async () => {
+    const response = await api.get('/referrals/admin/stats')
+    return response.data as { success: boolean; response: { totalCodes: number; totalUses: number; totalPayout: number } }
+}
+export const actOnReferralUse = async (id: string, action: 'credit' | 'reject', note?: string) => {
+    const response = await api.post(`/referrals/admin/uses/${id}/action`, { action, note })
+    return response.data
+}
+
 export default api

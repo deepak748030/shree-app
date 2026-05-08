@@ -673,3 +673,80 @@ export async function fetchUserWithdrawals(deviceId: string): Promise<Withdrawal
         return [];
     }
 }
+// ============ REFERRAL APIs ============
+
+export interface ReferralSettingsPublic {
+    isEnabled: boolean;
+    referrerBonus: number;
+    refereeBonus: number;
+    eligibility: 'members_only' | 'non_members_only' | 'both';
+    title_hi: string;
+    title_en: string;
+    description_hi: string;
+    description_en: string;
+    howItWorks_hi: string;
+    howItWorks_en: string;
+}
+
+export interface MyReferralCode {
+    referralCode: string;
+    usageCount: number;
+    totalEarned: number;
+    hasAppliedCode: boolean;
+    appliedCode: string | null;
+}
+
+export interface ApplyReferralResult {
+    success: boolean;
+    credited?: boolean;
+    referrerBonus?: number;
+    refereeBonus?: number;
+    message?: string;
+    reason?: string;
+}
+
+export async function fetchReferralSettings(): Promise<ReferralSettingsPublic | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/referrals/settings`);
+        const data = await res.json();
+        return data.success ? data.response : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function fetchMyReferralCode(deviceId: string): Promise<MyReferralCode | null> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/referrals/my-code/${deviceId}`);
+        const data = await res.json();
+        return data.success ? data.response : null;
+    } catch {
+        return null;
+    }
+}
+
+export async function applyReferralCode(
+    deviceId: string,
+    referralCode: string,
+    mobile?: string,
+    name?: string,
+): Promise<ApplyReferralResult> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/referrals/apply`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, referralCode, mobile, name }),
+        });
+        const data = await res.json();
+        return {
+            success: !!data.success,
+            credited: data.response?.credited,
+            referrerBonus: data.response?.referrerBonus,
+            refereeBonus: data.response?.refereeBonus,
+            message: data.message || data.response?.message,
+            reason: data.response?.reason,
+        };
+    } catch {
+        return { success: false, message: 'Network error' };
+    }
+}

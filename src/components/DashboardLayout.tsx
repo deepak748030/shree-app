@@ -21,6 +21,7 @@ import {
     BadgeCheck,
     Trophy,
     Wallet,
+    Gift,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
@@ -40,6 +41,7 @@ const navItems = [
     { to: '/handwritten-naam', icon: PenLine, label: 'Handwritten Naam' },
     { to: '/rewards', icon: Trophy, label: 'Rewards' },
     { to: '/withdrawals', icon: Wallet, label: 'Withdrawals' },
+    { to: '/referrals', icon: Gift, label: 'Referrals' },
     { to: '/settings', icon: Settings, label: 'Settings' },
 ]
 

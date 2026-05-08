@@ -137,6 +137,21 @@ const hi = {
     share_copy_failed_title: 'कॉपी विफल',
     share_copy_failed_msg: 'लिंक कॉपी करने में समस्या हुई।',
 
+    // Referral
+    referral_your_code: 'आपका रेफरल कोड',
+    referral_copy: 'कोड कॉपी करें',
+    referral_copied: 'कोड कॉपी हो गया',
+    referral_have_code: 'क्या आपके पास रेफरल कोड है?',
+    referral_enter_code: 'रेफरल कोड दर्ज करें',
+    referral_apply: 'अप्लाई करें',
+    referral_already_applied: 'आप पहले ही रेफरल कोड लगा चुके हैं',
+    referral_invalid_input: 'कृपया वैध रेफरल कोड दर्ज करें',
+    referral_success: 'रेफरल कोड सफलतापूर्वक लगाया गया',
+    referral_stats: '{count} दोस्तों ने आपका कोड लगाया · ₹{earned} कमाया',
+    referral_share_with_code: '🙏 श्री जी ऐप डाउनलोड करें!\n\nमेरा रेफरल कोड लगाएं: {code}\n\nनाम जप काउंटर और बहुत कुछ।\n\nजय श्री राधे! 🙏\n\nhttps://play.google.com/store/apps/details?id=com.shreejii.app',
+    referral_how_it_works: 'यह कैसे काम करता है',
+    referral_disabled: 'रेफरल कार्यक्रम वर्तमान में बंद है',
+
     // Privacy Policy
     privacy_header: 'गोपनीयता नीति',
     privacy_last_updated: 'अंतिम अपडेट: फरवरी 2026',
@@ -416,6 +431,21 @@ const en: typeof hi = {
     share_link_copied_msg: 'App link has been copied to clipboard.',
     share_copy_failed_title: 'Copy Failed',
     share_copy_failed_msg: 'Failed to copy the link.',
+
+    // Referral
+    referral_your_code: 'Your Referral Code',
+    referral_copy: 'Copy Code',
+    referral_copied: 'Code copied',
+    referral_have_code: 'Have a referral code?',
+    referral_enter_code: 'Enter referral code',
+    referral_apply: 'Apply',
+    referral_already_applied: 'You have already applied a referral code',
+    referral_invalid_input: 'Please enter a valid referral code',
+    referral_success: 'Referral code applied successfully',
+    referral_stats: '{count} friends used your code · ₹{earned} earned',
+    referral_share_with_code: '🙏 Download Shree Ji App!\n\nUse my referral code: {code}\n\nNaam Jap Counter and much more.\n\nJai Shri Radhe! 🙏\n\nhttps://play.google.com/store/apps/details?id=com.shreejii.app',
+    referral_how_it_works: 'How it works',
+    referral_disabled: 'Referral program is currently disabled',
 
     // Privacy Policy
     privacy_header: 'Privacy Policy',

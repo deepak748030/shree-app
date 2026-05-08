@@ -5,7 +5,7 @@ const referralUseSchema = new mongoose.Schema({
     referrerDeviceId: { type: String, required: true, index: true, trim: true },
     referrerMobile: { type: String, default: '', trim: true },
     refereeDeviceId: { type: String, required: true, unique: true, index: true, trim: true },
-    refereeMobile: { type: String, default: '', trim: true },
+    refereeMobile: { type: String, default: '', trim: true, index: true },
     refereeName: { type: String, default: '', trim: true },
     status: { type: String, enum: ['pending', 'credited', 'rejected'], default: 'pending', index: true },
     bonusCredited: { type: Number, default: 0 },
@@ -15,5 +15,6 @@ const referralUseSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 referralUseSchema.index({ createdAt: -1 });
+referralUseSchema.index({ refereeMobile: 1 });
 
 module.exports = mongoose.model('ReferralUse', referralUseSchema);

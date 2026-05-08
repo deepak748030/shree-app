@@ -120,8 +120,11 @@ router.get('/my-code/:deviceId', async (req, res) => {
         const user = await NaamJapUser.findOne({ deviceId }).lean();
         const ref = await getOrCreateReferral(deviceId, user?.mobile || '', user?.name || '');
 
-        // Has the user already applied someone else's code?
-        const appliedUse = await ReferralUse.findOne({ refereeDeviceId: deviceId }).lean();
+        // Has the user already applied? Check by deviceId OR mobile so a user
+        // who switched devices still cannot apply twice.
+        const orClauses = [{ refereeDeviceId: deviceId }];
+        if (user?.mobile) orClauses.push({ refereeMobile: user.mobile });
+        const appliedUse = await ReferralUse.findOne({ $or: orClauses }).lean();
 
         res.json({
             success: true,
@@ -154,11 +157,28 @@ router.post('/apply', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Referral program is disabled' });
         }
 
-        // Already applied?
-        const existing = await ReferralUse.findOne({ refereeDeviceId: deviceId });
+        // Normalize mobile
+        const normalizedMobile = mobile ? String(mobile).trim().replace(/[^0-9]/g, '') : '';
+
+        // Already applied? Block by deviceId OR mobile, regardless of status
+        // (so users can't bypass by switching devices or by being re-rejected)
+        const orClauses = [{ refereeDeviceId: deviceId }];
+        if (normalizedMobile) orClauses.push({ refereeMobile: normalizedMobile });
+        const existing = await ReferralUse.findOne({ $or: orClauses });
         if (existing) {
-            return res.status(400).json({ success: false, message: 'You have already applied a referral code' });
+            const sameDevice = existing.refereeDeviceId === deviceId;
+            return res.status(400).json({
+                success: false,
+                message: sameDevice
+                    ? 'You have already applied a referral code on this device'
+                    : 'This mobile number has already applied a referral code',
+            });
         }
+
+        // Block if this device already has a NaamJapUser registered before
+        // referral code was attempted — referral codes are only for fresh users.
+        // (If a user already exists with this deviceId AND has prior activity,
+        // we still allow apply only if no ReferralUse exists, which is checked above.)
 
         // Find referral owner
         const referral = await Referral.findOne({ referralCode });
@@ -184,7 +204,7 @@ router.post('/apply', async (req, res) => {
             referrerDeviceId: referral.ownerDeviceId,
             referrerMobile: referral.ownerMobile,
             refereeDeviceId: deviceId,
-            refereeMobile: mobile || '',
+            refereeMobile: normalizedMobile,
             refereeName: name || '',
             status: eligible ? 'credited' : 'rejected',
             note: eligible ? '' : rejectReason,

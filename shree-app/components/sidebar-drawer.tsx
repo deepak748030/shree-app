@@ -33,8 +33,7 @@ const menuItems: DrawerMenuItem[] = [
     { iconName: 'information-circle-outline', labelKey: 'sidebar_shree_info', route: '/shree-info' },
     { iconName: 'counter', iconLib: 'mc', labelKey: 'sidebar_naam_jap', route: '/naam-jap-counter' },
     { iconName: 'footsteps-outline', labelKey: 'sidebar_step_tracker', route: '/step-tracker' },
-    { iconName: 'chatbubble-ellipses-outline', labelKey: 'sidebar_daily_quote', route: '/daily-quote' },
-    { iconName: 'wallet-outline', labelKey: 'sidebar_wallet', route: '/(tabs)/wallet' },
+    { iconName: 'chatbubble-ellipses-outline', labelKey: 'sidebar_daily_quote', route: '/daily-quote' }
 ];
 
 interface SidebarDrawerProps {

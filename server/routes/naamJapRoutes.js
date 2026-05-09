@@ -121,6 +121,7 @@ router.post('/auth-mobile', async (req, res) => {
 
             if (needsDeviceUpdate || needsTokenUpdate) {
                 try {
+                    let oldDeviceId = null;
                     if (needsDeviceUpdate) {
                         // If another stale record holds this deviceId, free it
                         // first so the unique index doesn't reject our save.
@@ -128,6 +129,7 @@ router.post('/auth-mobile', async (req, res) => {
                             { deviceId, _id: { $ne: user._id } },
                             { $set: { deviceId: `orphan_${user._id}_${Date.now()}` } }
                         );
+                        oldDeviceId = user.deviceId;
                         user.deviceId = deviceId;
                     }
                     if (needsTokenUpdate) {

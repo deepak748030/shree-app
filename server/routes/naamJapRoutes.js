@@ -136,6 +136,13 @@ router.post('/auth-mobile', async (req, res) => {
                         user.pushToken = pushToken;
                     }
                     await user.save();
+                    if (oldDeviceId && oldDeviceId !== deviceId) {
+                        try {
+                            await migrateDeviceId(oldDeviceId, deviceId);
+                        } catch (migErr) {
+                            console.error('auth-mobile: migrateDeviceId failed:', migErr.message);
+                        }
+                    }
                 } catch (saveErr) {
                     console.error('auth-mobile: non-fatal save error:', saveErr.message);
                     // fall through — still return the user as logged in

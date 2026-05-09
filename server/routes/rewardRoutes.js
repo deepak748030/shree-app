@@ -27,15 +27,25 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Helper: check membership
-async function isMember(deviceId) {
+// Helper: check membership. Mobile is included because deviceId changes when
+// the app data is cleared/reinstalled, but the account mobile remains stable.
+async function isMember(deviceId, mobile = '') {
     const now = new Date();
+    const orClauses = [{ deviceId }];
+    if (mobile) orClauses.push({ mobile });
     const sub = await Subscription.findOne({
-        deviceId,
         status: 'paid',
-        $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+        $and: [
+            { $or: orClauses },
+            { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+        ],
     });
     return !!sub;
+}
+
+async function getUserIdentity(deviceId) {
+    const user = await NaamJapUser.findOne({ deviceId }).lean();
+    return { user, mobile: user?.mobile || '' };
 }
 
 // =============== PUBLIC ===============
@@ -49,21 +59,23 @@ router.get('/', async (req, res) => {
         const { deviceId } = req.query;
         if (!deviceId) return res.status(400).json({ success: false, message: 'deviceId required' });
 
-        const [rewards, user, steps, hw, claims, memberStatus] = await Promise.all([
+        const { user, mobile } = await getUserIdentity(deviceId);
+        const claimFilter = mobile ? { $or: [{ deviceId }, { mobile }] } : { deviceId };
+
+        const [rewards, steps, hw, claims, memberStatus] = await Promise.all([
             Reward.find({ isActive: true }).sort({ sortOrder: 1 }).lean(),
-            NaamJapUser.findOne({ deviceId }).lean(),
             StepTracker.findOne({ deviceId }).lean(),
             HandwrittenNaam.findOne({ deviceId }).lean(),
-            RewardClaim.find({ deviceId }).lean(),
-            isMember(deviceId),
+            RewardClaim.find(claimFilter).lean(),
+            isMember(deviceId, mobile),
         ]);
 
         const claimedSet = new Set(claims.map(c => String(c.rewardId)));
 
         // Today's stats (dates stored as YYYY-MM-DD strings)
         const todayStr = new Date().toISOString().slice(0, 10);
-        const todayCount = user?.dailyCounts?.find(d => d.date === todayStr)?.count || 0;
-        const todaySteps = steps?.dailySteps?.find(d => d.date === todayStr)?.steps || 0;
+        const todayCount = user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
+        const todaySteps = steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0;
         const todayHandwritten = hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
 
         const totalJap = user?.totalCount || 0;
@@ -106,26 +118,46 @@ router.post('/claim', async (req, res) => {
         const { deviceId, rewardId } = req.body;
         if (!deviceId || !rewardId) return res.status(400).json({ success: false, message: 'deviceId and rewardId required' });
 
+        const { user, mobile } = await getUserIdentity(deviceId);
+
         // Check membership
-        if (!(await isMember(deviceId))) {
+        if (!(await isMember(deviceId, mobile))) {
             return res.status(403).json({ success: false, message: 'Membership required' });
         }
 
         // Check already claimed
-        const existing = await RewardClaim.findOne({ deviceId, rewardId });
+        const claimFilter = mobile ? { rewardId, $or: [{ deviceId }, { mobile }] } : { deviceId, rewardId };
+        const existing = await RewardClaim.findOne(claimFilter);
         if (existing) return res.status(400).json({ success: false, message: 'Already claimed' });
 
         const reward = await Reward.findById(rewardId);
         if (!reward || !reward.isActive) return res.status(404).json({ success: false, message: 'Reward not found' });
 
-        // Create claim
-        await RewardClaim.create({ deviceId, rewardId });
+        const [steps, hw] = await Promise.all([
+            StepTracker.findOne({ deviceId }).lean(),
+            HandwrittenNaam.findOne({ deviceId }).lean(),
+        ]);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const isDaily = reward.type === 'daily';
+        const currentJap = isDaily ? (user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0) : (user?.totalCount || 0);
+        const currentSteps = isDaily ? (steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0) : (steps?.totalSteps || 0);
+        const currentHandwritten = isDaily ? (hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0) : (hw?.lifetimeCount || 0);
+        if ((reward.japTarget > 0 && currentJap < reward.japTarget) ||
+            (reward.stepsTarget > 0 && currentSteps < reward.stepsTarget) ||
+            (reward.handwrittenTarget > 0 && currentHandwritten < reward.handwrittenTarget)) {
+            return res.status(400).json({ success: false, message: 'Reward target not completed' });
+        }
+
+        // Create claim first. Unique indexes stop duplicate claims even if the
+        // user taps twice or logs in again with a new deviceId.
+        await RewardClaim.create({ deviceId, ...(mobile ? { mobile } : {}), rewardId });
 
         // Credit wallet
         const wallet = await Wallet.findOneAndUpdate(
             { deviceId },
             {
                 $inc: { balance: reward.rewardAmount, totalEarned: reward.rewardAmount },
+                ...(mobile ? { $set: { mobile } } : {}),
                 $setOnInsert: { deviceId, totalWithdrawn: 0 },
             },
             { upsert: true, new: true }
@@ -133,6 +165,7 @@ router.post('/claim', async (req, res) => {
 
         await WalletTransaction.create({
             deviceId,
+            mobile,
             type: 'credit_reward',
             amount: reward.rewardAmount,
             rewardId: reward._id,
@@ -143,6 +176,9 @@ router.post('/claim', async (req, res) => {
         res.json({ success: true, response: { balance: wallet.balance } });
     } catch (err) {
         console.error('Claim reward error:', err);
+        if (err?.code === 11000) {
+            return res.status(400).json({ success: false, message: 'Already claimed' });
+        }
         res.status(500).json({ success: false, message: 'Failed to claim reward' });
     }
 });

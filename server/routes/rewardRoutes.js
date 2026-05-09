@@ -116,7 +116,7 @@ router.post('/claim', async (req, res) => {
         const { deviceId, rewardId } = req.body;
         if (!deviceId || !rewardId) return res.status(400).json({ success: false, message: 'deviceId and rewardId required' });
 
-        const { mobile } = await getUserIdentity(deviceId);
+        const { user, mobile } = await getUserIdentity(deviceId);
 
         // Check membership
         if (!(await isMember(deviceId, mobile))) {
@@ -131,9 +131,24 @@ router.post('/claim', async (req, res) => {
         const reward = await Reward.findById(rewardId);
         if (!reward || !reward.isActive) return res.status(404).json({ success: false, message: 'Reward not found' });
 
+        const [steps, hw] = await Promise.all([
+            StepTracker.findOne({ deviceId }).lean(),
+            HandwrittenNaam.findOne({ deviceId }).lean(),
+        ]);
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const isDaily = reward.type === 'daily';
+        const currentJap = isDaily ? (user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0) : (user?.totalCount || 0);
+        const currentSteps = isDaily ? (steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0) : (steps?.totalSteps || 0);
+        const currentHandwritten = isDaily ? (hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0) : (hw?.lifetimeCount || 0);
+        if ((reward.japTarget > 0 && currentJap < reward.japTarget) ||
+            (reward.stepsTarget > 0 && currentSteps < reward.stepsTarget) ||
+            (reward.handwrittenTarget > 0 && currentHandwritten < reward.handwrittenTarget)) {
+            return res.status(400).json({ success: false, message: 'Reward target not completed' });
+        }
+
         // Create claim first. Unique indexes stop duplicate claims even if the
         // user taps twice or logs in again with a new deviceId.
-        await RewardClaim.create({ deviceId, mobile, rewardId });
+        await RewardClaim.create({ deviceId, ...(mobile ? { mobile } : {}), rewardId });
 
         // Credit wallet
         const wallet = await Wallet.findOneAndUpdate(

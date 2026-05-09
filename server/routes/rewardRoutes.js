@@ -155,6 +155,7 @@ router.post('/claim', async (req, res) => {
             { deviceId },
             {
                 $inc: { balance: reward.rewardAmount, totalEarned: reward.rewardAmount },
+                ...(mobile ? { $set: { mobile } } : {}),
                 $setOnInsert: { deviceId, totalWithdrawn: 0 },
             },
             { upsert: true, new: true }

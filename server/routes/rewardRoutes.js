@@ -27,15 +27,23 @@ const authMiddleware = async (req, res, next) => {
     }
 };
 
-// Helper: check membership
-async function isMember(deviceId) {
+// Helper: check membership. Mobile is included because deviceId changes when
+// the app data is cleared/reinstalled, but the account mobile remains stable.
+async function isMember(deviceId, mobile = '') {
     const now = new Date();
+    const orClauses = [{ deviceId }];
+    if (mobile) orClauses.push({ mobile });
     const sub = await Subscription.findOne({
-        deviceId,
+        $or: orClauses,
         status: 'paid',
         $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
     });
     return !!sub;
+}
+
+async function getUserIdentity(deviceId) {
+    const user = await NaamJapUser.findOne({ deviceId }).lean();
+    return { user, mobile: user?.mobile || '' };
 }
 
 // =============== PUBLIC ===============

@@ -109,7 +109,7 @@ async function migrateDeviceId(oldDeviceId, newDeviceId, mobile = '') {
         moveMany(WalletTransaction, 'deviceId', oldDeviceId, newDeviceId),
         moveMany(WithdrawalRequest, 'deviceId', oldDeviceId, newDeviceId),
         moveMany(Subscription, 'deviceId', oldDeviceId, newDeviceId),
-        moveMany(RewardClaim, 'deviceId', oldDeviceId, newDeviceId),
+        mergeRewardClaims(oldDeviceId, newDeviceId, mobile),
         moveMany(ReferralUse, 'referrerDeviceId', oldDeviceId, newDeviceId),
         moveMany(Referral, 'ownerDeviceId', oldDeviceId, newDeviceId), // safety, in case dup
     ]);

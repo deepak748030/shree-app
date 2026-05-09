@@ -277,17 +277,22 @@ router.post('/sync', async (req, res) => {
             return res.status(404).json({ success: false, message: 'User not found. Please register first.' });
         }
 
-        // Update totals
-        user.totalCount = Math.max(0, Number(totalCount) || 0);
-        user.totalMalas = Math.max(0, Number(totalMalas) || 0);
+        const incomingTotalCount = Math.max(0, Number(totalCount) || 0);
+        const incomingTotalMalas = Math.max(0, Number(totalMalas) || 0);
+
+        // Never let a stale/cleared app overwrite server lifetime totals with 0.
+        // Counts are append-only from the user's point of view; reset buttons only
+        // affect local display, not the protected lifetime reward progress.
+        user.totalCount = Math.max(Number(user.totalCount) || 0, incomingTotalCount);
+        user.totalMalas = Math.max(Number(user.totalMalas) || 0, incomingTotalMalas);
         user.lastSyncAt = new Date();
 
         // Update today's daily log
         const today = getTodayString();
         const existingLog = user.dailyLogs.find(log => log.date === today);
         if (existingLog) {
-            existingLog.count = Math.max(0, Number(todayCount) || 0);
-            existingLog.malas = Math.max(0, Number(todayMalas) || 0);
+            existingLog.count = Math.max(Number(existingLog.count) || 0, Number(todayCount) || 0);
+            existingLog.malas = Math.max(Number(existingLog.malas) || 0, Number(todayMalas) || 0);
         } else {
             // Keep only last 90 days of logs
             if (user.dailyLogs.length >= 90) {

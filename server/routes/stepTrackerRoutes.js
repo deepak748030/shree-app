@@ -11,23 +11,31 @@ router.post('/sync', async (req, res) => {
             return res.status(400).json({ success: false, message: 'deviceId and mobile are required' });
         }
 
+        const cleanMobile = String(mobile).trim().replace(/[^0-9]/g, '');
         const today = new Date().toISOString().split('T')[0];
+        const nextSteps = Math.max(0, Number(todaySteps) || 0);
+        const nextDistance = Math.max(0, Number(todayDistance) || 0);
+        const nextCalories = Math.max(0, Number(todayCalories) || 0);
 
         let user = await StepTracker.findOne({ deviceId });
+        if (!user && cleanMobile) {
+            user = await StepTracker.findOne({ mobile: cleanMobile }).sort({ totalSteps: -1, lastSyncAt: -1 });
+            if (user && user.deviceId !== deviceId) user.deviceId = deviceId;
+        }
 
         if (!user) {
             user = new StepTracker({
                 deviceId,
-                mobile,
-                totalSteps: todaySteps || 0,
-                totalDistance: todayDistance || 0,
-                totalCalories: todayCalories || 0,
+                mobile: cleanMobile,
+                totalSteps: nextSteps,
+                totalDistance: nextDistance,
+                totalCalories: nextCalories,
                 dailyGoal: dailyGoal || 5000,
                 dailyLogs: [{
                     date: today,
-                    steps: todaySteps || 0,
-                    distance: todayDistance || 0,
-                    calories: todayCalories || 0,
+                    steps: nextSteps,
+                    distance: nextDistance,
+                    calories: nextCalories,
                     goal: dailyGoal || 5000,
                 }],
             });

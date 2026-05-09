@@ -88,9 +88,12 @@ async function migrateDeviceId(oldDeviceId, newDeviceId, mobile = '') {
         }),
         moveUnique(StepTracker, 'deviceId', oldDeviceId, newDeviceId, async (oldDoc, newDoc) => {
             newDoc.dailyLogs = mergeDailyLogs(oldDoc.dailyLogs, newDoc.dailyLogs, ['steps', 'distance', 'calories']);
-            newDoc.totalSteps = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.steps) || 0), 0);
-            newDoc.totalDistance = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.distance) || 0), 0);
-            newDoc.totalCalories = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.calories) || 0), 0);
+            const logSteps = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.steps) || 0), 0);
+            const logDistance = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.distance) || 0), 0);
+            const logCalories = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.calories) || 0), 0);
+            newDoc.totalSteps = Math.max(Number(oldDoc.totalSteps) || 0, Number(newDoc.totalSteps) || 0, logSteps);
+            newDoc.totalDistance = Math.max(Number(oldDoc.totalDistance) || 0, Number(newDoc.totalDistance) || 0, logDistance);
+            newDoc.totalCalories = Math.max(Number(oldDoc.totalCalories) || 0, Number(newDoc.totalCalories) || 0, logCalories);
             newDoc.dailyGoal = newDoc.dailyGoal || oldDoc.dailyGoal || 5000;
             if (mobile) newDoc.mobile = mobile;
             newDoc.lastSyncAt = new Date();

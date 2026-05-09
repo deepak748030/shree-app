@@ -176,6 +176,9 @@ router.post('/claim', async (req, res) => {
         res.json({ success: true, response: { balance: wallet.balance } });
     } catch (err) {
         console.error('Claim reward error:', err);
+        if (err?.code === 11000) {
+            return res.status(400).json({ success: false, message: 'Already claimed' });
+        }
         res.status(500).json({ success: false, message: 'Failed to claim reward' });
     }
 });

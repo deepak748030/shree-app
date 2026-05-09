@@ -44,18 +44,21 @@ router.post('/sync', async (req, res) => {
             const oldTodaySteps = existingLogIndex >= 0 ? user.dailyLogs[existingLogIndex].steps : 0;
             const oldTodayDist = existingLogIndex >= 0 ? user.dailyLogs[existingLogIndex].distance : 0;
             const oldTodayCal = existingLogIndex >= 0 ? user.dailyLogs[existingLogIndex].calories : 0;
+            const mergedSteps = Math.max(oldTodaySteps, nextSteps);
+            const mergedDistance = Math.max(oldTodayDist, nextDistance);
+            const mergedCalories = Math.max(oldTodayCal, nextCalories);
 
             if (existingLogIndex >= 0) {
-                user.dailyLogs[existingLogIndex].steps = todaySteps || 0;
-                user.dailyLogs[existingLogIndex].distance = todayDistance || 0;
-                user.dailyLogs[existingLogIndex].calories = todayCalories || 0;
+                user.dailyLogs[existingLogIndex].steps = mergedSteps;
+                user.dailyLogs[existingLogIndex].distance = mergedDistance;
+                user.dailyLogs[existingLogIndex].calories = mergedCalories;
                 user.dailyLogs[existingLogIndex].goal = dailyGoal || 5000;
             } else {
                 user.dailyLogs.push({
                     date: today,
-                    steps: todaySteps || 0,
-                    distance: todayDistance || 0,
-                    calories: todayCalories || 0,
+                    steps: nextSteps,
+                    distance: nextDistance,
+                    calories: nextCalories,
                     goal: dailyGoal || 5000,
                 });
             }
@@ -65,11 +68,11 @@ router.post('/sync', async (req, res) => {
                 user.dailyLogs = user.dailyLogs.slice(-90);
             }
 
-            user.totalSteps = user.totalSteps - oldTodaySteps + (todaySteps || 0);
-            user.totalDistance = user.totalDistance - oldTodayDist + (todayDistance || 0);
-            user.totalCalories = user.totalCalories - oldTodayCal + (todayCalories || 0);
+            user.totalSteps = Math.max(0, (user.totalSteps || 0) - oldTodaySteps + (existingLogIndex >= 0 ? mergedSteps : nextSteps));
+            user.totalDistance = Math.max(0, (user.totalDistance || 0) - oldTodayDist + (existingLogIndex >= 0 ? mergedDistance : nextDistance));
+            user.totalCalories = Math.max(0, (user.totalCalories || 0) - oldTodayCal + (existingLogIndex >= 0 ? mergedCalories : nextCalories));
             if (dailyGoal) user.dailyGoal = dailyGoal;
-            user.mobile = mobile;
+            user.mobile = cleanMobile;
         }
 
         user.lastSyncAt = new Date();

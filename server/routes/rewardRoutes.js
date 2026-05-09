@@ -72,8 +72,8 @@ router.get('/', async (req, res) => {
 
         // Today's stats (dates stored as YYYY-MM-DD strings)
         const todayStr = new Date().toISOString().slice(0, 10);
-        const todayCount = user?.dailyCounts?.find(d => d.date === todayStr)?.count || 0;
-        const todaySteps = steps?.dailySteps?.find(d => d.date === todayStr)?.steps || 0;
+        const todayCount = user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
+        const todaySteps = steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0;
         const todayHandwritten = hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
 
         const totalJap = user?.totalCount || 0;

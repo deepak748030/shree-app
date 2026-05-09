@@ -4,6 +4,7 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
+const { migrateDeviceId } = require('../utils/migrateDeviceId');
 const router = express.Router();
 
 // Multer for in-memory image upload
@@ -121,6 +122,7 @@ router.post('/auth-mobile', async (req, res) => {
 
             if (needsDeviceUpdate || needsTokenUpdate) {
                 try {
+                    let oldDeviceId = null;
                     if (needsDeviceUpdate) {
                         // If another stale record holds this deviceId, free it
                         // first so the unique index doesn't reject our save.
@@ -128,12 +130,20 @@ router.post('/auth-mobile', async (req, res) => {
                             { deviceId, _id: { $ne: user._id } },
                             { $set: { deviceId: `orphan_${user._id}_${Date.now()}` } }
                         );
+                        oldDeviceId = user.deviceId;
                         user.deviceId = deviceId;
                     }
                     if (needsTokenUpdate) {
                         user.pushToken = pushToken;
                     }
                     await user.save();
+                    if (oldDeviceId && oldDeviceId !== deviceId) {
+                        try {
+                            await migrateDeviceId(oldDeviceId, deviceId);
+                        } catch (migErr) {
+                            console.error('auth-mobile: migrateDeviceId failed:', migErr.message);
+                        }
+                    }
                 } catch (saveErr) {
                     console.error('auth-mobile: non-fatal save error:', saveErr.message);
                     // fall through — still return the user as logged in

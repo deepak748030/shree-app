@@ -14,16 +14,36 @@ const ReferralUse = require('../models/ReferralUse');
 // Move a single-document (unique deviceId) collection. If a stale doc exists
 // at the new id (created by the freshly-cleared app before login), delete it
 // so the old (real) doc can take its place.
-async function moveUnique(Model, field, oldId, newId) {
+async function moveUnique(Model, field, oldId, newId, mergeFn = null) {
     try {
         const oldDoc = await Model.findOne({ [field]: oldId });
         if (!oldDoc) return;
-        await Model.deleteOne({ [field]: newId, _id: { $ne: oldDoc._id } });
+        const newDoc = await Model.findOne({ [field]: newId, _id: { $ne: oldDoc._id } });
+        if (newDoc && mergeFn) {
+            await mergeFn(oldDoc, newDoc);
+            await Model.deleteOne({ _id: oldDoc._id });
+            return;
+        }
+        if (newDoc) await Model.deleteOne({ _id: newDoc._id });
         oldDoc[field] = newId;
         await oldDoc.save();
     } catch (err) {
         console.error(`migrateDeviceId moveUnique(${Model.modelName}.${field})`, err.message);
     }
+}
+
+function mergeDailyLogs(oldLogs = [], newLogs = [], valueFields = []) {
+    const byDate = new Map();
+    for (const log of [...oldLogs, ...newLogs]) {
+        if (!log?.date) continue;
+        const existing = byDate.get(log.date) || { date: log.date };
+        for (const field of valueFields) {
+            existing[field] = Math.max(Number(existing[field]) || 0, Number(log[field]) || 0);
+        }
+        if ('goal' in log) existing.goal = Number(log.goal) || existing.goal || 5000;
+        byDate.set(log.date, existing);
+    }
+    return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date)).slice(-90);
 }
 
 async function moveMany(Model, field, oldId, newId) {

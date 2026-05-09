@@ -57,13 +57,15 @@ router.get('/', async (req, res) => {
         const { deviceId } = req.query;
         if (!deviceId) return res.status(400).json({ success: false, message: 'deviceId required' });
 
-        const [rewards, user, steps, hw, claims, memberStatus] = await Promise.all([
+        const { user, mobile } = await getUserIdentity(deviceId);
+        const claimFilter = mobile ? { $or: [{ deviceId }, { mobile }] } : { deviceId };
+
+        const [rewards, steps, hw, claims, memberStatus] = await Promise.all([
             Reward.find({ isActive: true }).sort({ sortOrder: 1 }).lean(),
-            NaamJapUser.findOne({ deviceId }).lean(),
             StepTracker.findOne({ deviceId }).lean(),
             HandwrittenNaam.findOne({ deviceId }).lean(),
-            RewardClaim.find({ deviceId }).lean(),
-            isMember(deviceId),
+            RewardClaim.find(claimFilter).lean(),
+            isMember(deviceId, mobile),
         ]);
 
         const claimedSet = new Set(claims.map(c => String(c.rewardId)));

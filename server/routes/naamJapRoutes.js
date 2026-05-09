@@ -139,7 +139,7 @@ router.post('/auth-mobile', async (req, res) => {
                     await user.save();
                     if (oldDeviceId && oldDeviceId !== deviceId) {
                         try {
-                            await migrateDeviceId(oldDeviceId, deviceId);
+                            await migrateDeviceId(oldDeviceId, deviceId, trimmedMobile);
                         } catch (migErr) {
                             console.error('auth-mobile: migrateDeviceId failed:', migErr.message);
                         }

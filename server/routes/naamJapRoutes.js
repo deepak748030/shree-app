@@ -4,6 +4,7 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
+const { migrateDeviceId } = require('../utils/migrateDeviceId');
 const router = express.Router();
 
 // Multer for in-memory image upload

@@ -34,9 +34,11 @@ async function isMember(deviceId, mobile = '') {
     const orClauses = [{ deviceId }];
     if (mobile) orClauses.push({ mobile });
     const sub = await Subscription.findOne({
-        $or: orClauses,
         status: 'paid',
-        $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }],
+        $and: [
+            { $or: orClauses },
+            { $or: [{ expiresAt: null }, { expiresAt: { $gt: now } }] },
+        ],
     });
     return !!sub;
 }

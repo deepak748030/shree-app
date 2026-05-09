@@ -54,14 +54,55 @@ async function moveMany(Model, field, oldId, newId) {
     }
 }
 
-async function migrateDeviceId(oldDeviceId, newDeviceId) {
+async function mergeRewardClaims(oldDeviceId, newDeviceId, mobile) {
+    try {
+        const claims = await RewardClaim.find({ deviceId: { $in: [oldDeviceId, newDeviceId] } }).sort({ createdAt: 1 });
+        const seen = new Set();
+        for (const claim of claims) {
+            const key = String(claim.rewardId);
+            if (seen.has(key)) {
+                await RewardClaim.deleteOne({ _id: claim._id });
+                continue;
+            }
+            seen.add(key);
+            claim.deviceId = newDeviceId;
+            if (mobile) claim.mobile = mobile;
+            await claim.save();
+        }
+    } catch (err) {
+        console.error('migrateDeviceId mergeRewardClaims', err.message);
+    }
+}
+
+async function migrateDeviceId(oldDeviceId, newDeviceId, mobile = '') {
     if (!oldDeviceId || !newDeviceId || oldDeviceId === newDeviceId) return;
 
     await Promise.all([
         // unique-deviceId docs
-        moveUnique(HandwrittenNaam, 'deviceId', oldDeviceId, newDeviceId),
-        moveUnique(StepTracker, 'deviceId', oldDeviceId, newDeviceId),
-        moveUnique(Wallet, 'deviceId', oldDeviceId, newDeviceId),
+        moveUnique(HandwrittenNaam, 'deviceId', oldDeviceId, newDeviceId, async (oldDoc, newDoc) => {
+            newDoc.lifetimeCount = Math.max(Number(oldDoc.lifetimeCount) || 0, Number(newDoc.lifetimeCount) || 0);
+            newDoc.dailyLogs = mergeDailyLogs(oldDoc.dailyLogs, newDoc.dailyLogs, ['count']);
+            if (!newDoc.selectedMantra && oldDoc.selectedMantra) newDoc.selectedMantra = oldDoc.selectedMantra;
+            newDoc.lastSyncAt = new Date();
+            await newDoc.save();
+        }),
+        moveUnique(StepTracker, 'deviceId', oldDeviceId, newDeviceId, async (oldDoc, newDoc) => {
+            newDoc.dailyLogs = mergeDailyLogs(oldDoc.dailyLogs, newDoc.dailyLogs, ['steps', 'distance', 'calories']);
+            newDoc.totalSteps = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.steps) || 0), 0);
+            newDoc.totalDistance = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.distance) || 0), 0);
+            newDoc.totalCalories = newDoc.dailyLogs.reduce((sum, log) => sum + (Number(log.calories) || 0), 0);
+            newDoc.dailyGoal = newDoc.dailyGoal || oldDoc.dailyGoal || 5000;
+            if (mobile) newDoc.mobile = mobile;
+            newDoc.lastSyncAt = new Date();
+            await newDoc.save();
+        }),
+        moveUnique(Wallet, 'deviceId', oldDeviceId, newDeviceId, async (oldDoc, newDoc) => {
+            newDoc.balance = (Number(oldDoc.balance) || 0) + (Number(newDoc.balance) || 0);
+            newDoc.totalEarned = (Number(oldDoc.totalEarned) || 0) + (Number(newDoc.totalEarned) || 0);
+            newDoc.totalWithdrawn = (Number(oldDoc.totalWithdrawn) || 0) + (Number(newDoc.totalWithdrawn) || 0);
+            if (mobile) newDoc.mobile = mobile;
+            await newDoc.save();
+        }),
         moveUnique(Referral, 'ownerDeviceId', oldDeviceId, newDeviceId),
         moveUnique(ReferralUse, 'refereeDeviceId', oldDeviceId, newDeviceId),
         // many-rows-per-device collections

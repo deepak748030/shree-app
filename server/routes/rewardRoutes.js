@@ -116,20 +116,24 @@ router.post('/claim', async (req, res) => {
         const { deviceId, rewardId } = req.body;
         if (!deviceId || !rewardId) return res.status(400).json({ success: false, message: 'deviceId and rewardId required' });
 
+        const { mobile } = await getUserIdentity(deviceId);
+
         // Check membership
-        if (!(await isMember(deviceId))) {
+        if (!(await isMember(deviceId, mobile))) {
             return res.status(403).json({ success: false, message: 'Membership required' });
         }
 
         // Check already claimed
-        const existing = await RewardClaim.findOne({ deviceId, rewardId });
+        const claimFilter = mobile ? { rewardId, $or: [{ deviceId }, { mobile }] } : { deviceId, rewardId };
+        const existing = await RewardClaim.findOne(claimFilter);
         if (existing) return res.status(400).json({ success: false, message: 'Already claimed' });
 
         const reward = await Reward.findById(rewardId);
         if (!reward || !reward.isActive) return res.status(404).json({ success: false, message: 'Reward not found' });
 
-        // Create claim
-        await RewardClaim.create({ deviceId, rewardId });
+        // Create claim first. Unique indexes stop duplicate claims even if the
+        // user taps twice or logs in again with a new deviceId.
+        await RewardClaim.create({ deviceId, mobile, rewardId });
 
         // Credit wallet
         const wallet = await Wallet.findOneAndUpdate(
@@ -143,6 +147,7 @@ router.post('/claim', async (req, res) => {
 
         await WalletTransaction.create({
             deviceId,
+            mobile,
             type: 'credit_reward',
             amount: reward.rewardAmount,
             rewardId: reward._id,

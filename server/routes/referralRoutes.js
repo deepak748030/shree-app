@@ -102,6 +102,9 @@ router.get('/settings', async (_req, res) => {
                 description_en: s.description_en,
                 howItWorks_hi: s.howItWorks_hi,
                 howItWorks_en: s.howItWorks_en,
+                shareMessage_hi: s.shareMessage_hi,
+                shareMessage_en: s.shareMessage_en,
+                milestones: (s.milestones || []).filter(m => m.isActive).sort((a, b) => a.count - b.count),
             },
         });
     } catch (err) {
@@ -109,8 +112,6 @@ router.get('/settings', async (_req, res) => {
         res.status(500).json({ success: false, message: 'Failed' });
     }
 });
-
-// GET /api/referrals/my-code/:deviceId
 router.get('/my-code/:deviceId', async (req, res) => {
     try {
         res.set('Cache-Control', 'no-store');
@@ -134,6 +135,7 @@ router.get('/my-code/:deviceId', async (req, res) => {
                 totalEarned: ref.totalEarned,
                 hasAppliedCode: !!appliedUse,
                 appliedCode: appliedUse?.referralCode || null,
+                claimedMilestones: ref.claimedMilestones || [],
             },
         });
     } catch (err) {
@@ -266,6 +268,46 @@ router.post('/apply', async (req, res) => {
             });
         }
 
+        // ===== Milestone bonuses =====
+        // After increment, check if referrer hit any milestone they haven't yet claimed.
+        let milestoneCredited = 0;
+        const milestoneAwards = [];
+        const refreshed = await Referral.findById(referral._id);
+        if (refreshed) {
+            const claimed = new Set((refreshed.claimedMilestones || []).map(Number));
+            const eligibleMilestones = (settings.milestones || [])
+                .filter(m => m.isActive && Number(m.count) > 0 && refreshed.usageCount >= Number(m.count) && !claimed.has(Number(m.count)))
+                .sort((a, b) => a.count - b.count);
+
+            for (const m of eligibleMilestones) {
+                const amt = Number(m.rewardAmount) || 0;
+                if (amt > 0) {
+                    await Wallet.findOneAndUpdate(
+                        { deviceId: referral.ownerDeviceId },
+                        {
+                            $inc: { balance: amt, totalEarned: amt },
+                            $setOnInsert: { deviceId: referral.ownerDeviceId, totalWithdrawn: 0, mobile: referral.ownerMobile || '' },
+                        },
+                        { upsert: true, new: true }
+                    );
+                    await WalletTransaction.create({
+                        deviceId: referral.ownerDeviceId,
+                        mobile: referral.ownerMobile || '',
+                        type: 'credit_referral_milestone',
+                        amount: amt,
+                        referralUseId: use._id,
+                        note: `Referral milestone reached: ${m.count} referrals`,
+                    });
+                    milestoneCredited += amt;
+                }
+                milestoneAwards.push({ count: m.count, rewardAmount: amt });
+                await Referral.findByIdAndUpdate(referral._id, {
+                    $addToSet: { claimedMilestones: Number(m.count) },
+                    $inc: amt > 0 ? { totalEarned: amt } : {},
+                });
+            }
+        }
+
         await ReferralUse.findByIdAndUpdate(use._id, {
             bonusCredited: referrerBonus,
             refereeBonusCredited: refereeBonus,
@@ -278,6 +320,8 @@ router.post('/apply', async (req, res) => {
                 credited: true,
                 referrerBonus,
                 refereeBonus,
+                milestoneCredited,
+                milestoneAwards,
                 message: refereeBonus > 0 ? `₹${refereeBonus} credited to your wallet` : 'Referral code applied successfully',
             },
         });
@@ -319,9 +363,25 @@ router.get('/admin/settings', authMiddleware, async (_req, res) => {
 router.put('/admin/settings', authMiddleware, async (req, res) => {
     try {
         const fields = ['isEnabled', 'referrerBonus', 'refereeBonus', 'eligibility',
-            'title_hi', 'title_en', 'description_hi', 'description_en', 'howItWorks_hi', 'howItWorks_en'];
+            'title_hi', 'title_en', 'description_hi', 'description_en', 'howItWorks_hi', 'howItWorks_en',
+            'shareMessage_hi', 'shareMessage_en'];
         const updates = {};
         fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
+
+        if (Array.isArray(req.body.milestones)) {
+            updates.milestones = req.body.milestones
+                .filter(m => m && Number(m.count) > 0)
+                .map(m => ({
+                    count: Number(m.count),
+                    rewardAmount: Number(m.rewardAmount) || 0,
+                    title_hi: String(m.title_hi || ''),
+                    title_en: String(m.title_en || ''),
+                    description_hi: String(m.description_hi || ''),
+                    description_en: String(m.description_en || ''),
+                    isActive: m.isActive !== false,
+                }))
+                .sort((a, b) => a.count - b.count);
+        }
 
         let s = await ReferralSettings.findOne();
         if (!s) s = await ReferralSettings.create(updates);

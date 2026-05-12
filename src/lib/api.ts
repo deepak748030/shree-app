@@ -370,6 +370,16 @@ export const actOnWithdrawal = async (id: string, action: 'approve' | 'paid' | '
 
 
 // ===== Referrals (Admin) =====
+export interface ReferralMilestone {
+    count: number
+    rewardAmount: number
+    title_hi: string
+    title_en: string
+    description_hi: string
+    description_en: string
+    isActive: boolean
+}
+
 export interface ReferralSettingsData {
     isEnabled: boolean
     referrerBonus: number
@@ -381,6 +391,9 @@ export interface ReferralSettingsData {
     description_en: string
     howItWorks_hi: string
     howItWorks_en: string
+    shareMessage_hi: string
+    shareMessage_en: string
+    milestones: ReferralMilestone[]
 }
 
 export interface ReferralUseItem {

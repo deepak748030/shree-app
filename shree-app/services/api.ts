@@ -679,6 +679,16 @@ export async function fetchUserWithdrawals(deviceId: string): Promise<Withdrawal
 }
 // ============ REFERRAL APIs ============
 
+export interface ReferralMilestone {
+    count: number;
+    rewardAmount: number;
+    title_hi: string;
+    title_en: string;
+    description_hi: string;
+    description_en: string;
+    isActive: boolean;
+}
+
 export interface ReferralSettingsPublic {
     isEnabled: boolean;
     referrerBonus: number;
@@ -690,6 +700,9 @@ export interface ReferralSettingsPublic {
     description_en: string;
     howItWorks_hi: string;
     howItWorks_en: string;
+    shareMessage_hi: string;
+    shareMessage_en: string;
+    milestones: ReferralMilestone[];
 }
 
 export interface MyReferralCode {
@@ -698,6 +711,7 @@ export interface MyReferralCode {
     totalEarned: number;
     hasAppliedCode: boolean;
     appliedCode: string | null;
+    claimedMilestones: number[];
 }
 
 export interface ApplyReferralResult {

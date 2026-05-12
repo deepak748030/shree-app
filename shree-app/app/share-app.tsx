@@ -92,6 +92,10 @@ export default function ShareAppScreen() {
 
     const buildShareMessage = () => {
         const code = myCode?.referralCode;
+        const adminMsg = language === 'hi' ? settings?.shareMessage_hi : settings?.shareMessage_en;
+        if (code && settings?.isEnabled && adminMsg) {
+            return adminMsg.replace(/\{code\}/g, code);
+        }
         if (code && settings?.isEnabled) {
             return t('referral_share_with_code').replace('{code}', code);
         }
@@ -240,7 +244,7 @@ export default function ShareAppScreen() {
                             </View>
 
                             {loadingRef ? (
-                                <ActivityIndicator color={ACCENT} style={{ marginVertical: 16 }} />
+                                <ReferralSkeleton isDark={isDark} cardBorder={cardBorder} />
                             ) : (
                                 <>
                                     {/* Stats row */}
@@ -260,6 +264,67 @@ export default function ShareAppScreen() {
                                             </Text>
                                         </View>
                                     </View>
+
+                                    {/* Milestone rewards */}
+                                    {!!settings?.milestones?.length && (
+                                        <View style={{ marginBottom: 14 }}>
+                                            <Text style={[styles.refLabel, { color: textMuted }]}>
+                                                {language === 'hi' ? 'माइलस्टोन इनाम' : 'Milestone Rewards'}
+                                            </Text>
+                                            {settings.milestones.map((m, idx) => {
+                                                const claimed = (myCode?.claimedMilestones || []).includes(m.count);
+                                                const progress = Math.min(100, Math.round((usageCount / m.count) * 100));
+                                                const remaining = Math.max(0, m.count - usageCount);
+                                                const titleText = (language === 'hi' ? m.title_hi : m.title_en) ||
+                                                    (language === 'hi' ? `${m.count} रेफरल पर ₹${m.rewardAmount}` : `₹${m.rewardAmount} at ${m.count} referrals`);
+                                                const descText = language === 'hi' ? m.description_hi : m.description_en;
+                                                return (
+                                                    <View key={idx} style={[styles.milestoneCard, {
+                                                        backgroundColor: isDark ? '#1A1A1A' : '#FAFAFA',
+                                                        borderColor: claimed ? '#22C55E55' : cardBorder,
+                                                    }]}>
+                                                        <View style={styles.milestoneHeaderRow}>
+                                                            <View style={[styles.milestoneIcon, {
+                                                                backgroundColor: claimed ? '#22C55E22' : ACCENT + '22',
+                                                            }]}>
+                                                                <Ionicons
+                                                                    name={claimed ? 'trophy' : 'gift-outline'}
+                                                                    size={16}
+                                                                    color={claimed ? '#22C55E' : ACCENT}
+                                                                />
+                                                            </View>
+                                                            <View style={{ flex: 1 }}>
+                                                                <Text style={[styles.milestoneTitle, { color: textPrimary }]} numberOfLines={1}>
+                                                                    {titleText}
+                                                                </Text>
+                                                                {!!descText && (
+                                                                    <Text style={[styles.milestoneDesc, { color: textMuted }]} numberOfLines={2}>
+                                                                        {descText}
+                                                                    </Text>
+                                                                )}
+                                                            </View>
+                                                            <Text style={[styles.milestoneAmount, { color: claimed ? '#22C55E' : ACCENT }]}>
+                                                                ₹{m.rewardAmount}
+                                                            </Text>
+                                                        </View>
+                                                        <View style={[styles.progressTrack, { backgroundColor: isDark ? '#2A2A2A' : '#ECECEC' }]}>
+                                                            <View style={[styles.progressFill, {
+                                                                width: `${progress}%`,
+                                                                backgroundColor: claimed ? '#22C55E' : ACCENT,
+                                                            }]} />
+                                                        </View>
+                                                        <Text style={[styles.milestoneFoot, { color: textMuted }]}>
+                                                            {claimed
+                                                                ? (language === 'hi' ? '✓ इनाम वॉलेट में जमा हो गया' : '✓ Reward credited to wallet')
+                                                                : (language === 'hi'
+                                                                    ? `${usageCount} / ${m.count} रेफरल · ${remaining} और चाहिए`
+                                                                    : `${usageCount} / ${m.count} referrals · ${remaining} to go`)}
+                                                        </Text>
+                                                    </View>
+                                                );
+                                            })}
+                                        </View>
+                                    )}
 
                                     <Text style={[styles.refLabel, { color: textMuted }]}>{t('referral_your_code')}</Text>
                                     <TouchableOpacity
@@ -340,8 +405,38 @@ export default function ShareAppScreen() {
     );
 }
 
+function ReferralSkeleton({ isDark, cardBorder }: { isDark: boolean; cardBorder: string }) {
+    const skel = isDark ? '#262626' : '#ECECEC';
+    return (
+        <View>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 14 }}>
+                <View style={[styles.skelCard, { backgroundColor: skel, borderColor: cardBorder }]} />
+                <View style={[styles.skelCard, { backgroundColor: skel, borderColor: cardBorder }]} />
+            </View>
+            <View style={[styles.skelLine, { backgroundColor: skel, width: '40%' }]} />
+            <View style={[styles.skelBox, { backgroundColor: skel, height: 56 }]} />
+            <View style={[styles.skelBox, { backgroundColor: skel, height: 70, marginTop: 12 }]} />
+            <View style={[styles.skelBox, { backgroundColor: skel, height: 70, marginTop: 8 }]} />
+        </View>
+    );
+}
+
 const styles = StyleSheet.create({
     container: { flex: 1 },
+    skelCard: { flex: 1, height: 64, borderRadius: 12, borderWidth: 1, opacity: 0.6 },
+    skelLine: { height: 12, borderRadius: 6, marginBottom: 8, opacity: 0.6 },
+    skelBox: { borderRadius: 12, opacity: 0.6 },
+    milestoneCard: {
+        borderRadius: 12, borderWidth: 1, padding: 10, marginTop: 8,
+    },
+    milestoneHeaderRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
+    milestoneIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    milestoneTitle: { fontSize: 13, fontWeight: '800' },
+    milestoneDesc: { fontSize: 11, marginTop: 1 },
+    milestoneAmount: { fontSize: 14, fontWeight: '900' },
+    progressTrack: { height: 6, borderRadius: 3, overflow: 'hidden' },
+    progressFill: { height: '100%', borderRadius: 3 },
+    milestoneFoot: { fontSize: 10, fontWeight: '600', marginTop: 6 },
     headerWrap: {
         flexDirection: 'row',
         alignItems: 'center',

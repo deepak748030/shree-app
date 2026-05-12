@@ -7,6 +7,7 @@ const referralSchema = new mongoose.Schema({
     ownerName: { type: String, default: '', trim: true },
     usageCount: { type: Number, default: 0 },
     totalEarned: { type: Number, default: 0 },
+    claimedMilestones: { type: [Number], default: [] }, // milestone counts already credited
 }, { timestamps: true });
 
 module.exports = mongoose.model('Referral', referralSchema);

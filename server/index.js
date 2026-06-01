@@ -1,7 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const compression = require('compression');
 const connectDB = require('./config/db');
+require('./config/redis');
 
 // Route imports
 const adminRoutes = require('./routes/adminRoutes');
@@ -29,8 +31,12 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization'],
 }));
 
+app.use(compression());
 app.use(express.json({ limit: '4.5mb' }));
 app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
+
+// Light ETag support on JSON responses
+app.set('etag', 'strong');
 
 // Database connection middleware for serverless
 const dbMiddleware = async (req, res, next) => {

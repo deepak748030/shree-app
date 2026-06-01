@@ -8,6 +8,8 @@ const Wallet = require('../models/Wallet');
 const WalletTransaction = require('../models/WalletTransaction');
 const Subscription = require('../models/Subscription');
 const NaamJapUser = require('../models/NaamJapUser');
+const { cacheRoute, cacheDel } = require('../config/redis');
+const REF_SETTINGS_KEY = 'ref:settings';
 
 const router = express.Router();
 
@@ -85,9 +87,8 @@ async function getOrCreateReferral(deviceId, mobile, name) {
 // =============== PUBLIC ===============
 
 // GET /api/referrals/settings — public-facing settings (read-only display info)
-router.get('/settings', async (_req, res) => {
+router.get('/settings', cacheRoute(() => REF_SETTINGS_KEY, 600), async (_req, res) => {
     try {
-        res.set('Cache-Control', 'no-store');
         const s = await getSettings();
         res.json({
             success: true,
@@ -389,6 +390,7 @@ router.put('/admin/settings', authMiddleware, async (req, res) => {
             Object.assign(s, updates);
             await s.save();
         }
+        cacheDel(REF_SETTINGS_KEY);
         res.json({ success: true, response: s });
     } catch (err) {
         console.error('Update settings error:', err);

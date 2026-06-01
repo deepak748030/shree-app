@@ -4,6 +4,8 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const PresetImage = require('../models/PresetImage');
+const { cacheRoute, cacheDel } = require('../config/redis');
+const PRESET_CACHE_KEY = 'preset:list';
 const router = express.Router();
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -43,6 +45,7 @@ router.post('/upload', authMiddleware, upload.single('image'), async (req, res) 
             order: count,
         });
         await preset.save();
+        cacheDel(PRESET_CACHE_KEY);
 
         res.json({ success: true, response: preset });
     } catch (error) {
@@ -52,7 +55,7 @@ router.post('/upload', authMiddleware, upload.single('image'), async (req, res) 
 });
 
 // GET /api/preset-images — public list (for app)
-router.get('/', async (req, res) => {
+router.get('/', cacheRoute(() => PRESET_CACHE_KEY, 600), async (req, res) => {
     try {
         const images = await PresetImage.find({ isActive: true }).sort({ order: 1 });
         res.json({ success: true, response: images });
@@ -80,6 +83,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         // Delete from Cloudinary
         await cloudinary.uploader.destroy(image.publicId);
         await PresetImage.findByIdAndDelete(req.params.id);
+        cacheDel(PRESET_CACHE_KEY);
 
         res.json({ success: true, message: 'Deleted' });
     } catch (error) {

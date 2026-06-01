@@ -4,6 +4,8 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const DailyQuote = require('../models/DailyQuote');
+const { cacheRoute, cacheDel, cacheDelPattern } = require('../config/redis');
+const invalidateQuotes = () => { cacheDel('dq:today'); cacheDelPattern('dq:recent:*'); };
 const router = express.Router();
 
 // Multer config - store in memory for Cloudinary upload
@@ -76,7 +78,7 @@ const deleteFromCloudinary = async (imageUrl) => {
 // ============ PUBLIC ROUTES (for mobile app - no auth needed) ============
 
 // GET /api/daily-quotes/today - Get today's image (public)
-router.get('/today', async (req, res) => {
+router.get('/today', cacheRoute(() => 'dq:today', 600), async (req, res) => {
     try {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -108,7 +110,7 @@ router.get('/today', async (req, res) => {
 });
 
 // GET /api/daily-quotes/recent - Get recent images (public)
-router.get('/recent', async (req, res) => {
+router.get('/recent', cacheRoute(req => `dq:recent:${parseInt(req.query.limit) || 7}`, 300), async (req, res) => {
     try {
         const limit = parseInt(req.query.limit) || 7;
         const quotes = await DailyQuote.find({ isActive: true })

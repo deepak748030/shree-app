@@ -207,6 +207,7 @@ router.post('/', authMiddleware, async (req, res) => {
         });
 
         await quote.save();
+        invalidateQuotes();
         res.status(201).json({ success: true, response: quote });
     } catch (error) {
         console.error('Create image error:', error);
@@ -238,6 +239,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
         if (isActive !== undefined) quote.isActive = isActive;
 
         await quote.save();
+        invalidateQuotes();
         res.json({ success: true, response: quote });
     } catch (error) {
         console.error('Update image error:', error);
@@ -259,6 +261,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         }
 
         await DailyQuote.findByIdAndDelete(req.params.id);
+        invalidateQuotes();
         res.json({ success: true, message: 'Image deleted successfully' });
     } catch (error) {
         console.error('Delete image error:', error);

@@ -5,6 +5,8 @@ const Admin = require('../models/Admin');
 const MembershipPlan = require('../models/MembershipPlan');
 const Subscription = require('../models/Subscription');
 const NaamJapUser = require('../models/NaamJapUser');
+const { cacheRoute, cacheDel } = require('../config/redis');
+const PLANS_CACHE_KEY = 'memb:plans';
 const razorpay = require('../config/razorpay');
 const router = express.Router();
 
@@ -26,7 +28,7 @@ const authMiddleware = async (req, res, next) => {
 // =============== PUBLIC ===============
 
 // GET /api/membership/plans - active plans for app
-router.get('/plans', async (req, res) => {
+router.get('/plans', cacheRoute(() => PLANS_CACHE_KEY, 600), async (req, res) => {
     try {
         const plans = await MembershipPlan.find({ isActive: true }).sort({ sortOrder: 1, price: 1 });
         res.json({ success: true, response: plans });

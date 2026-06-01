@@ -2,6 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const AppVersion = require('../models/AppVersion');
+const { cacheRoute, cacheDelPattern } = require('../config/redis');
 const router = express.Router();
 
 // Admin auth middleware
@@ -20,7 +21,7 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // GET /api/app-version/check?platform=android&currentVersion=1.0.0 (public)
-router.get('/check', async (req, res) => {
+router.get('/check', cacheRoute(req => `appver:${req.query.platform || 'android'}:${req.query.currentVersion || ''}`, 300), async (req, res) => {
     try {
         const { platform = 'android', currentVersion } = req.query;
         const config = await AppVersion.findOne({ platform });
@@ -73,6 +74,7 @@ router.post('/', authMiddleware, async (req, res) => {
             { upsert: true, new: true }
         );
 
+        cacheDelPattern('appver:*');
         res.json({ success: true, response: config });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to save version config' });

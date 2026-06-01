@@ -100,6 +100,7 @@ router.post('/', authMiddleware, async (req, res) => {
             content.paragraphs_hi = paragraphs_hi || [];
             content.paragraphs_en = paragraphs_en || [];
             await content.save();
+        cacheDel(HOME_CACHE_KEY);
         } else {
             content = new HomeContent({
                 title_hi: title_hi || '',
@@ -110,6 +111,7 @@ router.post('/', authMiddleware, async (req, res) => {
                 paragraphs_en: paragraphs_en || [],
             });
             await content.save();
+        cacheDel(HOME_CACHE_KEY);
         }
 
         res.json({
@@ -141,6 +143,7 @@ router.post('/banner/upload', authMiddleware, upload.single('image'), async (req
             content.bannerImages.push(imageUrl);
         }
         await content.save();
+        cacheDel(HOME_CACHE_KEY);
 
         res.json({
             success: true,
@@ -167,6 +170,7 @@ router.delete('/banner', authMiddleware, async (req, res) => {
 
         content.bannerImages = content.bannerImages.filter(url => url !== imageUrl);
         await content.save();
+        cacheDel(HOME_CACHE_KEY);
 
         // Delete from Cloudinary
         await deleteFromCloudinary(imageUrl);
@@ -203,6 +207,7 @@ router.post('/sidebar-image/upload', authMiddleware, upload.single('image'), asy
             content.sidebarImage = imageUrl;
         }
         await content.save();
+        cacheDel(HOME_CACHE_KEY);
 
         res.json({
             success: true,
@@ -225,6 +230,7 @@ router.delete('/sidebar-image', authMiddleware, async (req, res) => {
         await deleteFromCloudinary(content.sidebarImage);
         content.sidebarImage = '';
         await content.save();
+        cacheDel(HOME_CACHE_KEY);
 
         res.json({
             success: true,

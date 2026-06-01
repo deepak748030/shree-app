@@ -4,6 +4,8 @@ const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const HomeContent = require('../models/HomeContent');
+const { cacheRoute, cacheDel } = require('../config/redis');
+const HOME_CACHE_KEY = 'home:content';
 const router = express.Router();
 
 // Multer config
@@ -57,7 +59,7 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // GET /api/home-content - Public: get home content
-router.get('/', async (req, res) => {
+router.get('/', cacheRoute(() => HOME_CACHE_KEY, 600), async (req, res) => {
     try {
         const content = await HomeContent.findOne().sort({ updatedAt: -1 });
         if (!content) {

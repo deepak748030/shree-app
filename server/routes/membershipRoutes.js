@@ -264,7 +264,7 @@ router.post('/admin/plans', authMiddleware, async (req, res) => {
             isBestValue: !!isBestValue,
             sortOrder: Number(sortOrder) || 0,
         });
-        res.json({ success: true, response: plan });
+        cacheDel(PLANS_CACHE_KEY); res.json({ success: true, response: plan });
     } catch (err) {
         console.error('Create plan error:', err);
         res.status(500).json({ success: false, message: 'Failed to create plan' });
@@ -279,7 +279,7 @@ router.put('/admin/plans/:id', authMiddleware, async (req, res) => {
         fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
         const plan = await MembershipPlan.findByIdAndUpdate(req.params.id, updates, { new: true });
         if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
-        res.json({ success: true, response: plan });
+        cacheDel(PLANS_CACHE_KEY); res.json({ success: true, response: plan });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to update' });
     }
@@ -289,7 +289,7 @@ router.put('/admin/plans/:id', authMiddleware, async (req, res) => {
 router.delete('/admin/plans/:id', authMiddleware, async (req, res) => {
     try {
         await MembershipPlan.findByIdAndDelete(req.params.id);
-        res.json({ success: true });
+        cacheDel(PLANS_CACHE_KEY); res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed' });
     }

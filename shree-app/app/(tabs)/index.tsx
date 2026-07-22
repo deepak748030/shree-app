@@ -30,8 +30,9 @@ const GAMES: {
 }[] = [
   { id: '2048', title: '2048', subtitle: 'Puzzle', icon: 'apps', color: '#F2A03D', route: '/game-2048' },
   { id: 'radha-jap', title: 'Radha Jap', subtitle: 'Catch Lotus', icon: 'flower', color: '#E91E63', route: '/game-radha-jap' },
-  { id: 'tictactoe', title: 'Tic Tac Toe', subtitle: 'Classic', icon: 'grid', color: '#4FC3F7', comingSoon: true },
+  { id: 'bubble-smash', title: 'Bubble Smash', subtitle: 'Tap & Pop', icon: 'ellipse', color: '#4FC3F7', route: '/game-bubble-smash' },
   { id: 'memory', title: 'Memory', subtitle: 'Cards', icon: 'albums', color: '#81C784', comingSoon: true },
+  { id: 'tictactoe', title: 'Tic Tac Toe', subtitle: 'Classic', icon: 'grid', color: '#26A69A', comingSoon: true },
   { id: 'snake', title: 'Snake', subtitle: 'Arcade', icon: 'flash', color: '#7E57C2', comingSoon: true },
 ];
 

@@ -3,7 +3,7 @@ const router = express.Router();
 const GameScore = require('../models/GameScore');
 const NaamJapUser = require('../models/NaamJapUser');
 
-const ALLOWED_GAMES = new Set(['2048', 'radha-jap', 'tictactoe', 'memory', 'snake']);
+const ALLOWED_GAMES = new Set(['2048', 'radha-jap', 'bubble-smash', 'tictactoe', 'memory', 'snake']);
 
 // Submit / update a score
 router.post('/score', async (req, res) => {

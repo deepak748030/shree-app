@@ -15,6 +15,56 @@ export interface HomeContentResponse {
     updatedAt: string;
 }
 
+// ============ GAMES APIs ============
+
+export interface GameLeaderboardEntry {
+    rank: number;
+    deviceId: string;
+    name: string;
+    city: string;
+    profileImage: string;
+    bestScore: number;
+    playCount: number;
+    updatedAt: string;
+}
+
+export interface GameLeaderboardResponse {
+    leaderboard: GameLeaderboardEntry[];
+    me: {
+        rank: number | null;
+        bestScore: number;
+        lastScore: number;
+        playCount: number;
+    } | null;
+}
+
+export async function submitGameScore(deviceId: string, gameId: string, score: number): Promise<{ success: boolean; isBest?: boolean }> {
+    try {
+        const res = await fetch(`${API_BASE_URL}/games/score`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ deviceId, gameId, score }),
+        });
+        const data = await res.json();
+        return { success: !!data.success, isBest: !!data.isBest };
+    } catch {
+        return { success: false };
+    }
+}
+
+export async function fetchGameLeaderboard(gameId: string, deviceId?: string, limit = 50): Promise<GameLeaderboardResponse | null> {
+    try {
+        const q = new URLSearchParams({ limit: String(limit) });
+        if (deviceId) q.set('deviceId', deviceId);
+        const res = await fetch(`${API_BASE_URL}/games/${gameId}/leaderboard?${q.toString()}`);
+        const data = await res.json();
+        if (data.success && data.response) return data.response;
+        return null;
+    } catch {
+        return null;
+    }
+}
+
 export async function fetchHomeContent(): Promise<HomeContentResponse | null> {
     try {
         const response = await fetch(`${API_BASE_URL}/home-content`);

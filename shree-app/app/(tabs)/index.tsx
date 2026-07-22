@@ -19,6 +19,22 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HP = 6;
 
+const GAMES: {
+  id: string;
+  title: string;
+  subtitle: string;
+  icon: string;
+  color: string;
+  route?: string;
+  comingSoon?: boolean;
+}[] = [
+  { id: '2048', title: '2048', subtitle: 'Puzzle', icon: 'apps', color: '#F2A03D', route: '/game-2048' },
+  { id: 'radha-jap', title: 'Radha Jap', subtitle: 'Catch Lotus', icon: 'flower', color: '#E91E63', route: '/game-radha-jap' },
+  { id: 'tictactoe', title: 'Tic Tac Toe', subtitle: 'Classic', icon: 'grid', color: '#4FC3F7', comingSoon: true },
+  { id: 'memory', title: 'Memory', subtitle: 'Cards', icon: 'albums', color: '#81C784', comingSoon: true },
+  { id: 'snake', title: 'Snake', subtitle: 'Arcade', icon: 'flash', color: '#7E57C2', comingSoon: true },
+];
+
 interface ChantItem {
   id: string;
   title: string;
@@ -37,7 +53,8 @@ type Section =
   | { type: 'feature' }
   | { type: 'insights_header' }
   | { type: 'insights' }
-  | { type: 'game_button' };
+  | { type: 'games_header' }
+  | { type: 'games' };
 
 function getGreetingKey() {
   const h = new Date().getHours();
@@ -121,7 +138,8 @@ export default function HomeScreen() {
     { type: 'feature' },
     { type: 'insights_header' },
     { type: 'insights' },
-    { type: 'game_button' },
+    { type: 'games_header' },
+    { type: 'games' },
   ];
 
   const renderItem = ({ item }: { item: Section }) => {
@@ -203,29 +221,59 @@ export default function HomeScreen() {
             rightValue={totalMalas}
           />
         );
-      case 'game_button':
+      case 'games_header':
         return (
-          <TouchableOpacity
-            activeOpacity={0.85}
-            onPress={() => router.push('/game-2048' as any)}
-            style={{
-              marginTop: 10,
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              paddingVertical: 14,
-              borderRadius: 12,
-              borderWidth: 1,
-              borderColor: theme.cardBorder,
-              backgroundColor: theme.cardBg,
-            }}
-          >
-            <Ionicons name="game-controller" size={20} color={theme.accent} />
-            <Text style={{ color: theme.accent, fontSize: 15, fontWeight: '800' }}>
-              Play 2048
-            </Text>
-          </TouchableOpacity>
+          <SectionHeader
+            title={t('home_games' as any) || 'Games'}
+            actionLabel={t('home_view' as any)}
+            actionIcon="game-controller"
+            onActionPress={() => router.push('/game-2048' as any)}
+          />
+        );
+      case 'games':
+        return (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -6, marginTop: 6 }}>
+            {GAMES.map((g) => (
+              <View key={g.id} style={{ width: '50%', paddingHorizontal: 6, marginBottom: 12 }}>
+                <TouchableOpacity
+                  activeOpacity={0.85}
+                  disabled={g.comingSoon}
+                  onPress={() => g.route && router.push(g.route as any)}
+                  style={{
+                    borderRadius: 14,
+                    borderWidth: 1,
+                    borderColor: theme.cardBorder,
+                    backgroundColor: theme.cardBg,
+                    padding: 14,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minHeight: 110,
+                    opacity: g.comingSoon ? 0.55 : 1,
+                  }}
+                >
+                  <View
+                    style={{
+                      width: 48,
+                      height: 48,
+                      borderRadius: 24,
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      backgroundColor: g.color + '22',
+                      marginBottom: 8,
+                    }}
+                  >
+                    <Ionicons name={g.icon as any} size={26} color={g.color} />
+                  </View>
+                  <Text style={{ color: theme.text, fontSize: 14, fontWeight: '800' }} numberOfLines={1}>
+                    {g.title}
+                  </Text>
+                  <Text style={{ color: theme.subText, fontSize: 11, fontWeight: '600', marginTop: 2 }} numberOfLines={1}>
+                    {g.comingSoon ? (t('home_coming_soon' as any) || 'Coming Soon') : g.subtitle}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
         );
     }
   };

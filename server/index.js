@@ -20,6 +20,7 @@ const handwrittenAdminRoutes = require('./routes/handwrittenAdminRoutes');
 const membershipRoutes = require('./routes/membershipRoutes');
 const rewardRoutes = require('./routes/rewardRoutes');
 const referralRoutes = require('./routes/referralRoutes');
+const gameRoutes = require('./routes/gameRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -71,6 +72,7 @@ app.use('/api/handwritten-naam', handwrittenNaamRoutes);
 app.use('/api/membership', membershipRoutes);
 app.use('/api/rewards', rewardRoutes);
 app.use('/api/referrals', referralRoutes);
+app.use('/api/games', gameRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

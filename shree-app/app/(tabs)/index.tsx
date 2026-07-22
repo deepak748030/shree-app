@@ -13,6 +13,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useCallback, useEffect, useState } from 'react';
 import { FlatList, RefreshControl, StyleSheet, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Text, TouchableOpacity } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const HP = 6;
@@ -34,7 +36,8 @@ type Section =
   | { type: 'chant'; data: ChantItem }
   | { type: 'feature' }
   | { type: 'insights_header' }
-  | { type: 'insights' };
+  | { type: 'insights' }
+  | { type: 'game_button' };
 
 function getGreetingKey() {
   const h = new Date().getHours();
@@ -118,6 +121,7 @@ export default function HomeScreen() {
     { type: 'feature' },
     { type: 'insights_header' },
     { type: 'insights' },
+    { type: 'game_button' },
   ];
 
   const renderItem = ({ item }: { item: Section }) => {
@@ -198,6 +202,30 @@ export default function HomeScreen() {
             rightLabel={t('home_total_malas')}
             rightValue={totalMalas}
           />
+        );
+      case 'game_button':
+        return (
+          <TouchableOpacity
+            activeOpacity={0.85}
+            onPress={() => router.push('/game-2048' as any)}
+            style={{
+              marginTop: 10,
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              paddingVertical: 14,
+              borderRadius: 12,
+              borderWidth: 1,
+              borderColor: theme.cardBorder,
+              backgroundColor: theme.cardBg,
+            }}
+          >
+            <Ionicons name="game-controller" size={20} color={theme.accent} />
+            <Text style={{ color: theme.accent, fontSize: 15, fontWeight: '800' }}>
+              Play 2048
+            </Text>
+          </TouchableOpacity>
         );
     }
   };

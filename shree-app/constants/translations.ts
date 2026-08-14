@@ -187,13 +187,13 @@ const hi = {
     home_my_chants: 'मेरे जप',
     home_all_mantra: 'सभी मंत्र',
     home_target: 'लक्ष्य',
-    home_today_japa: "आज के जप",
-    home_lifetime_japa: 'कुल जप',
-    home_handwritten: 'लिखित नाम जाप',
+    home_today_jap: "आज के जप",
+    home_lifetime_jap: 'कुल जप',
+    home_handwritten: 'लिखित नाम जप',
     home_handwritten_sub: 'अपने हाथों से नाम लिखकर भक्ति में डूबें!',
     home_my_insights: 'मेरी प्रगति',
     home_view: 'देखें',
-    home_total_japa: 'कुल जप',
+    home_total_jap: 'कुल जप',
     home_total_malas: 'कुल माला',
 
     // Membership
@@ -220,8 +220,8 @@ const hi = {
     membership_coming_soon_msg: 'सदस्यता खरीदने का विकल्प जल्द ही उपलब्ध होगा।',
     membership_error_msg: 'कुछ गलत हो गया, कृपया पुनः प्रयास करें।',
 
-    // Handwritten Naam Jaap
-    handwritten_header: 'लिखित नाम जाप',
+    // Handwritten Naam Jap
+    handwritten_header: 'लिखित नाम जप',
     handwritten_today: 'आज का जप',
     handwritten_lifetime: 'कुल जप',
     handwritten_clear: 'मिटाएं',
@@ -397,7 +397,7 @@ const en: typeof hi = {
     // Analytics
     analytics_header: 'Analytics',
     analytics_my_rank: 'My Rank this Week',
-    analytics_worldwide: 'Worldwide Japa Tracker',
+    analytics_worldwide: 'Worldwide Jap Tracker',
     analytics_all_time_users: 'All-Time Users',
     analytics_all_time_malas: 'All-Time Malas',
     analytics_users_week: 'Users This Week',
@@ -482,13 +482,13 @@ const en: typeof hi = {
     home_my_chants: 'My Chants',
     home_all_mantra: 'All Mantra',
     home_target: 'Target',
-    home_today_japa: "Today's Japa",
-    home_lifetime_japa: 'Lifetime Japa',
-    home_handwritten: 'Handwritten Naam Jaap',
+    home_today_jap: "Today's Jap",
+    home_lifetime_jap: 'Lifetime Jap',
+    home_handwritten: 'Handwritten Naam Jap',
     home_handwritten_sub: 'Now write the name with your own hands and immerse in devotion!',
     home_my_insights: 'My Insights',
     home_view: 'View',
-    home_total_japa: 'Total Japa',
+    home_total_jap: 'Total Jap',
     home_total_malas: 'Total Malas',
 
     // Membership
@@ -515,8 +515,8 @@ const en: typeof hi = {
     membership_coming_soon_msg: 'In-app purchase will be available soon.',
     membership_error_msg: 'Something went wrong, please try again.',
 
-    // Handwritten Naam Jaap
-    handwritten_header: 'Handwritten Naam Jaap',
+    // Handwritten Naam Jap
+    handwritten_header: 'Handwritten Naam Jap',
     handwritten_today: 'Today Jap',
     handwritten_lifetime: 'Lifetime Jap',
     handwritten_clear: 'Clear',

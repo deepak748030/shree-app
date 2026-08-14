@@ -48,7 +48,7 @@ export function HandwrittenNaamPage() {
         <div className="space-y-4">
             <div>
                 <h1 className="text-xl sm:text-2xl font-bold">Handwritten Naam</h1>
-                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Per-user handwritten jaap (today & lifetime).</p>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-1">Per-user handwritten jap (today & lifetime).</p>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3">

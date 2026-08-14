@@ -24,6 +24,7 @@ const gameRoutes = require('./routes/gameRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Middleware
 app.use(cors({
@@ -38,6 +39,16 @@ app.use(express.urlencoded({ limit: '4.5mb', extended: true }));
 
 // Light ETag support on JSON responses
 app.set('etag', 'strong');
+
+// Liveness does not depend on the database, so infrastructure can verify
+// the process even if MongoDB is temporarily unavailable.
+app.get('/api/health', (req, res) => {
+    res.json({
+        success: true,
+        message: 'Shree Jii API Server is running',
+        timestamp: new Date().toISOString()
+    });
+});
 
 // Database connection middleware for serverless
 const dbMiddleware = async (req, res, next) => {
@@ -54,7 +65,7 @@ const dbMiddleware = async (req, res, next) => {
     }
 };
 
-// Apply DB middleware to all API routes
+// Apply DB middleware only after the liveness endpoint.
 app.use('/api', dbMiddleware);
 
 // Routes
@@ -74,15 +85,6 @@ app.use('/api/rewards', rewardRoutes);
 app.use('/api/referrals', referralRoutes);
 app.use('/api/games', gameRoutes);
 
-// Health check
-app.get('/api/health', (req, res) => {
-    res.json({
-        success: true,
-        message: 'Shree Jii API Server is running',
-        timestamp: new Date().toISOString()
-    });
-});
-
 // Root route
 app.get('/', (req, res) => {
     res.json({ success: true, message: 'Shree Jii API Server' });
@@ -96,8 +98,8 @@ app.use((err, req, res, next) => {
 
 // Only start server if not in serverless environment
 if (process.env.NODE_ENV !== 'production') {
-    app.listen(PORT, () => {
-        console.log(`Shree Jii Server running on port ${PORT}`);
+    app.listen(PORT, HOST, () => {
+        console.log(`Shree Jii Server running on http://${HOST}:${PORT}`);
     });
 }
 

@@ -6,13 +6,17 @@ import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 interface SectionHeaderProps {
     title: string;
     actionLabel?: string;
-    actionIcon?: 'add' | 'eye';
+    actionIcon?: 'add' | 'eye' | 'game-controller';
     onActionPress?: () => void;
 }
 
 export default function SectionHeader({ title, actionLabel, actionIcon, onActionPress }: SectionHeaderProps) {
     const { theme } = useAppTheme();
-    const iconName = actionIcon === 'add' ? 'add' : 'eye-outline';
+    const iconName = actionIcon === 'add'
+        ? 'add'
+        : actionIcon === 'game-controller'
+            ? 'game-controller-outline'
+            : 'eye-outline';
 
     return (
         <View style={styles.row}>

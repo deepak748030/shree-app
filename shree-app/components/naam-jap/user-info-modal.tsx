@@ -28,9 +28,10 @@ interface UserInfoModalProps {
     onClose: () => void;
     onSave: (name: string, city: string) => void;
     deviceId: string | null;
+    mobile: string | null;
 }
 
-export default function UserInfoModal({ visible, onClose, onSave, deviceId }: UserInfoModalProps) {
+export default function UserInfoModal({ visible, onClose, onSave, deviceId, mobile }: UserInfoModalProps) {
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     const [name, setName] = useState('');
@@ -87,7 +88,7 @@ export default function UserInfoModal({ visible, onClose, onSave, deviceId }: Us
             );
 
             // Register with server (include push token from stored or fresh)
-            if (deviceId) {
+            if (deviceId && mobile) {
                 // Try cached token first
                 let pushToken = await AsyncStorage.getItem('@naam_jap_push_token');
 
@@ -106,7 +107,7 @@ export default function UserInfoModal({ visible, onClose, onSave, deviceId }: Us
                     await AsyncStorage.setItem('@naam_jap_push_token', pushToken);
                 }
 
-                await registerNaamJapUser(deviceId, name.trim(), city.trim(), pushToken || undefined);
+                await registerNaamJapUser(deviceId, name.trim(), city.trim(), mobile, pushToken || undefined);
             }
 
             onSave(name.trim(), city.trim());

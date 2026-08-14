@@ -45,7 +45,7 @@ export default function NaamJapCounterScreen() {
     const { theme } = useAppTheme();
     const { t } = useLanguage();
     const deviceId = useDeviceId();
-    const { isLoggedIn } = useAuth();
+    const { isLoggedIn, mobile } = useAuth();
 
     const {
         count,
@@ -302,6 +302,7 @@ export default function NaamJapCounterScreen() {
                 onClose={() => setUserInfoVisible(false)}
                 onSave={handleUserSaved}
                 deviceId={deviceId}
+                mobile={mobile}
             />
         </View>
     );

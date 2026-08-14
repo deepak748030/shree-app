@@ -42,8 +42,8 @@ interface ChantItem {
   subtitle: string;
   target: number;
   current: number;
-  todayJapa: number;
-  lifetimeJapa: number;
+  todayJap: number;
+  lifetimeJap: number;
 }
 
 type Section =
@@ -132,8 +132,8 @@ export default function HomeScreen() {
         subtitle: 'ॐ नमः शिवाय',
         target: malaTarget,
         current: handwrittenToday,
-        todayJapa: handwrittenToday,
-        lifetimeJapa: handwrittenLifetime,
+        todayJap: handwrittenToday,
+        lifetimeJap: handwrittenLifetime,
       },
     },
     { type: 'feature' },
@@ -187,11 +187,11 @@ export default function HomeScreen() {
             subtitle={item.data.subtitle}
             target={item.data.target}
             current={item.data.current}
-            todayJapa={item.data.todayJapa}
-            lifetimeJapa={item.data.lifetimeJapa}
+            todayJap={item.data.todayJap}
+            lifetimeJap={item.data.lifetimeJap}
             targetLabel={t('home_target')}
-            todayLabel={t('home_today_japa')}
-            lifetimeLabel={t('home_lifetime_japa')}
+            todayLabel={t('home_today_jap')}
+            lifetimeLabel={t('home_lifetime_jap')}
             onPress={() => router.push('/handwritten-naam')}
           />
         );
@@ -216,7 +216,7 @@ export default function HomeScreen() {
       case 'insights':
         return (
           <InsightsCard
-            leftLabel={t('home_total_japa')}
+            leftLabel={t('home_total_jap')}
             leftValue={totalCount}
             rightLabel={t('home_total_malas')}
             rightValue={totalMalas}

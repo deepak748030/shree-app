@@ -9,8 +9,8 @@ interface ChantCardProps {
     subtitle?: string;
     target: number;
     current: number;
-    todayJapa: number;
-    lifetimeJapa: number;
+    todayJap: number;
+    lifetimeJap: number;
     targetLabel: string;
     todayLabel: string;
     lifetimeLabel: string;
@@ -19,7 +19,7 @@ interface ChantCardProps {
 
 export default function ChantCard({
     title, subtitle, target, current,
-    todayJapa, lifetimeJapa,
+    todayJap, lifetimeJap,
     targetLabel, todayLabel, lifetimeLabel,
     onPress,
 }: ChantCardProps) {
@@ -55,11 +55,11 @@ export default function ChantCard({
 
             <View style={styles.statsRow}>
                 <View style={[styles.statBox, { borderColor: theme.cardBorder }]}>
-                    <Text style={[styles.statValue, { color: theme.text }]}>{todayJapa}</Text>
+                    <Text style={[styles.statValue, { color: theme.text }]}>{todayJap}</Text>
                     <Text style={[styles.statLabel, { color: theme.subText }]}>{todayLabel}</Text>
                 </View>
                 <View style={[styles.statBox, { borderColor: theme.cardBorder }]}>
-                    <Text style={[styles.statValue, { color: theme.text }]}>{lifetimeJapa}</Text>
+                    <Text style={[styles.statValue, { color: theme.text }]}>{lifetimeJap}</Text>
                     <Text style={[styles.statLabel, { color: theme.subText }]}>{lifetimeLabel}</Text>
                 </View>
             </View>

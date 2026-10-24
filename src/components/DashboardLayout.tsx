@@ -23,9 +23,40 @@ import {
     Wallet,
     Gift,
 } from 'lucide-react'
+import { Radio, WifiOff } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
+import { useRealtimeStatus } from '../hooks/useRealtimeStatus'
 import shreeJiLogo from '../assets/favicon.png'
+
+// Route chunks are warmed on hover/focus so navigation feels instant after the
+// first visit. Each entry matches a `to` path in `navItems`.
+const routePrefetch: Record<string, () => Promise<unknown>> = {
+    '/': () => import('../pages/DashboardPage'),
+    '/home-content': () => import('../pages/HomeContentPage'),
+    '/daily-quotes': () => import('../pages/DailyQuotesPage'),
+    '/naam-jap-users': () => import('../pages/NaamJapUsersPage'),
+    '/push-notifications': () => import('../pages/PushNotificationsPage'),
+    '/preset-images': () => import('../pages/PresetImagesPage'),
+    '/app-version': () => import('../pages/AppVersionPage'),
+    '/donation-settings': () => import('../pages/DonationSettingsPage'),
+    '/membership-plans': () => import('../pages/MembershipPlansPage'),
+    '/subscriptions': () => import('../pages/SubscriptionsPage'),
+    '/handwritten-naam': () => import('../pages/HandwrittenNaamPage'),
+    '/rewards': () => import('../pages/RewardsPage'),
+    '/withdrawals': () => import('../pages/WithdrawalsPage'),
+    '/referrals': () => import('../pages/ReferralPage'),
+    '/settings': () => import('../pages/SettingsPage'),
+}
+
+const prefetched = new Set<string>()
+function prefetchRoute(path: string) {
+    if (prefetched.has(path)) return
+    const loader = routePrefetch[path]
+    if (!loader) return
+    prefetched.add(path)
+    loader().catch(() => prefetched.delete(path))
+}
 
 const navItems = [
     { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -50,6 +81,7 @@ export function DashboardLayout() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const { admin, logout } = useAuth()
     const location = useLocation()
+    const { label, isLive, status } = useRealtimeStatus()
 
     return (
         <div className="min-h-screen flex bg-background">
@@ -76,14 +108,28 @@ export function DashboardLayout() {
                 )}>
                     {sidebarOpen ? (
                         <div className="flex items-center gap-2">
-                            <img src={shreeJiLogo} alt="श्री जी" className="w-9 h-9 object-contain" />
+                            <img
+                                src={shreeJiLogo}
+                                alt="श्री जी"
+                                width={36}
+                                height={36}
+                                decoding="async"
+                                className="w-9 h-9 object-contain"
+                            />
                             <div>
                                 <h1 className="text-lg font-bold text-primary leading-tight">श्री जी</h1>
                                 <p className="text-[10px] text-sidebar-foreground/60 leading-tight">Admin Panel</p>
                             </div>
                         </div>
                     ) : (
-                        <img src={shreeJiLogo} alt="श्री जी" className="w-8 h-8 object-contain" />
+                        <img
+                        src={shreeJiLogo}
+                        alt="श्री जी"
+                        width={32}
+                        height={32}
+                        decoding="async"
+                        className="w-8 h-8 object-contain"
+                    />
                     )}
                     <button
                         onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -112,6 +158,9 @@ export function DashboardLayout() {
                                 key={item.to}
                                 to={item.to}
                                 onClick={() => setMobileMenuOpen(false)}
+                                onMouseEnter={() => prefetchRoute(item.to)}
+                                onFocus={() => prefetchRoute(item.to)}
+                                onTouchStart={() => prefetchRoute(item.to)}
                                 className={cn(
                                     'flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-150',
                                     isActive
@@ -184,6 +233,29 @@ export function DashboardLayout() {
                         <Menu className="w-5 h-5" />
                     </button>
                     <div className="flex-1" />
+                    <div className="flex items-center gap-2">
+                        <span
+                            className={cn(
+                                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium border',
+                                isLive
+                                    ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
+                                    : status === 'offline'
+                                        ? 'bg-destructive/10 text-destructive border-destructive/30'
+                                        : 'bg-muted text-muted-foreground border-border'
+                            )}
+                            title={`Realtime: ${status}`}
+                        >
+                            {status === 'offline' ? (
+                                <WifiOff className="w-3.5 h-3.5" />
+                            ) : (
+                                <Radio className={cn('w-3.5 h-3.5', isLive && 'animate-pulse')} />
+                            )}
+                            <span className="hidden sm:inline">{label}</span>
+                        </span>
+                        <div className="hidden md:block text-xs text-muted-foreground">
+                            {admin?.name}
+                        </div>
+                    </div>
                 </header>
 
                 {/* Page Content */}

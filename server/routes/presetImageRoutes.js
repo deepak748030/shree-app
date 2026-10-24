@@ -5,6 +5,7 @@ const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const PresetImage = require('../models/PresetImage');
 const { cacheRoute, cacheDel } = require('../config/redis');
+const { announce } = require('../config/announce');
 const PRESET_CACHE_KEY = 'preset:list';
 const router = express.Router();
 
@@ -46,6 +47,7 @@ router.post('/upload', authMiddleware, upload.single('image'), async (req, res) 
         });
         await preset.save();
         cacheDel(PRESET_CACHE_KEY);
+        announce('content', 'presets-changed', {}, ['content']);
 
         res.json({ success: true, response: preset });
     } catch (error) {
@@ -84,6 +86,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
         await cloudinary.uploader.destroy(image.publicId);
         await PresetImage.findByIdAndDelete(req.params.id);
         cacheDel(PRESET_CACHE_KEY);
+        announce('content', 'presets-changed', {}, ['content']);
 
         res.json({ success: true, message: 'Deleted' });
     } catch (error) {

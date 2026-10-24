@@ -5,15 +5,173 @@ import {
     Save,
     Eye,
     EyeOff,
+    Activity,
+    Radio,
+    Trash2,
+    Cpu,
+    Database,
 } from 'lucide-react'
 import { cn } from '../lib/utils'
 import { useAuth } from '../context/AuthContext'
+import { useQuery } from '../hooks/useQuery'
+import { useRealtimeStatus } from '../hooks/useRealtimeStatus'
+import { cacheStats } from '../lib/dataClient'
 import {
     updateAdminProfile,
     updateAdminPassword,
+    getSystemMetrics,
+    flushCache,
 } from '../lib/api'
 
-type TabType = 'profile' | 'password'
+type TabType = 'profile' | 'password' | 'system'
+
+function SystemPanel() {
+    const { label, transport } = useRealtimeStatus()
+    const [flushing, setFlushing] = useState(false)
+    const [message, setMessage] = useState('')
+
+    const { data, isFetching, refetch, error } = useQuery({
+        key: 'system:metrics',
+        fetcher: async () => (await getSystemMetrics()).response,
+        staleTime: 5_000,
+        refetchInterval: 20_000,
+    })
+
+    const clientCache = cacheStats()
+
+    const handleFlush = async () => {
+        setFlushing(true)
+        setMessage('')
+        try {
+            await flushCache(['analytics', 'analyticsBiz', 'users', 'stats', 'leaderboard'])
+            await refetch()
+            setMessage('Server caches cleared. Next request recomputes from MongoDB.')
+        } catch (e: any) {
+            setMessage(e?.response?.data?.message || 'Could not clear caches')
+        } finally {
+            setFlushing(false)
+        }
+    }
+
+    return (
+        <div className="space-y-4 max-w-4xl">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Radio className="w-3.5 h-3.5" /> Realtime
+                    </div>
+                    <p className="text-lg font-bold text-foreground">{label}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        transport: {transport === 'sse' ? 'SSE stream' : 'version polling'}
+                    </p>
+                </div>
+                <div className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Activity className="w-3.5 h-3.5" /> Requests served
+                    </div>
+                    <p className="text-lg font-bold text-foreground tabular-nums">
+                        {(data?.totals?.requests || 0).toLocaleString('en-IN')}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        avg {data?.totals?.avgMs ?? 0} ms
+                    </p>
+                </div>
+                <div className="bg-card border border-border rounded-xl p-4">
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Database className="w-3.5 h-3.5" /> Client cache
+                    </div>
+                    <p className="text-lg font-bold text-foreground tabular-nums">{clientCache.keys}</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        {clientCache.mounted} mounted · {clientCache.inflight} in flight
+                    </p>
+                </div>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+                <div className="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 className="text-base sm:text-lg font-semibold text-foreground flex items-center gap-2">
+                            <Cpu className="w-4 h-4" /> Slowest API routes
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            p95 is the honest latency number — it ignores the lucky requests.
+                        </p>
+                    </div>
+                    <button
+                        onClick={() => refetch()}
+                        disabled={isFetching}
+                        className="px-3 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-60"
+                    >
+                        {isFetching ? 'Refreshing…' : 'Refresh'}
+                    </button>
+                </div>
+
+                {error ? (
+                    <p className="text-sm text-destructive">
+                        Metrics are unavailable — the API must be reachable and you must be signed in.
+                    </p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-border">
+                                    <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground uppercase">Route</th>
+                                    <th className="text-right py-2 px-2 text-xs font-semibold text-muted-foreground uppercase">Hits</th>
+                                    <th className="text-right py-2 px-2 text-xs font-semibold text-muted-foreground uppercase">Avg</th>
+                                    <th className="text-right py-2 px-2 text-xs font-semibold text-muted-foreground uppercase">p95</th>
+                                    <th className="text-right py-2 px-2 text-xs font-semibold text-muted-foreground uppercase">Max</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border">
+                                {(data?.slowest || []).slice(0, 12).map((row) => (
+                                    <tr key={row.route} className="hover:bg-muted/30">
+                                        <td className="py-2 px-2 text-xs font-mono text-foreground truncate max-w-[280px]">
+                                            {row.route}
+                                        </td>
+                                        <td className="py-2 px-2 text-xs text-right tabular-nums">{row.count}</td>
+                                        <td className="py-2 px-2 text-xs text-right tabular-nums">{row.avgMs} ms</td>
+                                        <td
+                                            className={cn(
+                                                'py-2 px-2 text-xs text-right tabular-nums font-semibold',
+                                                row.p95Ms > 400 ? 'text-amber-400' : 'text-emerald-400'
+                                            )}
+                                        >
+                                            {row.p95Ms} ms
+                                        </td>
+                                        <td className="py-2 px-2 text-xs text-right tabular-nums">{row.maxMs} ms</td>
+                                    </tr>
+                                ))}
+                                {(!data || data.slowest.length === 0) && (
+                                    <tr>
+                                        <td colSpan={5} className="py-6 text-center text-sm text-muted-foreground">
+                                            No requests recorded yet in this process.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-4 sm:p-6">
+                <h2 className="text-base sm:text-lg font-semibold text-foreground mb-1">Cache control</h2>
+                <p className="text-xs text-muted-foreground mb-4">
+                    Use this after a manual data fix. It clears derived data only — MongoDB is never touched.
+                </p>
+                <button
+                    onClick={handleFlush}
+                    disabled={flushing}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80 transition-colors disabled:opacity-60 text-sm"
+                >
+                    <Trash2 className="w-4 h-4" />
+                    {flushing ? 'Clearing…' : 'Clear analytics & user caches'}
+                </button>
+                {message && <p className="text-sm text-muted-foreground mt-3">{message}</p>}
+            </div>
+        </div>
+    )
+}
 
 export function SettingsPage() {
     const { admin } = useAuth()
@@ -72,8 +230,8 @@ export function SettingsPage() {
             return
         }
 
-        if (newPassword.length < 6) {
-            setPasswordMessage({ type: 'error', text: 'Password must be at least 6 characters' })
+        if (newPassword.length < 8) {
+            setPasswordMessage({ type: 'error', text: 'Password must be at least 8 characters' })
             setPasswordLoading(false)
             return
         }
@@ -98,6 +256,7 @@ export function SettingsPage() {
     const tabs = [
         { id: 'profile' as TabType, label: 'Profile', icon: User },
         { id: 'password' as TabType, label: 'Password', icon: Lock },
+        { id: 'system' as TabType, label: 'System', icon: Activity },
     ]
 
     return (
@@ -219,7 +378,7 @@ export function SettingsPage() {
                                     className="w-full px-3 sm:px-4 py-2.5 sm:py-3 pr-12 rounded-lg border border-border bg-background text-foreground focus:ring-2 focus:ring-primary focus:border-transparent outline-none text-sm sm:text-base"
                                     placeholder="Enter new password"
                                     required
-                                    minLength={6}
+                                    minLength={8}
                                 />
                                 <button
                                     type="button"
@@ -229,7 +388,7 @@ export function SettingsPage() {
                                     {showNewPassword ? <EyeOff className="w-4 h-4 sm:w-5 sm:h-5" /> : <Eye className="w-4 h-4 sm:w-5 sm:h-5" />}
                                 </button>
                             </div>
-                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Minimum 6 characters</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground mt-1">Minimum 8 characters</p>
                         </div>
 
                         <div>
@@ -268,6 +427,8 @@ export function SettingsPage() {
                     </form>
                 </div>
             )}
+
+            {activeTab === 'system' && <SystemPanel />}
         </div>
     )
 }

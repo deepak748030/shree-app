@@ -37,6 +37,9 @@ export function HandwrittenNaamPage() {
         } finally { setLoading(false) }
     }
 
+    // `load` reads page/sortBy/search; the first effect is keyed on the two
+    // values that change without debouncing (search has its own timer).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { load() }, [page, sortBy])
     useEffect(() => {
         const t = setTimeout(() => { setPage(1); load() }, 350)

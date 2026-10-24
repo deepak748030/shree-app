@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const AppVersion = require('../models/AppVersion');
 const { cacheRoute, cacheDelPattern } = require('../config/redis');
+const { announce } = require('../config/announce');
 const router = express.Router();
 
 // Admin auth middleware
@@ -75,6 +76,7 @@ router.post('/', authMiddleware, async (req, res) => {
         );
 
         cacheDelPattern('appver:*');
+        announce('versions', 'changed', { platform }, ['versions']);
         res.json({ success: true, response: config });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to save version config' });

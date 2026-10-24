@@ -3,9 +3,17 @@ const jwt = require('jsonwebtoken');
 const { Expo } = require('expo-server-sdk');
 const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
+const { announce } = require('../config/announce');
 const router = express.Router();
 
 const expo = new Expo();
+
+// Expo accepts up to 100 messages per call and rate-limits per project.
+// Streaming in batches keeps memory flat (a million users used to be a million
+// objects in RAM) and lets the request finish long before any proxy timeout.
+const BATCH_SIZE = 100;
+const BATCH_CONCURRENCY = 3;
+const MAX_REPORTED_ERRORS = 50;
 
 // Admin auth middleware
 const authMiddleware = async (req, res, next) => {
@@ -23,127 +31,132 @@ const authMiddleware = async (req, res, next) => {
 };
 
 // POST /api/notifications/send - Send push notification to all users
+//
+// Design notes
+//  * Users are streamed with a cursor, never materialised as a whole array.
+//  * Tokens are validated and de-duplicated while streaming.
+//  * Batches of 100 go to Expo with bounded concurrency; results are counted as
+//    they arrive, so a slow send cannot balloon memory.
+//  * Tokens Expo reports as `DeviceNotRegistered` are cleared from the database,
+//    which keeps future sends fast and accurate.
+//  * Per-token logging is gone: it was a privacy leak and made the endpoint
+//    O(n) in stdout.
 router.post('/send', authMiddleware, async (req, res) => {
+    const startedAt = Date.now();
     try {
-        const { title, body } = req.body;
-        console.log('=== PUSH NOTIFICATION SEND START ===');
-        console.log('Title:', title);
-        console.log('Body:', body);
+        const { title, body } = req.body || {};
 
         if (!title || !body) {
-            console.log('ERROR: title or body missing');
             return res.status(400).json({
                 success: false,
                 message: 'title and body are required',
             });
         }
 
-        // Get all users with push tokens
-        const users = await NaamJapUser.find({
+        // Optional audience filter, useful for targeted announcements.
+        const filter = {
             isActive: true,
             pushToken: { $exists: true, $nin: [null, ''] },
-        }).select('pushToken name');
+        };
+        if (req.body.city) filter.city = req.body.city;
+        if (req.body.mobile) filter.mobile = req.body.mobile;
 
-        console.log('Total users with push tokens:', users.length);
-
-        if (users.length === 0) {
-            console.log('No users with push tokens found');
-            return res.json({
-                success: true,
-                response: {
-                    sent: 0,
-                    failed: 0,
-                    total: 0,
-                    message: 'No users with push tokens found',
-                },
-            });
-        }
-
-        // Log all tokens for debugging
-        users.forEach((user, i) => {
-            console.log(`User ${i + 1}: ${user.name} -> token: ${user.pushToken}`);
-        });
-
-        // Build messages
-        const messages = [];
-        const skippedTokens = [];
-        for (const user of users) {
-            if (!Expo.isExpoPushToken(user.pushToken)) {
-                console.log(`SKIP invalid token for ${user.name}: ${user.pushToken}`);
-                skippedTokens.push({ name: user.name, token: user.pushToken });
-                continue;
-            }
-            messages.push({
-                to: user.pushToken,
-                sound: 'default',
-                title: title,
-                body: body,
-                data: { screen: 'naam-jap-counter' },
-            });
-        }
-
-        console.log('Valid messages to send:', messages.length);
-        console.log('Skipped invalid tokens:', skippedTokens.length);
-
-        if (messages.length === 0) {
-            console.log('No valid push tokens to send to');
-            return res.json({
-                success: true,
-                response: {
-                    sent: 0,
-                    failed: 0,
-                    total: 0,
-                    skipped: skippedTokens.length,
-                    message: 'No valid push tokens found',
-                },
-            });
-        }
-
-        // Send each notification individually to avoid mixed-project token errors
-        console.log('Sending', messages.length, 'notifications individually...');
+        const seen = new Set();
+        let total = 0;
         let sent = 0;
         let failed = 0;
+        let skipped = 0;
         const errors = [];
+        const deadTokens = [];
 
-        for (let i = 0; i < messages.length; i++) {
-            const msg = messages[i];
+        const flush = async (batch) => {
+            if (!batch.length) return;
+            let tickets;
             try {
-                console.log(`Sending notification ${i + 1}/${messages.length} to token: ${msg.to}`);
-                const ticketChunk = await expo.sendPushNotificationsAsync([msg]);
-                const ticket = ticketChunk[0];
-
-                if (ticket.status === 'ok') {
-                    sent++;
-                    console.log(`Notification ${i + 1}: OK (id: ${ticket.id})`);
-                } else {
-                    failed++;
-                    console.log(`Notification ${i + 1}: FAILED - ${ticket.message} (details: ${JSON.stringify(ticket.details)})`);
-                    errors.push({ token: msg.to, error: ticket.message });
-                }
+                tickets = await expo.sendPushNotificationsAsync(batch);
             } catch (error) {
-                failed++;
-                console.error(`Notification ${i + 1}: ERROR - ${error.message}`);
-                errors.push({ token: msg.to, error: error.message });
+                failed += batch.length;
+                if (errors.length < MAX_REPORTED_ERRORS) {
+                    errors.push({ error: error.message, count: batch.length });
+                }
+                return;
+            }
+            tickets.forEach((ticket, index) => {
+                if (ticket.status === 'ok') {
+                    sent += 1;
+                    return;
+                }
+                failed += 1;
+                const token = batch[index]?.to;
+                if (ticket.details?.error === 'DeviceNotRegistered' && token) {
+                    deadTokens.push(token);
+                }
+                if (errors.length < MAX_REPORTED_ERRORS) {
+                    errors.push({
+                        token: token ? `${String(token).slice(0, 12)}…` : undefined,
+                        error: ticket.message,
+                        code: ticket.details?.error,
+                    });
+                }
+            });
+        };
+
+        // --- stream + send ---
+        const cursor = NaamJapUser.find(filter).select('pushToken').lean().cursor();
+        let pending = [];
+        let inflight = [];
+
+        for await (const user of cursor) {
+            const token = user.pushToken;
+            if (!token || !Expo.isExpoPushToken(token) || seen.has(token)) {
+                skipped += 1;
+                continue;
+            }
+            seen.add(token);
+            total += 1;
+            pending.push({ to: token, sound: 'default', title, body, data: { screen: 'naam-jap-counter' } });
+
+            if (pending.length >= BATCH_SIZE) {
+                inflight.push(flush(pending));
+                pending = [];
+                if (inflight.length >= BATCH_CONCURRENCY) {
+                    await Promise.all(inflight);
+                    inflight = [];
+                }
             }
         }
+        if (pending.length) inflight.push(flush(pending));
+        await Promise.all(inflight);
 
-        console.log('=== PUSH NOTIFICATION SEND COMPLETE ===');
-        console.log('Sent:', sent, '| Failed:', failed, '| Total:', messages.length);
+        // Housekeeping: drop tokens Expo says are dead. Fire and forget — the
+        // send must not fail because cleanup did.
+        if (deadTokens.length) {
+            NaamJapUser.updateMany(
+                { pushToken: { $in: deadTokens.slice(0, 5000) } },
+                { $unset: { pushToken: '' } }
+            ).catch((error) => console.error('[push] dead token cleanup failed:', error.message));
+        }
 
+        const durationMs = Date.now() - startedAt;
+        console.log(
+            `[push] sent=${sent} failed=${failed} skipped=${skipped} total=${total} in ${durationMs}ms`
+        );
+
+        announce('notifications', 'sent', { sent, failed, total, skipped, durationMs });
         res.json({
             success: true,
             response: {
                 sent,
                 failed,
-                total: messages.length,
-                skipped: skippedTokens.length,
-                errors: errors.length > 0 ? errors : undefined,
+                total,
+                skipped,
+                durationMs,
+                errors: errors.length ? errors : undefined,
             },
         });
     } catch (error) {
         console.error('=== PUSH NOTIFICATION ERROR ===');
         console.error('Error:', error.message);
-        console.error('Stack:', error.stack);
         res.status(500).json({ success: false, message: 'Failed to send notifications' });
     }
 });

@@ -3,44 +3,61 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
 const DailyQuote = require('../models/DailyQuote');
+const MembershipPlan = require('../models/MembershipPlan');
+const Subscription = require('../models/Subscription');
+const Reward = require('../models/Reward');
+const WithdrawalRequest = require('../models/WithdrawalRequest');
+const Referral = require('../models/Referral');
+const { verifyAdmin, invalidateAdmin } = require('../middleware/auth');
+const { cached } = require('../config/cache');
+const { getDashboardAnalytics } = require('../services/analyticsService');
+const ist = require('../utils/ist');
+
 const router = express.Router();
 
-// Helper: get today's date string YYYY-MM-DD
-const getTodayString = () => {
-    const now = new Date();
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-};
+// Simple in-memory brute-force protection for the login endpoint. Keyed by
+// IP + email so one noisy client cannot lock out everyone, and bounded so it
+// can never grow without limit.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_ATTEMPTS = Number(process.env.LOGIN_MAX_ATTEMPTS || 10);
+const loginAttempts = new Map();
 
-// Auth middleware
-const authMiddleware = async (req, res, next) => {
-    try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        if (!token) {
-            return res.status(401).json({ success: false, message: 'No token provided' });
-        }
+function loginKey(req, email) {
+    const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.ip || 'unknown';
+    return `${ip}|${String(email || '').toLowerCase()}`;
+}
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const admin = await Admin.findById(decoded.id);
-
-        if (!admin) {
-            return res.status(401).json({ success: false, message: 'Admin not found' });
-        }
-
-        req.admin = admin;
-        next();
-    } catch (error) {
-        return res.status(401).json({ success: false, message: 'Invalid token' });
+function registerFailure(key) {
+    const now = Date.now();
+    const entry = loginAttempts.get(key);
+    if (!entry || entry.resetAt < now) {
+        loginAttempts.set(key, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
+    } else {
+        entry.count += 1;
     }
-};
+    if (loginAttempts.size > 5000) {
+        for (const [k, v] of loginAttempts) if (v.resetAt < now) loginAttempts.delete(k);
+    }
+}
 
-// POST /api/admin/setup - Create default admin
+function isLocked(key) {
+    const entry = loginAttempts.get(key);
+    if (!entry) return 0;
+    if (entry.resetAt < Date.now()) {
+        loginAttempts.delete(key);
+        return 0;
+    }
+    return entry.count >= LOGIN_MAX_ATTEMPTS ? Math.ceil((entry.resetAt - Date.now()) / 1000) : 0;
+}
+
+// POST /api/admin/setup - Create the first admin (refuses once any admin exists)
 router.post('/setup', async (req, res) => {
     try {
-        const existingAdmin = await Admin.findOne({ email: 'admin@shreejii.com' });
-        if (existingAdmin) {
+        const anyAdmin = await Admin.findOne().select('_id').lean();
+        if (anyAdmin) {
             return res.status(400).json({
                 success: false,
-                message: 'Default admin already exists. Login with admin@shreejii.com',
+                message: 'An admin already exists. Please sign in instead.',
             });
         }
 
@@ -76,19 +93,34 @@ router.post('/login', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Email and password are required' });
         }
 
-        const admin = await Admin.findOne({ email: email.toLowerCase() });
+        const key = loginKey(req, email);
+        const lockedFor = isLocked(key);
+        if (lockedFor > 0) {
+            res.set('Retry-After', String(lockedFor));
+            return res.status(429).json({
+                success: false,
+                message: `Too many attempts. Try again in ${Math.ceil(lockedFor / 60)} minute(s).`,
+            });
+        }
+
+        const admin = await Admin.findOne({ email: String(email).toLowerCase() });
         if (!admin) {
+            registerFailure(key);
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
         const isMatch = await admin.comparePassword(password);
         if (!isMatch) {
+            registerFailure(key);
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
         }
 
-        // Update last login
+        loginAttempts.delete(key);
+
+        // Update last login without running full document validation and
+        // without triggering the password-hashing hook.
         admin.lastLogin = new Date();
-        await admin.save();
+        await Admin.updateOne({ _id: admin._id }, { $set: { lastLogin: admin.lastLogin } });
 
         const token = jwt.sign(
             { id: admin._id, role: admin.role },
@@ -110,28 +142,29 @@ router.post('/login', async (req, res) => {
 });
 
 // GET /api/admin/me - Get current admin profile
-router.get('/me', authMiddleware, async (req, res) => {
+router.get('/me', verifyAdmin, async (req, res) => {
     try {
-        res.json({ success: true, response: req.admin.toJSON() });
+        res.json({ success: true, response: req.admin });
     } catch (error) {
         res.status(500).json({ success: false, message: 'Failed to get profile' });
     }
 });
 
-
 // PUT /api/admin/profile - Update profile
-router.put('/profile', authMiddleware, async (req, res) => {
+router.put('/profile', verifyAdmin, async (req, res) => {
     try {
         const { name, email, avatar } = req.body;
-        const admin = req.admin;
+        const $set = {};
+        if (name) $set.name = name;
+        if (email) $set.email = String(email).toLowerCase();
+        if (avatar !== undefined) $set.avatar = avatar;
 
-        if (name) admin.name = name;
-        if (email) admin.email = email;
-        if (avatar !== undefined) admin.avatar = avatar;
+        const admin = await Admin.findByIdAndUpdate(req.adminId, { $set }, { new: true, runValidators: true })
+            .select('-password')
+            .lean();
 
-        await admin.save();
-
-        res.json({ success: true, response: admin.toJSON() });
+        invalidateAdmin(req.adminId);
+        res.json({ success: true, response: admin });
     } catch (error) {
         console.error('Profile update error:', error);
         res.status(500).json({ success: false, message: 'Failed to update profile' });
@@ -139,7 +172,7 @@ router.put('/profile', authMiddleware, async (req, res) => {
 });
 
 // PUT /api/admin/password - Update password
-router.put('/password', authMiddleware, async (req, res) => {
+router.put('/password', verifyAdmin, async (req, res) => {
     try {
         const { currentPassword, newPassword } = req.body;
 
@@ -147,17 +180,25 @@ router.put('/password', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Current and new password are required' });
         }
 
-        if (newPassword.length < 6) {
-            return res.status(400).json({ success: false, message: 'New password must be at least 6 characters' });
+        if (String(newPassword).length < 8) {
+            return res.status(400).json({ success: false, message: 'New password must be at least 8 characters' });
         }
 
-        const isMatch = await req.admin.comparePassword(currentPassword);
+        // Password comparison needs the real document (the middleware caches a
+        // password-free copy for speed).
+        const admin = await Admin.findById(req.adminId);
+        if (!admin) {
+            return res.status(401).json({ success: false, message: 'Admin not found' });
+        }
+
+        const isMatch = await admin.comparePassword(currentPassword);
         if (!isMatch) {
             return res.status(400).json({ success: false, message: 'Current password is incorrect' });
         }
 
-        req.admin.password = newPassword;
-        await req.admin.save();
+        admin.password = newPassword;
+        await admin.save();
+        invalidateAdmin(req.adminId);
 
         res.json({ success: true, message: 'Password updated successfully' });
     } catch (error) {
@@ -166,121 +207,65 @@ router.put('/password', authMiddleware, async (req, res) => {
     }
 });
 
-// GET /api/admin/activity - Get admin activity
-router.get('/activity', authMiddleware, async (req, res) => {
+// GET /api/admin/activity - Admin activity + platform footprint
+router.get('/activity', verifyAdmin, async (req, res) => {
     try {
+        const stats = await cached('settings', 'admin-activity', 60, async () => {
+            const [
+                totalUsers,
+                totalQuotes,
+                totalPlans,
+                totalSubscriptions,
+                activeRewards,
+                pendingWithdrawals,
+                totalReferrals,
+            ] = await Promise.all([
+                NaamJapUser.countDocuments({ isActive: true }),
+                DailyQuote.countDocuments(),
+                MembershipPlan.countDocuments(),
+                Subscription.countDocuments({ status: 'paid' }),
+                Reward.countDocuments({ isActive: true }),
+                WithdrawalRequest.countDocuments({ status: 'pending' }),
+                Referral.countDocuments(),
+            ]);
+            return {
+                totalUsers,
+                totalQuotes,
+                totalPlans,
+                totalSubscriptions,
+                activeRewards,
+                pendingWithdrawals,
+                totalReferrals,
+            };
+        });
+
         res.json({
             success: true,
             response: {
-                admin: req.admin.toJSON(),
+                admin: req.admin,
                 activity: {
                     lastLogin: req.admin.lastLogin || req.admin.createdAt,
                     accountCreated: req.admin.createdAt,
-                    stats: {
-                        totalOrders: 0,
-                        totalUsers: 0,
-                        totalCoupons: 0,
-                        totalCategories: 0,
-                        totalBanners: 0,
-                        totalDeliveryPartners: 0,
-                    },
+                    stats,
                 },
             },
         });
     } catch (error) {
+        console.error('Activity error:', error);
         res.status(500).json({ success: false, message: 'Failed to get activity' });
     }
 });
 
 // GET /api/admin/analytics - Dashboard analytics (real Naam Jap data)
-router.get('/analytics', authMiddleware, async (req, res) => {
+router.get('/analytics', verifyAdmin, async (req, res) => {
     try {
-        // Naam Jap stats
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
-        const totals = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            { $group: { _id: null, totalMalas: { $sum: '$totalMalas' }, totalCount: { $sum: '$totalCount' } } },
-        ]);
+        const startedAt = Date.now();
+        const payload = await getDashboardAnalytics({ force: req.query.force === '1' });
+        const duration = Date.now() - startedAt;
 
-        const today = getTodayString();
-        const todayActive = await NaamJapUser.countDocuments({
-            isActive: true,
-            'dailyLogs.date': today,
-        });
-
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const newThisWeek = await NaamJapUser.countDocuments({
-            createdAt: { $gte: weekAgo },
-        });
-
-        // Daily Quotes stats
-        const totalQuotes = await DailyQuote.countDocuments();
-        const activeQuotes = await DailyQuote.countDocuments({ isActive: true });
-
-        // Top 10 users
-        const topUsersRaw = await NaamJapUser.find({ isActive: true })
-            .sort({ totalMalas: -1 })
-            .limit(10)
-            .select('name city totalMalas totalCount lastSyncAt');
-
-        // Daily activity for last 7 days
-        const last7Days = [];
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            last7Days.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
-        }
-
-        const dailyActivityRaw = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            { $unwind: '$dailyLogs' },
-            { $match: { 'dailyLogs.date': { $in: last7Days } } },
-            {
-                $group: {
-                    _id: '$dailyLogs.date',
-                    malas: { $sum: '$dailyLogs.malas' },
-                    count: { $sum: '$dailyLogs.count' },
-                    users: { $addToSet: '$_id' },
-                },
-            },
-            { $project: { date: '$_id', malas: 1, count: 1, users: { $size: '$users' } } },
-            { $sort: { date: 1 } },
-        ]);
-
-        res.json({
-            success: true,
-            response: {
-                naamJap: {
-                    totalUsers,
-                    totalMalas: totals[0]?.totalMalas || 0,
-                    totalCount: totals[0]?.totalCount || 0,
-                    todayActiveUsers: todayActive,
-                    newUsersThisWeek: newThisWeek,
-                },
-                dailyQuotes: {
-                    total: totalQuotes,
-                    active: activeQuotes,
-                },
-                topUsers: topUsersRaw.map((u, i) => ({
-                    rank: i + 1,
-                    name: u.name,
-                    city: u.city,
-                    malas: u.totalMalas,
-                    count: u.totalCount,
-                })),
-                dailyActivity: last7Days.map((date) => {
-                    const found = dailyActivityRaw.find((d) => d.date === date);
-                    const shortDate = new Date(date + 'T00:00:00').toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
-                    return {
-                        name: shortDate,
-                        malas: found?.malas || 0,
-                        users: found?.users || 0,
-                        count: found?.count || 0,
-                    };
-                }),
-            },
-        });
+        res.set('Server-Timing', `analytics;dur=${duration};desc="${payload.source}"`);
+        res.set('X-Cache', payload.source === 'fresh' ? 'MISS' : 'HIT');
+        res.json({ success: true, response: payload });
     } catch (error) {
         console.error('Analytics error:', error);
         res.status(500).json({ success: false, message: 'Failed to get analytics' });

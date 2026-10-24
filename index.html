@@ -8,13 +8,63 @@
     <title>Admin Dashboard | श्री जी</title>
     <meta name="description"
         content="श्री जी (Shree Jee) admin dashboard to manage users, daily quotes, and app content securely." />
+    <!-- Internal tool: never index it. -->
+    <meta name="robots" content="noindex, nofollow" />
 
     <meta name="theme-color" content="#0b1220" />
+    <meta name="color-scheme" content="dark light" />
+
+    <!--
+      The logo is a 2.5 kB, 192 px PNG (it used to be a 396 kB, 1024 px file
+      shipped on every page). Preloading it removes one round trip from the
+      first paint of the login screen.
+    -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!--
+      Inline critical styling: paints the brand background immediately instead
+      of flashing white while the JS bundle downloads. `#root:empty` means it
+      disappears the instant React renders, so it can never cover the app.
+    -->
+    <style>
+        html,
+        body {
+            margin: 0;
+            background: #0b1220;
+        }
+
+        #root:empty::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(60% 50% at 50% 0%, #f59e0b1f 0%, transparent 70%),
+                #0b1220;
+        }
+
+        #root:empty::after {
+            content: 'श्री जी';
+            position: fixed;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font: 600 20px/1 system-ui, -apple-system, 'Segoe UI', sans-serif;
+            color: #f59e0b;
+            letter-spacing: 0.5px;
+        }
+    </style>
 </head>
 
 <body>
     <div id="root"></div>
 
+    <noscript>
+        <div style="color:#e5e7eb;font-family:system-ui,sans-serif;padding:32px;text-align:center">
+            This dashboard needs JavaScript enabled.
+        </div>
+    </noscript>
 
     <!-- Entry point -->
     <script type="module" src="/src/main.tsx"></script>

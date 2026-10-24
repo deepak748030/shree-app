@@ -67,7 +67,14 @@ export function LoginPage() {
                 <div className="relative z-10 flex flex-col justify-between p-12 text-white w-full">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-white/20 backdrop-blur-sm rounded-2xl">
-                            <img src={shreeJiLogo} alt="Shree Ji" className="w-12 h-12 object-contain" />
+                            <img
+                                src={shreeJiLogo}
+                                alt="Shree Ji"
+                                width={48}
+                                height={48}
+                                fetchPriority="high"
+                                className="w-12 h-12 object-contain"
+                            />
                         </div>
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight">श्री जी</h1>
@@ -109,7 +116,14 @@ export function LoginPage() {
                     {/* Mobile Logo */}
                     <div className="lg:hidden text-center mb-8">
                         <div className="inline-flex items-center justify-center p-3 bg-primary rounded-2xl mb-4">
-                            <img src={shreeJiLogo} alt="Shree Ji" className="w-12 h-12 object-contain" />
+                            <img
+                                src={shreeJiLogo}
+                                alt="Shree Ji"
+                                width={48}
+                                height={48}
+                                fetchPriority="high"
+                                className="w-12 h-12 object-contain"
+                            />
                         </div>
                         <h1 className="text-2xl font-bold text-primary">श्री जी</h1>
                         <p className="text-sm text-muted-foreground">Shree Jii Admin</p>

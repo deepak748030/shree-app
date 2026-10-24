@@ -1,11 +1,16 @@
 {
-  "name": "bhojan-server",
+  "name": "shree-jii-server",
   "version": "1.0.0",
-  "description": "Backend server for Bhojan app",
+  "description": "Shree Jii platform API (Express + MongoDB)",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "test": "node --test \"tests/*.test.js\"",
+    "backup": "node scripts/backup.js",
+    "restore": "node scripts/restore.js",
+    "indexes": "node scripts/ensureIndexes.js",
+    "verify-data": "node scripts/verifyData.js"
   },
   "dependencies": {
     "@upstash/redis": "^1.38.0",

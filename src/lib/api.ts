@@ -1,12 +1,25 @@
 import axios from 'axios'
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+/**
+ * Base URL resolution
+ *  - `VITE_API_URL` wins when set (production / custom deployments)
+ *  - otherwise a relative `/api` is used, which the Vite dev server proxies to
+ *    the local API. That keeps the dashboard same-origin in dev and previews
+ *    (no CORS, no localhost URLs leaking into the browser).
+ */
+export const API_URL = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '/api'
+
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_TIMEOUT_MS || 20000)
 
 const api = axios.create({
     baseURL: API_URL,
+    timeout: REQUEST_TIMEOUT_MS,
     headers: {
         'Content-Type': 'application/json',
+        Accept: 'application/json',
     },
+    // Keep connections warm; the browser reuses them for subsequent calls.
+    transitional: { clarifyTimeoutError: true },
 })
 
 // Add auth token to requests
@@ -16,6 +29,22 @@ api.interceptors.request.use((config) => {
         config.headers.Authorization = `Bearer ${token}`
     }
     return config
+})
+
+// Retry idempotent requests once on a transient network failure. Never retries
+// POST/PUT/DELETE, because a duplicate write is worse than a visible error.
+api.interceptors.response.use(undefined, async (error) => {
+    const config = error?.config as (typeof error.config & { __retried?: boolean }) | undefined
+    const method = (config?.method || 'get').toLowerCase()
+    const isNetworkError = !error.response && !!config
+    const isTimeout = error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT'
+
+    if (config && !config.__retried && (method === 'get' || method === 'head') && (isNetworkError || isTimeout)) {
+        config.__retried = true
+        await new Promise((resolve) => setTimeout(resolve, 350))
+        return api(config)
+    }
+    return Promise.reject(error)
 })
 
 // Handle auth errors - auto logout on 401/403
@@ -50,6 +79,15 @@ export interface DashboardAnalytics {
         totalCount: number
         todayActiveUsers: number
         newUsersThisWeek: number
+        // additive fields from the optimised analytics service
+        yesterdayActiveUsers?: number
+        newUsersToday?: number
+        activeMilestoneUsers?: number
+        todayMalas?: number
+        todayCount?: number
+        last7DaysMalas?: number
+        dayOverDayTrend?: number | null
+        avgMalasPerActiveUser?: number
     }
     dailyQuotes: {
         total: number
@@ -61,13 +99,34 @@ export interface DashboardAnalytics {
         city: string
         malas: number
         count: number
+        profileImage?: string
     }[]
     dailyActivity: {
         name: string
         malas: number
         users: number
         count: number
+        date?: string
     }[]
+    membership?: {
+        activeMembers: number
+        paidSubscriptions: number
+        lifetimeMembers: number
+        revenue: number
+        revenueThisMonth: number
+    }
+    money?: {
+        pendingWithdrawals: { count: number; amount: number }
+        paidWithdrawals: { count: number; amount: number }
+        rejectedWithdrawals: { count: number; amount: number }
+        wallet: { users: number; balance: number; totalEarned: number; totalWithdrawn: number }
+        rewardClaims: number
+        handwritten: { users: number; lifetimeCount: number }
+    }
+    generatedAt?: string
+    today?: string
+    source?: 'memory' | 'shared' | 'fresh'
+    cachedForMs?: number
 }
 
 // Auth APIs
@@ -87,9 +146,29 @@ export const setupAdmin = async () => {
 }
 
 // Dashboard APIs
-export const getDashboardAnalytics = async () => {
-    const response = await api.get('/admin/analytics')
+export const getDashboardAnalytics = async (force = false) => {
+    const response = await api.get('/admin/analytics', { params: force ? { force: 1 } : undefined })
     return response.data as { success: boolean; response: DashboardAnalytics }
+}
+
+/** Latency profile (p50/p95 per route) + cache/hub stats. */
+export const getSystemMetrics = async () => {
+    const response = await api.get('/system/metrics')
+    return response.data as {
+        success: boolean
+        response: {
+            uptimeSeconds: number
+            memory: { rssMb: number; heapUsedMb: number }
+            totals: { requests: number; avgMs: number }
+            slowest: { route: string; count: number; avgMs: number; p50Ms: number; p95Ms: number; maxMs: number; errors: number }[]
+        }
+    }
+}
+
+/** Drop a cache namespace after a manual data fix. */
+export const flushCache = async (namespaces?: string[]) => {
+    const response = await api.post('/system/cache/flush', { namespaces: namespaces?.join(',') })
+    return response.data
 }
 
 // Admin Settings APIs
@@ -201,6 +280,8 @@ export interface NaamJapUserData {
     _id: string
     name: string
     city: string
+    mobile?: string
+    profileImage?: string
     totalCount: number
     totalMalas: number
     lastSyncAt: string

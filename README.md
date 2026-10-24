@@ -14,6 +14,13 @@ This repository contains three connected applications:
 
 ## Architecture
 
+![Full platform architecture](docs/architecture.svg)
+
+The full diagram above maps every client, endpoint, service and datastore. It is
+explained line by line in [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), with
+Mermaid diagrams for the request lifecycle, the realtime sync sequence and the
+data model.
+
 ```text
 ┌──────────────────────┐       ┌─────────────────────────┐
 │ Expo mobile app      │──────▶│ Express API             │
@@ -22,9 +29,27 @@ This repository contains three connected applications:
                                │ MongoDB · Cloudinary    │
 ┌──────────────────────┐       │ Razorpay · Upstash      │
 │ React admin dashboard│──────▶│ Expo Push Service       │
-│ Vite web app         │       └─────────────────────────┘
-└──────────────────────┘
+│ Vite web app         │◀─────▶│ SSE /api/realtime       │
+└──────────────────────┘       └─────────────────────────┘
 ```
+
+### Performance & realtime at a glance
+
+| Layer | What makes it fast | What makes it live |
+| --- | --- | --- |
+| API | versioned two-tier cache, single-flight loads, index-backed aggregations, atomic single-roundtrip sync | SSE hub with throttle + replay, cache invalidated before events are published |
+| Dashboard | SWR cache, request de-duplication, route-level code splitting, hover prefetch | live badge, automatic refresh on events, focus/reconnect revalidation, polling fallback |
+| App | timeouts, GET retry, memoised static reads, adaptive sync, AppState pause | realtime version detection for content changes |
+
+Numbers, tuning knobs and the measurement commands are in
+[`docs/PERFORMANCE.md`](docs/PERFORMANCE.md).
+
+### Data safety
+
+Existing data is never dropped silently: daily logs are archived before they
+leave the hot window, lifetime counters are merged with `$max`, indexes are only
+ever created, and backups/restores are checksum-verified and non-destructive by
+default. The full runbook is in [`docs/DATA-SAFETY.md`](docs/DATA-SAFETY.md).
 
 ## Main features
 
@@ -130,7 +155,9 @@ The root `.env` controls the dashboard:
 
 | Variable | Required | Example | Description |
 | --- | --- | --- | --- |
-| `VITE_API_URL` | Yes | `http://localhost:5000/api` | Complete API base URL, including `/api` |
+| `VITE_API_URL` | No | *(empty)* | Full API base URL including `/api`. Leave empty in development — Vite proxies `/api` to `VITE_PROXY_TARGET`, keeping the app same-origin. |
+| `VITE_PROXY_TARGET` | No | `http://127.0.0.1:5000` | Dev-server proxy target for `/api` |
+| `VITE_API_TIMEOUT_MS` | No | `20000` | Client request timeout |
 
 Vite exposes variables prefixed with `VITE_` to browser code. Never place server secrets in the dashboard environment.
 
@@ -162,6 +189,9 @@ Authenticated routes:
 - `/membership-plans`, `/subscriptions`
 - `/rewards`, `/withdrawals`, `/referrals`, `/settings`
 
+Every dashboard page is lazily loaded. The shell and login screen ship in the
+initial bundle; charts load only when a page needs them.
+
 Admin JWT and profile data are stored in browser `localStorage`. API `401` and `403` responses clear the session and return the user to the login screen.
 
 ## Project structure
@@ -185,12 +215,22 @@ Admin JWT and profile data are stored in browser `localStorage`. API `401` and `
 Run checks in all three projects:
 
 ```bash
-npm run lint
-npm run build
+npx tsc --noEmit            # dashboard types
+npm run build               # production build
 npm --prefix shree-app run lint
 npm --prefix shree-app run typecheck
 npm --prefix shree-app run build
+npm --prefix server test    # cache / realtime / IST unit tests
 node --check server/index.js
+```
+
+Before deploying anything that touches stored data:
+
+```bash
+cd server
+npm run verify-data         # read-only integrity report
+npm run backup              # streaming, checksummed backup
+npm run indexes             # create missing indexes (never drops)
 ```
 
 The API currently has no automated test script, so exercise `/api/health`, authentication, and any modified endpoint manually against a non-production database.
@@ -226,5 +266,8 @@ Build from `shree-app/` after setting production Expo environment variables and 
 
 ## More documentation
 
+- [Architecture & realtime design](docs/ARCHITECTURE.md) · [diagram](docs/architecture.svg)
+- [Performance notes & tuning](docs/PERFORMANCE.md)
+- [Data safety, backup and restore](docs/DATA-SAFETY.md)
 - [API server guide](server/README.md)
 - [Expo mobile app guide](shree-app/README.md)

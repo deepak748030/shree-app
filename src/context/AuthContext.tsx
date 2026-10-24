@@ -1,5 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react'
 import { Admin, adminLogin, getAdminProfile } from '../lib/api'
+import { clearCache } from '../lib/dataClient'
+import { stopRealtime } from '../lib/realtime'
 
 interface AuthContextType {
     admin: Admin | null
@@ -77,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const login = async (email: string, password: string) => {
         const response = await adminLogin(email, password)
         if (response.success) {
+            // Never let one admin see another admin's cached numbers.
+            clearCache()
             localStorage.setItem('admin_token', response.response.token)
             localStorage.setItem('admin_user', JSON.stringify(response.response.admin))
             setAdmin(response.response.admin)
@@ -87,6 +91,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const logout = useCallback(() => {
+        stopRealtime()
+        clearCache()
         localStorage.removeItem('admin_token')
         localStorage.removeItem('admin_user')
         setAdmin(null)

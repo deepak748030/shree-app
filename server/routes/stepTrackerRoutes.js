@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const StepTracker = require('../models/StepTracker');
+const { announceThrottled } = require('../config/announce');
+const ist = require('../utils/ist');
 
 // Sync step data
 router.post('/sync', async (req, res) => {
@@ -12,7 +14,7 @@ router.post('/sync', async (req, res) => {
         }
 
         const cleanMobile = String(mobile).trim().replace(/[^0-9]/g, '');
-        const today = new Date().toISOString().split('T')[0];
+        const today = ist.today();
         const nextSteps = Math.max(0, Number(todaySteps) || 0);
         const nextDistance = Math.max(0, Number(todayDistance) || 0);
         const nextCalories = Math.max(0, Number(todayCalories) || 0);
@@ -78,6 +80,7 @@ router.post('/sync', async (req, res) => {
         user.lastSyncAt = new Date();
         await user.save();
 
+        announceThrottled('users', 'steps', { deviceId }, ['analytics']);
         res.json({ success: true, response: user });
     } catch (error) {
         console.error('Step sync error:', error);
@@ -92,6 +95,7 @@ router.get('/user/:deviceId', async (req, res) => {
         if (!user) {
             return res.json({ success: true, response: null });
         }
+        announceThrottled('users', 'steps', { deviceId }, ['analytics']);
         res.json({ success: true, response: user });
     } catch (error) {
         console.error('Step fetch error:', error);

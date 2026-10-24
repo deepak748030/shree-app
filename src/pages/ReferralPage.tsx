@@ -40,6 +40,8 @@ export function ReferralPage() {
     }
 
     useEffect(() => { load() }, [])
+    // `loadHistory` closes over page/statusFilter/search from this render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { if (tab === 'history') loadHistory() }, [tab, page, statusFilter])
 
     const save = async () => {

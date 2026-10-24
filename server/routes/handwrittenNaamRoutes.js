@@ -1,14 +1,49 @@
 const express = require('express');
 const HandwrittenNaam = require('../models/HandwrittenNaam');
+const HandwrittenLogArchive = require('../models/HandwrittenLogArchive');
+const { announceThrottled } = require('../config/announce');
+const ist = require('../utils/ist');
 const router = express.Router();
 
-// Helper: today's date YYYY-MM-DD in IST
-const getTodayString = () => {
-    const now = new Date();
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + istOffset);
-    return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
-};
+// Retention window for hot per-day logs. Anything older is copied to
+// HandwrittenLogArchive before being trimmed — history is never discarded.
+const RETAIN_DAYS = Number(process.env.HANDWRITTEN_RETAIN_DAYS || 400);
+
+// Helper: today's date YYYY-MM-DD in IST (shared platform helper)
+const getTodayString = () => ist.today();
+
+/**
+ * Copy old daily logs to cold storage, then trim the hot document.
+ * The copy happens first and is idempotent (unique device+date index), so an
+ * interrupted run is safe and no log can be lost.
+ */
+async function archiveAndTrim(user) {
+    const cutoff = ist.daysAgo(RETAIN_DAYS);
+    const stale = (user.dailyLogs || []).filter((log) => log.date < cutoff);
+    if (stale.length === 0) return 0;
+    await HandwrittenLogArchive.bulkWrite(
+        stale.map((log) => ({
+            updateOne: {
+                filter: { deviceId: user.deviceId, date: log.date },
+                update: {
+                    $set: {
+                        deviceId: user.deviceId,
+                        mobile: user.mobile || '',
+                        date: log.date,
+                        count: log.count || 0,
+                        mantra: user.selectedMantra || '',
+                        archivedAt: new Date(),
+                        reason: 'retention',
+                    },
+                },
+                upsert: true,
+            },
+        })),
+        { ordered: false }
+    );
+    user.dailyLogs = user.dailyLogs.filter((log) => log.date >= cutoff);
+    return stale.length;
+}
 
 const getTodayCount = (user) => {
     const today = getTodayString();
@@ -73,17 +108,15 @@ router.post('/increment', async (req, res) => {
         if (existing) {
             existing.count = (existing.count || 0) + inc;
         } else {
-            // Cap to last 90 days
-            if (user.dailyLogs.length >= 90) {
-                user.dailyLogs.sort((a, b) => a.date.localeCompare(b.date));
-                user.dailyLogs = user.dailyLogs.slice(-89);
-            }
             user.dailyLogs.push({ date: today, count: inc });
         }
 
         user.lifetimeCount = (user.lifetimeCount || 0) + inc;
         user.lastSyncAt = new Date();
+        await archiveAndTrim(user);
         await user.save();
+
+        announceThrottled('users', 'handwritten', { deviceId }, ['analytics']);
 
         return res.json({
             success: true,

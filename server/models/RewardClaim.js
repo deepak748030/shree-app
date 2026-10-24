@@ -10,5 +10,6 @@ const rewardClaimSchema = new mongoose.Schema({
 
 rewardClaimSchema.index({ deviceId: 1, rewardId: 1 }, { unique: true });
 rewardClaimSchema.index({ mobile: 1, rewardId: 1 }, { unique: true, sparse: true });
+rewardClaimSchema.index({ createdAt: -1 });
 
 module.exports = mongoose.model('RewardClaim', rewardClaimSchema);

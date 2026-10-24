@@ -5,6 +5,7 @@ const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const HomeContent = require('../models/HomeContent');
 const { cacheRoute, cacheDel } = require('../config/redis');
+const { announce } = require('../config/announce');
 const HOME_CACHE_KEY = 'home:content';
 const router = express.Router();
 
@@ -100,7 +101,8 @@ router.post('/', authMiddleware, async (req, res) => {
             content.paragraphs_hi = paragraphs_hi || [];
             content.paragraphs_en = paragraphs_en || [];
             await content.save();
-        cacheDel(HOME_CACHE_KEY);
+            cacheDel(HOME_CACHE_KEY);
+            announce('content', 'changed', {}, ['content']);
         } else {
             content = new HomeContent({
                 title_hi: title_hi || '',
@@ -111,7 +113,8 @@ router.post('/', authMiddleware, async (req, res) => {
                 paragraphs_en: paragraphs_en || [],
             });
             await content.save();
-        cacheDel(HOME_CACHE_KEY);
+            cacheDel(HOME_CACHE_KEY);
+            announce('content', 'changed', {}, ['content']);
         }
 
         res.json({
@@ -144,6 +147,7 @@ router.post('/banner/upload', authMiddleware, upload.single('image'), async (req
         }
         await content.save();
         cacheDel(HOME_CACHE_KEY);
+        announce('content', 'changed', {}, ['content']);
 
         res.json({
             success: true,
@@ -171,6 +175,7 @@ router.delete('/banner', authMiddleware, async (req, res) => {
         content.bannerImages = content.bannerImages.filter(url => url !== imageUrl);
         await content.save();
         cacheDel(HOME_CACHE_KEY);
+        announce('content', 'changed', {}, ['content']);
 
         // Delete from Cloudinary
         await deleteFromCloudinary(imageUrl);
@@ -208,6 +213,7 @@ router.post('/sidebar-image/upload', authMiddleware, upload.single('image'), asy
         }
         await content.save();
         cacheDel(HOME_CACHE_KEY);
+        announce('content', 'changed', {}, ['content']);
 
         res.json({
             success: true,
@@ -231,6 +237,7 @@ router.delete('/sidebar-image', authMiddleware, async (req, res) => {
         content.sidebarImage = '';
         await content.save();
         cacheDel(HOME_CACHE_KEY);
+        announce('content', 'changed', {}, ['content']);
 
         res.json({
             success: true,

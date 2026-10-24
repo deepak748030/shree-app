@@ -13,5 +13,6 @@ const withdrawalRequestSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 withdrawalRequestSchema.index({ status: 1, createdAt: -1 });
+withdrawalRequestSchema.index({ status: 1, amount: 1 });
 
 module.exports = mongoose.model('WithdrawalRequest', withdrawalRequestSchema);

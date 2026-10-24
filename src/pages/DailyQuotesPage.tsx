@@ -37,6 +37,10 @@ export function DailyQuotesPage() {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
+    // `fetchQuotes` closes over `page`, which is the only value that changes
+    // its result; it lives on the same render as this effect, so the closure
+    // is always current (the rule cannot prove that for a local function).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { fetchQuotes() }, [page])
 
     const fetchQuotes = async () => {

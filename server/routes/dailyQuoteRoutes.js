@@ -5,6 +5,7 @@ const cloudinary = require('../config/cloudinary');
 const Admin = require('../models/Admin');
 const DailyQuote = require('../models/DailyQuote');
 const { cacheRoute, cacheDel, cacheDelPattern } = require('../config/redis');
+const { announce } = require('../config/announce');
 const invalidateQuotes = () => { cacheDel('dq:today'); cacheDelPattern('dq:recent:*'); };
 const router = express.Router();
 
@@ -208,6 +209,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
         await quote.save();
         invalidateQuotes();
+        announce('quotes', 'changed', {}, ['quotes', 'analytics']);
         res.status(201).json({ success: true, response: quote });
     } catch (error) {
         console.error('Create image error:', error);
@@ -240,6 +242,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
         await quote.save();
         invalidateQuotes();
+        announce('quotes', 'changed', {}, ['quotes', 'analytics']);
         res.json({ success: true, response: quote });
     } catch (error) {
         console.error('Update image error:', error);
@@ -262,6 +265,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 
         await DailyQuote.findByIdAndDelete(req.params.id);
         invalidateQuotes();
+        announce('quotes', 'changed', {}, ['quotes', 'analytics']);
         res.json({ success: true, message: 'Image deleted successfully' });
     } catch (error) {
         console.error('Delete image error:', error);

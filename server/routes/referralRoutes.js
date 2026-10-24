@@ -9,6 +9,7 @@ const WalletTransaction = require('../models/WalletTransaction');
 const Subscription = require('../models/Subscription');
 const NaamJapUser = require('../models/NaamJapUser');
 const { cacheRoute, cacheDel } = require('../config/redis');
+const { announce } = require('../config/announce');
 const REF_SETTINGS_KEY = 'ref:settings';
 
 const router = express.Router();
@@ -391,6 +392,7 @@ router.put('/admin/settings', authMiddleware, async (req, res) => {
             await s.save();
         }
         cacheDel(REF_SETTINGS_KEY);
+        announce('referrals', 'settings-updated', {}, ['referrals']);
         res.json({ success: true, response: s });
     } catch (err) {
         console.error('Update settings error:', err);
@@ -509,6 +511,7 @@ router.post('/admin/uses/:id/action', authMiddleware, async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid action' });
         }
 
+        announce('referrals', 'action', { useId: String(use._id), status: use.status }, ['referrals', 'analyticsBiz']);
         res.json({ success: true, response: use });
     } catch (err) {
         console.error('Use action error:', err);

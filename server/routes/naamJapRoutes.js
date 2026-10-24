@@ -1,10 +1,16 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
-const Admin = require('../models/Admin');
 const NaamJapUser = require('../models/NaamJapUser');
+const DailyLogArchive = require('../models/DailyLogArchive');
+const HandwrittenNaam = require('../models/HandwrittenNaam');
+const StepTracker = require('../models/StepTracker');
 const { migrateDeviceId } = require('../utils/migrateDeviceId');
+const { verifyAdmin } = require('../middleware/auth');
+const { cached } = require('../config/cache');
+const realtime = require('../config/realtime');
+const ist = require('../utils/ist');
+const { enforceRetention, needsRetention } = require('../services/dailyLogRetention');
 const router = express.Router();
 
 // Multer for in-memory image upload
@@ -39,30 +45,36 @@ const deleteFromCloudinary = async (imageUrl) => {
     }
 };
 
+const normaliseMobile = (mobile) => String(mobile || '').trim().replace(/[^0-9]/g, '');
 
-// Admin auth middleware
-const authMiddleware = async (req, res, next) => {
+/** Fire-and-forget realtime + cache invalidation for a user write. */
+function announceUserChange(type, payload) {
     try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        if (!token) return res.status(401).json({ success: false, message: 'No token provided' });
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const admin = await Admin.findById(decoded.id);
-        if (!admin) return res.status(401).json({ success: false, message: 'Admin not found' });
-        req.admin = admin;
-        next();
-    } catch (error) {
-        return res.status(401).json({ success: false, message: 'Invalid token' });
+        realtime.publishThrottled('users', type, payload, {
+            invalidate: ['users', 'analytics', 'leaderboard', 'stats'],
+        });
+    } catch {
+        /* never fail a write because of the event hub */
     }
-};
+}
 
-// Helper: get today's date string YYYY-MM-DD in Indian timezone (IST)
-const getTodayString = () => {
-    const now = new Date();
-    // Convert to IST (UTC+5:30)
-    const istOffset = 5.5 * 60 * 60 * 1000;
-    const istDate = new Date(now.getTime() + (now.getTimezoneOffset() * 60 * 1000) + istOffset);
-    return `${istDate.getFullYear()}-${String(istDate.getMonth() + 1).padStart(2, '0')}-${String(istDate.getDate()).padStart(2, '0')}`;
-};
+// Cached global counters. These change constantly, so the TTL is short and they
+// are invalidated by writes through `announceUserChange`.
+const TOTAL_USERS_TTL = 15;
+
+async function getTotalUsers() {
+    return cached('stats', 'total-users', TOTAL_USERS_TTL, () =>
+        NaamJapUser.countDocuments({ isActive: true })
+    );
+}
+
+async function getRankAndTotal(totalMalas) {
+    const [rank, totalUsers] = await Promise.all([
+        NaamJapUser.countDocuments({ isActive: true, totalMalas: { $gt: totalMalas } }),
+        getTotalUsers(),
+    ]);
+    return { rank: rank + 1, totalUsers: Math.max(totalUsers, rank + 1) };
+}
 
 // ============ PUBLIC ROUTES (for mobile app) ============
 
@@ -75,8 +87,10 @@ router.post('/validate-session', async (req, res) => {
             return res.status(400).json({ success: false, message: 'mobile and deviceId are required' });
         }
 
-        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
-        const user = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId, isActive: true });
+        const trimmedMobile = normaliseMobile(mobile);
+        const user = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId, isActive: true })
+            .select('-dailyLogs')
+            .lean();
 
         if (!user) {
             return res.json({ success: false, message: 'Session invalid' });
@@ -101,7 +115,7 @@ router.post('/auth-mobile', async (req, res) => {
             });
         }
 
-        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        const trimmedMobile = normaliseMobile(mobile);
         if (trimmedMobile.length < 10 || trimmedMobile.length > 15) {
             return res.status(400).json({
                 success: false,
@@ -144,6 +158,7 @@ router.post('/auth-mobile', async (req, res) => {
                             console.error('auth-mobile: migrateDeviceId failed:', migErr.message);
                         }
                     }
+                    announceUserChange('device-moved', { deviceId, mobile: trimmedMobile });
                 } catch (saveErr) {
                     console.error('auth-mobile: non-fatal save error:', saveErr.message);
                     // fall through — still return the user as logged in
@@ -173,7 +188,6 @@ router.post('/auth-mobile', async (req, res) => {
 router.post('/register', async (req, res) => {
     try {
         const { deviceId, name, city, mobile, pushToken } = req.body;
-        console.log('=== NAAM JAP REGISTER ===');
 
         if (!deviceId || !name || !city || !mobile) {
             return res.status(400).json({
@@ -192,10 +206,12 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        const trimmedMobile = normaliseMobile(mobile);
 
         // Check if mobile already registered to another user
-        let existingMobileUser = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId: { $ne: deviceId } });
+        const existingMobileUser = await NaamJapUser.findOne({ mobile: trimmedMobile, deviceId: { $ne: deviceId } })
+            .select('_id')
+            .lean();
         if (existingMobileUser) {
             return res.status(400).json({
                 success: false,
@@ -203,28 +219,31 @@ router.post('/register', async (req, res) => {
             });
         }
 
-        let user = await NaamJapUser.findOne({ deviceId });
+        const update = {
+            deviceId,
+            name: trimmedName,
+            city: trimmedCity,
+            mobile: trimmedMobile,
+            isActive: true,
+        };
+        if (pushToken) update.pushToken = pushToken;
 
-        if (user) {
-            user.name = trimmedName;
-            user.city = trimmedCity;
-            user.mobile = trimmedMobile;
-            if (pushToken) user.pushToken = pushToken;
-            await user.save();
-        } else {
-            user = new NaamJapUser({
-                deviceId,
-                mobile: trimmedMobile,
-                name: trimmedName,
-                city: trimmedCity,
-                pushToken: pushToken || null,
-            });
-            await user.save();
-        }
+        // Upsert in one roundtrip: no find-then-save race when the app retries.
+        const user = await NaamJapUser.findOneAndUpdate(
+            { deviceId },
+            { $set: update, $setOnInsert: { totalCount: 0, totalMalas: 0, dailyLogs: [] } },
+            { new: true, upsert: true, setDefaultsOnInsert: true }
+        ).lean();
 
-        console.log('=== REGISTER COMPLETE ===');
+        announceUserChange('registered', { deviceId, name: trimmedName, city: trimmedCity });
+
         res.json({ success: true, response: user });
     } catch (error) {
+        // Unique index race: two simultaneous registrations for the same device.
+        if (error && error.code === 11000) {
+            const user = await NaamJapUser.findOne({ deviceId }).lean();
+            if (user) return res.json({ success: true, response: user });
+        }
         console.error('NaamJap register error:', error);
         res.status(500).json({ success: false, message: 'Failed to register user' });
     }
@@ -256,6 +275,7 @@ router.post('/profile/update', upload.single('image'), async (req, res) => {
         }
 
         await user.save();
+        announceUserChange('profile-updated', { deviceId, name: user.name });
         res.json({ success: true, response: user });
     } catch (error) {
         console.error('Profile update error:', error);
@@ -263,58 +283,131 @@ router.post('/profile/update', upload.single('image'), async (req, res) => {
     }
 });
 
-// POST /api/naam-jap/sync - Sync count data from device
+/**
+ * POST /api/naam-jap/sync
+ *
+ * Single-document, single-roundtrip, atomic sync. The app can call this on
+ * every mala without risking lost updates:
+ *
+ *  - Lifetime counters are monotonic (`$max`): a stale or freshly-reinstalled
+ *    client can never lower the server totals.
+ *  - Today's entry is merged inside the same update, so two devices (or two
+ *    overlapping requests) cannot overwrite each other's counts.
+ *  - The whole thing is one `findOneAndUpdate`, so it is safe under concurrency
+ *    and cheap (no read-modify-write, no version conflicts).
+ */
 router.post('/sync', async (req, res) => {
     try {
-        const { deviceId, totalCount, totalMalas, todayCount, todayMalas } = req.body;
-
+        const { deviceId } = req.body;
         if (!deviceId) {
             return res.status(400).json({ success: false, message: 'deviceId is required' });
         }
 
-        const user = await NaamJapUser.findOne({ deviceId });
+        const incomingTotalCount = Math.max(0, Number(req.body.totalCount) || 0);
+        const incomingTotalMalas = Math.max(0, Number(req.body.totalMalas) || 0);
+        const incomingTodayCount = Math.max(0, Number(req.body.todayCount) || 0);
+        const incomingTodayMalas = Math.max(0, Number(req.body.todayMalas) || 0);
+        const today = ist.today();
+
+        const shouldTouchToday = incomingTodayCount > 0 || incomingTodayMalas > 0;
+
+        const mergeDailyLogs = {
+            $let: {
+                vars: {
+                    logs: { $ifNull: ['$dailyLogs', []] },
+                },
+                in: {
+                    $let: {
+                        vars: {
+                            existing: {
+                                $arrayElemAt: [
+                                    {
+                                        $filter: {
+                                            input: '$$logs',
+                                            as: 'log',
+                                            cond: { $eq: ['$$log.date', today] },
+                                        },
+                                    },
+                                    0,
+                                ],
+                            },
+                        },
+                        in: {
+                            $concatArrays: [
+                                {
+                                    $filter: {
+                                        input: '$$logs',
+                                        as: 'log',
+                                        cond: { $ne: ['$$log.date', today] },
+                                    },
+                                },
+                                [
+                                    {
+                                        date: today,
+                                        count: {
+                                            $max: [
+                                                { $ifNull: ['$$existing.count', 0] },
+                                                incomingTodayCount,
+                                            ],
+                                        },
+                                        malas: {
+                                            $max: [
+                                                { $ifNull: ['$$existing.malas', 0] },
+                                                incomingTodayMalas,
+                                            ],
+                                        },
+                                    },
+                                ],
+                            ],
+                        },
+                    },
+                },
+            },
+        };
+
+        const user = await NaamJapUser.findOneAndUpdate(
+            { deviceId },
+            [
+                {
+                    $set: {
+                        totalCount: {
+                            $max: [{ $ifNull: ['$totalCount', 0] }, incomingTotalCount],
+                        },
+                        totalMalas: {
+                            $max: [{ $ifNull: ['$totalMalas', 0] }, incomingTotalMalas],
+                        },
+                        lastSyncAt: '$$NOW',
+                        dailyLogs: shouldTouchToday ? mergeDailyLogs : { $ifNull: ['$dailyLogs', []] },
+                    },
+                },
+            ],
+            { new: true }
+        ).lean();
+
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found. Please register first.' });
         }
 
-        const incomingTotalCount = Math.max(0, Number(totalCount) || 0);
-        const incomingTotalMalas = Math.max(0, Number(totalMalas) || 0);
-
-        // Never let a stale/cleared app overwrite server lifetime totals with 0.
-        // Counts are append-only from the user's point of view; reset buttons only
-        // affect local display, not the protected lifetime reward progress.
-        user.totalCount = Math.max(Number(user.totalCount) || 0, incomingTotalCount);
-        user.totalMalas = Math.max(Number(user.totalMalas) || 0, incomingTotalMalas);
-        user.lastSyncAt = new Date();
-
-        // Update today's daily log
-        const today = getTodayString();
-        const existingLog = user.dailyLogs.find(log => log.date === today);
-        if (existingLog) {
-            existingLog.count = Math.max(Number(existingLog.count) || 0, Number(todayCount) || 0);
-            existingLog.malas = Math.max(Number(existingLog.malas) || 0, Number(todayMalas) || 0);
-        } else {
-            // Keep only last 90 days of logs
-            if (user.dailyLogs.length >= 90) {
-                user.dailyLogs.sort((a, b) => a.date.localeCompare(b.date));
-                user.dailyLogs = user.dailyLogs.slice(-89);
-            }
-            user.dailyLogs.push({
-                date: today,
-                count: Math.max(0, Number(todayCount) || 0),
-                malas: Math.max(0, Number(todayMalas) || 0),
-            });
+        // Retention runs in the background: it never delays the sync response
+        // and it can never delete data without archiving it first.
+        if (needsRetention(user)) {
+            enforceRetention(user).catch((err) =>
+                console.error('retention failed for', deviceId, err.message)
+            );
+        }
+        if (user.dailyLogs && user.dailyLogs.length > 400) {
+            // Keep the response payload small even before retention runs.
+            user.dailyLogs = user.dailyLogs.slice(-400);
         }
 
-        await user.save();
+        const { rank, totalUsers } = await getRankAndTotal(user.totalMalas);
 
-        // Get user's rank
-        const rank = await NaamJapUser.countDocuments({
-            isActive: true,
-            totalMalas: { $gt: user.totalMalas },
-        }) + 1;
-
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
+        announceUserChange('sync', {
+            deviceId,
+            totalMalas: user.totalMalas,
+            todayMalas: incomingTodayMalas,
+            today,
+        });
 
         res.json({
             success: true,
@@ -322,6 +415,9 @@ router.post('/sync', async (req, res) => {
                 user,
                 rank,
                 totalUsers,
+                today,
+                serverTime: new Date().toISOString(),
+                version: realtime.currentSeq(),
             },
         });
     } catch (error) {
@@ -330,71 +426,67 @@ router.post('/sync', async (req, res) => {
     }
 });
 
-// GET /api/naam-jap/leaderboard - Get top users
+// GET /api/naam-jap/leaderboard - Get top users (cached, realtime-aware)
 router.get('/leaderboard', async (req, res) => {
     try {
         const limit = Math.min(parseInt(req.query.limit) || 200, 500);
-        const period = req.query.period || 'all'; // all, daily, weekly, monthly
+        const period = ['all', 'daily', 'weekly', 'monthly'].includes(req.query.period)
+            ? req.query.period
+            : 'all';
 
-        let users;
+        const payload = await cached('leaderboard', `${period}:${limit}`, 10, async () => {
+            let users;
 
-        if (period === 'all') {
-            users = await NaamJapUser.find({ isActive: true })
-                .sort({ totalMalas: -1 })
-                .limit(limit)
-                .select('name city totalMalas totalCount');
-        } else {
-            // For period-based, we aggregate from dailyLogs
-            const now = new Date();
-            let startDate;
+            if (period === 'all') {
+                users = await NaamJapUser.find({ isActive: true })
+                    .sort({ totalMalas: -1, totalCount: -1 })
+                    .limit(limit)
+                    .select('name city totalMalas totalCount profileImage')
+                    .lean();
+            } else {
+                const startDate =
+                    period === 'daily'
+                        ? ist.today()
+                        : period === 'weekly'
+                            ? ist.daysAgo(7)
+                            : ist.daysAgo(30);
 
-            if (period === 'daily') {
-                startDate = getTodayString();
-            } else if (period === 'weekly') {
-                const weekAgo = new Date(now);
-                weekAgo.setDate(weekAgo.getDate() - 7);
-                startDate = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
-            } else if (period === 'monthly') {
-                const monthAgo = new Date(now);
-                monthAgo.setDate(monthAgo.getDate() - 30);
-                startDate = `${monthAgo.getFullYear()}-${String(monthAgo.getMonth() + 1).padStart(2, '0')}-${String(monthAgo.getDate()).padStart(2, '0')}`;
+                users = await NaamJapUser.aggregate([
+                    // Pre-filter users so we never unwind logs outside the window.
+                    { $match: { isActive: true, 'dailyLogs.date': { $gte: startDate } } },
+                    { $unwind: '$dailyLogs' },
+                    { $match: { 'dailyLogs.date': { $gte: startDate } } },
+                    {
+                        $group: {
+                            _id: '$_id',
+                            name: { $first: '$name' },
+                            city: { $first: '$city' },
+                            profileImage: { $first: '$profileImage' },
+                            periodMalas: { $sum: '$dailyLogs.malas' },
+                            periodCount: { $sum: '$dailyLogs.count' },
+                        },
+                    },
+                    { $match: { periodMalas: { $gt: 0 } } },
+                    { $sort: { periodMalas: -1, periodCount: -1 } },
+                    { $limit: limit },
+                ]);
             }
 
-            users = await NaamJapUser.aggregate([
-                { $match: { isActive: true } },
-                { $unwind: '$dailyLogs' },
-                { $match: { 'dailyLogs.date': { $gte: startDate } } },
-                {
-                    $group: {
-                        _id: '$_id',
-                        name: { $first: '$name' },
-                        city: { $first: '$city' },
-                        periodMalas: { $sum: '$dailyLogs.malas' },
-                        periodCount: { $sum: '$dailyLogs.count' },
-                    },
-                },
-                { $sort: { periodMalas: -1 } },
-                { $limit: limit },
-                {
-                    $project: {
-                        name: 1,
-                        city: 1,
-                        totalMalas: '$periodMalas',
-                        totalCount: '$periodCount',
-                    },
-                },
-            ]);
-        }
-
-        res.json({
-            success: true,
-            response: users.map((u, i) => ({
+            return users.map((u, i) => ({
                 rank: i + 1,
                 name: u.name,
                 city: u.city,
-                malas: u.totalMalas || 0,
-                count: u.totalCount || 0,
-            })),
+                profileImage: u.profileImage || '',
+                malas: u.totalMalas ?? u.periodMalas ?? 0,
+                count: u.totalCount ?? u.periodCount ?? 0,
+            }));
+        });
+
+        res.set('Cache-Control', 'public, max-age=5, stale-while-revalidate=20');
+        res.json({
+            success: true,
+            response: payload,
+            meta: { period, limit, generatedAt: new Date().toISOString() },
         });
     } catch (error) {
         console.error('Leaderboard error:', error);
@@ -402,84 +494,67 @@ router.get('/leaderboard', async (req, res) => {
     }
 });
 
-// GET /api/naam-jap/stats - Get worldwide stats
+// GET /api/naam-jap/stats - Worldwide stats (cached)
 router.get('/stats', async (req, res) => {
     try {
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
+        const payload = await cached('stats', 'worldwide', 30, async () => {
+            const weekStart = ist.daysAgo(7);
+            const monthStart = ist.daysAgo(30);
 
-        const totals = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            {
-                $group: {
-                    _id: null,
-                    totalMalas: { $sum: '$totalMalas' },
-                    totalCount: { $sum: '$totalCount' },
-                },
-            },
-        ]);
+            const [totals, weeklyStats, monthlyStats] = await Promise.all([
+                NaamJapUser.aggregate([
+                    { $match: { isActive: true } },
+                    {
+                        $group: {
+                            _id: null,
+                            users: { $sum: 1 },
+                            totalMalas: { $sum: '$totalMalas' },
+                            totalCount: { $sum: '$totalCount' },
+                        },
+                    },
+                ]),
+                NaamJapUser.aggregate([
+                    { $match: { isActive: true, 'dailyLogs.date': { $gte: weekStart } } },
+                    { $unwind: '$dailyLogs' },
+                    { $match: { 'dailyLogs.date': { $gte: weekStart } } },
+                    {
+                        $group: {
+                            _id: null,
+                            malas: { $sum: '$dailyLogs.malas' },
+                            users: { $addToSet: '$_id' },
+                        },
+                    },
+                    { $project: { malas: 1, users: { $size: '$users' } } },
+                ]),
+                NaamJapUser.aggregate([
+                    { $match: { isActive: true, 'dailyLogs.date': { $gte: monthStart } } },
+                    { $unwind: '$dailyLogs' },
+                    { $match: { 'dailyLogs.date': { $gte: monthStart } } },
+                    {
+                        $group: {
+                            _id: null,
+                            malas: { $sum: '$dailyLogs.malas' },
+                            users: { $addToSet: '$_id' },
+                        },
+                    },
+                    { $project: { malas: 1, users: { $size: '$users' } } },
+                ]),
+            ]);
 
-        const allTimeMalas = totals[0]?.totalMalas || 0;
-
-        // Weekly stats
-        const now = new Date();
-        const weekAgo = new Date(now);
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekStart = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
-
-        const weeklyStats = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            { $unwind: '$dailyLogs' },
-            { $match: { 'dailyLogs.date': { $gte: weekStart } } },
-            {
-                $group: {
-                    _id: null,
-                    weeklyMalas: { $sum: '$dailyLogs.malas' },
-                    weeklyUsers: { $addToSet: '$_id' },
-                },
-            },
-            {
-                $project: {
-                    weeklyMalas: 1,
-                    weeklyUsers: { $size: '$weeklyUsers' },
-                },
-            },
-        ]);
-
-        // Monthly stats
-        const monthAgo = new Date(now);
-        monthAgo.setDate(monthAgo.getDate() - 30);
-        const monthStart = `${monthAgo.getFullYear()}-${String(monthAgo.getMonth() + 1).padStart(2, '0')}-${String(monthAgo.getDate()).padStart(2, '0')}`;
-
-        const monthlyStats = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            { $unwind: '$dailyLogs' },
-            { $match: { 'dailyLogs.date': { $gte: monthStart } } },
-            {
-                $group: {
-                    _id: null,
-                    monthlyMalas: { $sum: '$dailyLogs.malas' },
-                    monthlyUsers: { $addToSet: '$_id' },
-                },
-            },
-            {
-                $project: {
-                    monthlyMalas: 1,
-                    monthlyUsers: { $size: '$monthlyUsers' },
-                },
-            },
-        ]);
-
-        res.json({
-            success: true,
-            response: {
-                allTimeUsers: totalUsers,
-                allTimeMalas: allTimeMalas,
-                weeklyUsers: weeklyStats[0]?.weeklyUsers || 0,
-                weeklyMalas: weeklyStats[0]?.weeklyMalas || 0,
-                monthlyUsers: monthlyStats[0]?.monthlyUsers || 0,
-                monthlyMalas: monthlyStats[0]?.monthlyMalas || 0,
-            },
+            const row = totals[0] || {};
+            return {
+                allTimeUsers: row.users || 0,
+                allTimeMalas: row.totalMalas || 0,
+                allTimeCount: row.totalCount || 0,
+                weeklyUsers: weeklyStats[0]?.users || 0,
+                weeklyMalas: weeklyStats[0]?.malas || 0,
+                monthlyUsers: monthlyStats[0]?.users || 0,
+                monthlyMalas: monthlyStats[0]?.malas || 0,
+            };
         });
+
+        res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=45');
+        res.json({ success: true, response: payload, meta: { serverTime: new Date().toISOString(), today: ist.today() } });
     } catch (error) {
         console.error('Stats error:', error);
         res.status(500).json({ success: false, message: 'Failed to get stats' });
@@ -489,26 +564,22 @@ router.get('/stats', async (req, res) => {
 // GET /api/naam-jap/user/:deviceId - Get user data + rank
 router.get('/user/:deviceId', async (req, res) => {
     try {
-        const user = await NaamJapUser.findOne({ deviceId: req.params.deviceId });
+        const user = await NaamJapUser.findOne({ deviceId: req.params.deviceId })
+            .select('-pushToken')
+            .lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        const rank = await NaamJapUser.countDocuments({
-            isActive: true,
-            totalMalas: { $gt: user.totalMalas },
-        }) + 1;
+        const { rank, totalUsers } = await getRankAndTotal(user.totalMalas);
 
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
-
-        // Get highest mala day
+        // Get highest mala day + recent logs in one pass (logs are small).
         let highestMalaDay = 0;
         for (const log of user.dailyLogs) {
             if (log.malas > highestMalaDay) highestMalaDay = log.malas;
         }
 
-        // Get recent logs (last 30 days)
-        const recentLogs = user.dailyLogs
+        const recentLogs = [...user.dailyLogs]
             .sort((a, b) => b.date.localeCompare(a.date))
             .slice(0, 30);
 
@@ -529,11 +600,43 @@ router.get('/user/:deviceId', async (req, res) => {
                 totalUsers,
                 highestMalaDay,
                 recentLogs,
+                today: ist.today(),
+                serverTime: new Date().toISOString(),
             },
         });
     } catch (error) {
         console.error('Get user error:', error);
         res.status(500).json({ success: false, message: 'Failed to get user data' });
+    }
+});
+
+// GET /api/naam-jap/user/:deviceId/snapshot - Ultra-cheap change detector
+// The app polls this while the counter screen is open: ~200 bytes, no
+// aggregation, no ranking. If `version` differs from the last one, it fetches
+// the full profile instead.
+router.get('/user/:deviceId/snapshot', async (req, res) => {
+    try {
+        const user = await NaamJapUser.findOne({ deviceId: req.params.deviceId })
+            .select('totalCount totalMalas lastSyncAt')
+            .lean();
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        res.set('Cache-Control', 'no-store');
+        res.json({
+            success: true,
+            response: {
+                totalCount: user.totalCount,
+                totalMalas: user.totalMalas,
+                lastSyncAt: user.lastSyncAt,
+                version: realtime.currentSeq(),
+                today: ist.today(),
+                serverTime: new Date().toISOString(),
+            },
+        });
+    } catch (error) {
+        console.error('Snapshot error:', error);
+        res.status(500).json({ success: false, message: 'Failed to get snapshot' });
     }
 });
 
@@ -549,15 +652,10 @@ router.post('/update-push-token', async (req, res) => {
             });
         }
 
-        const user = await NaamJapUser.findOne({ deviceId });
-        if (!user) {
+        const result = await NaamJapUser.updateOne({ deviceId }, { $set: { pushToken } });
+        if (result.matchedCount === 0) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
-
-        user.pushToken = pushToken;
-        await user.save();
-
-        console.log(`Push token updated for ${user.name} (${deviceId}): ${pushToken}`);
 
         res.json({ success: true, message: 'Push token updated' });
     } catch (error) {
@@ -578,7 +676,7 @@ router.post('/delete-account', async (req, res) => {
             });
         }
 
-        const trimmedMobile = String(mobile).trim().replace(/[^0-9]/g, '');
+        const trimmedMobile = normaliseMobile(mobile);
         if (trimmedMobile.length < 10 || trimmedMobile.length > 15) {
             return res.status(400).json({
                 success: false,
@@ -586,7 +684,7 @@ router.post('/delete-account', async (req, res) => {
             });
         }
 
-        const user = await NaamJapUser.findOne({ mobile: trimmedMobile });
+        const user = await NaamJapUser.findOne({ mobile: trimmedMobile }).select('_id deviceId name').lean();
         if (!user) {
             return res.status(404).json({
                 success: false,
@@ -594,10 +692,25 @@ router.post('/delete-account', async (req, res) => {
             });
         }
 
-        // Permanently delete the user and all associated data
-        await NaamJapUser.deleteOne({ _id: user._id });
+        // Personal data is deleted across every collection that stores it.
+        // Financial ledgers (wallet / withdrawals / referral credits) are kept
+        // for accounting but are no longer linkable to a phone number.
+        await Promise.all([
+            NaamJapUser.deleteOne({ _id: user._id }),
+            DailyLogArchive.deleteMany({ $or: [{ deviceId: user.deviceId }, { mobile: trimmedMobile }] }),
+            HandwrittenNaam.deleteMany({ deviceId: user.deviceId }),
+            StepTracker.deleteMany({ deviceId: user.deviceId }),
+            NaamJapUser.updateMany({ mobile: trimmedMobile }, { $set: { mobile: '' } }),
+        ]);
 
-        console.log(`Account deleted for mobile: ${trimmedMobile}, user: ${user.name}`);
+        try {
+            const Wallet = require('../models/Wallet');
+            await Wallet.updateMany({ mobile: trimmedMobile }, { $set: { mobile: '' } });
+        } catch (walletErr) {
+            console.error('delete-account: wallet anonymise failed:', walletErr.message);
+        }
+
+        announceUserChange('deleted', { deviceId: user.deviceId });
 
         res.json({
             success: true,
@@ -612,39 +725,42 @@ router.post('/delete-account', async (req, res) => {
 // ============ ADMIN ROUTES ============
 
 // GET /api/naam-jap/admin/users - List all users (admin)
-router.get('/admin/users', authMiddleware, async (req, res) => {
+router.get('/admin/users', verifyAdmin, async (req, res) => {
     try {
-        const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 50;
+        const page = Math.max(1, parseInt(req.query.page) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(req.query.limit) || 50));
         const skip = (page - 1) * limit;
-        const search = req.query.search || '';
-        const sortBy = req.query.sortBy || 'totalMalas';
+        const rawSearch = String(req.query.search || '').trim().slice(0, 60);
+        const allowedSort = new Set(['totalMalas', 'totalCount', 'lastSyncAt', 'createdAt', 'name', 'city']);
+        const sortBy = allowedSort.has(req.query.sortBy) ? req.query.sortBy : 'totalMalas';
         const sortOrder = req.query.sortOrder === 'asc' ? 1 : -1;
 
         const filter = { isActive: true };
-        if (search) {
-            filter.$or = [
-                { name: { $regex: search, $options: 'i' } },
-                { city: { $regex: search, $options: 'i' } },
-            ];
+        if (rawSearch) {
+            // Escape user input so a stray "(" cannot throw a regex error.
+            const safe = rawSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const rx = new RegExp(safe, 'i');
+            filter.$or = [{ name: rx }, { city: rx }, { mobile: rx }];
         }
 
-        const [users, total] = await Promise.all([
-            NaamJapUser.find(filter)
-                .sort({ [sortBy]: sortOrder })
-                .skip(skip)
-                .limit(limit)
-                .select('name city totalCount totalMalas lastSyncAt createdAt'),
-            NaamJapUser.countDocuments(filter),
-        ]);
-
-        res.json({
-            success: true,
-            response: {
+        const cacheKey = `admin-users:${page}:${limit}:${rawSearch}:${sortBy}:${sortOrder}`;
+        const payload = await cached('users', cacheKey, 8, async () => {
+            const [users, total] = await Promise.all([
+                NaamJapUser.find(filter)
+                    .sort({ [sortBy]: sortOrder, _id: 1 })
+                    .skip(skip)
+                    .limit(limit)
+                    .select('name city mobile profileImage totalCount totalMalas lastSyncAt createdAt')
+                    .lean(),
+                NaamJapUser.countDocuments(filter),
+            ]);
+            return {
                 users,
-                pagination: { page, limit, total, pages: Math.ceil(total / limit) },
-            },
+                pagination: { page, limit, total, pages: Math.ceil(total / limit) || 1 },
+            };
         });
+
+        res.json({ success: true, response: payload, meta: { serverTime: new Date().toISOString() } });
     } catch (error) {
         console.error('Admin list users error:', error);
         res.status(500).json({ success: false, message: 'Failed to list users' });
@@ -652,44 +768,41 @@ router.get('/admin/users', authMiddleware, async (req, res) => {
 });
 
 // GET /api/naam-jap/admin/stats - Admin overview stats
-router.get('/admin/stats', authMiddleware, async (req, res) => {
+router.get('/admin/stats', verifyAdmin, async (req, res) => {
     try {
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
-        const totals = await NaamJapUser.aggregate([
-            { $match: { isActive: true } },
-            {
-                $group: {
-                    _id: null,
-                    totalMalas: { $sum: '$totalMalas' },
-                    totalCount: { $sum: '$totalCount' },
-                },
-            },
-        ]);
-
-        // Today's active users
-        const today = getTodayString();
-        const todayActive = await NaamJapUser.countDocuments({
-            isActive: true,
-            'dailyLogs.date': today,
-        });
-
-        // New users this week
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const newThisWeek = await NaamJapUser.countDocuments({
-            createdAt: { $gte: weekAgo },
-        });
-
-        res.json({
-            success: true,
-            response: {
-                totalUsers,
-                totalMalas: totals[0]?.totalMalas || 0,
-                totalCount: totals[0]?.totalCount || 0,
+        const payload = await cached('stats', 'admin-overview', 10, async () => {
+            const today = ist.today();
+            const [totals, todayActive, newThisWeek] = await Promise.all([
+                NaamJapUser.aggregate([
+                    { $match: { isActive: true } },
+                    {
+                        $group: {
+                            _id: null,
+                            users: { $sum: 1 },
+                            totalMalas: { $sum: '$totalMalas' },
+                            totalCount: { $sum: '$totalCount' },
+                        },
+                    },
+                ]),
+                NaamJapUser.countDocuments({
+                    isActive: true,
+                    dailyLogs: {
+                        $elemMatch: { date: today, $or: [{ malas: { $gt: 0 } }, { count: { $gt: 0 } }] },
+                    },
+                }),
+                NaamJapUser.countDocuments({ createdAt: { $gte: ist.startOfISTDayMinusDays(7) } }),
+            ]);
+            const row = totals[0] || {};
+            return {
+                totalUsers: row.users || 0,
+                totalMalas: row.totalMalas || 0,
+                totalCount: row.totalCount || 0,
                 todayActiveUsers: todayActive,
                 newUsersThisWeek: newThisWeek,
-            },
+            };
         });
+
+        res.json({ success: true, response: payload, meta: { today: ist.today() } });
     } catch (error) {
         console.error('Admin stats error:', error);
         res.status(500).json({ success: false, message: 'Failed to get admin stats' });
@@ -706,32 +819,31 @@ router.get('/user/:deviceId/daily/:date', async (req, res) => {
             return res.status(400).json({ success: false, message: 'Invalid date format. Use YYYY-MM-DD' });
         }
 
-        const user = await NaamJapUser.findOne({ deviceId });
+        // Read first (fast path used on every counter screen open).
+        let user = await NaamJapUser.findOne({ deviceId }).lean();
         if (!user) {
             return res.status(404).json({ success: false, message: 'User not found' });
         }
 
-        // Find today's log
-        let dailyLog = user.dailyLogs.find(log => log.date === date);
+        let dailyLog = user.dailyLogs.find((log) => log.date === date);
 
-        // If no log exists for this date, create one with 0
         if (!dailyLog) {
             dailyLog = { date, count: 0, malas: 0 };
-            // Keep only last 90 days
-            if (user.dailyLogs.length >= 90) {
-                user.dailyLogs.sort((a, b) => a.date.localeCompare(b.date));
-                user.dailyLogs = user.dailyLogs.slice(-89);
-            }
+            // Idempotent create: only appends if no entry for this date exists
+            // yet, so two devices opening the same screen cannot duplicate it.
+            await NaamJapUser.updateOne(
+                { deviceId, 'dailyLogs.date': { $ne: date } },
+                { $push: { dailyLogs: { date, count: 0, malas: 0 } } }
+            );
             user.dailyLogs.push(dailyLog);
-            await user.save();
+            if (needsRetention(user)) {
+                enforceRetention(user).catch((err) =>
+                    console.error('retention failed for', deviceId, err.message)
+                );
+            }
         }
 
-        const rank = await NaamJapUser.countDocuments({
-            isActive: true,
-            totalMalas: { $gt: user.totalMalas },
-        }) + 1;
-
-        const totalUsers = await NaamJapUser.countDocuments({ isActive: true });
+        const { rank, totalUsers } = await getRankAndTotal(user.totalMalas);
 
         res.json({
             success: true,
@@ -749,6 +861,7 @@ router.get('/user/:deviceId/daily/:date', async (req, res) => {
                 dailyLog,
                 rank,
                 totalUsers,
+                today: ist.today(),
             },
         });
     } catch (error) {

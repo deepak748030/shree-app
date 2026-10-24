@@ -86,6 +86,8 @@ export function SubscriptionsPage() {
         }
     }
 
+    // The dependency list is exactly the set of values `load` reads.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     useEffect(() => { load() }, [page, status, search])
 
     useEffect(() => { if (msg) { const t = setTimeout(() => setMsg(null), 3500); return () => clearTimeout(t) } }, [msg])

@@ -27,5 +27,7 @@ const subscriptionSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 subscriptionSchema.index({ deviceId: 1, status: 1, expiresAt: -1 });
+subscriptionSchema.index({ status: 1, paidAt: -1 });
+subscriptionSchema.index({ status: 1, expiresAt: 1 });
 
 module.exports = mongoose.model('Subscription', subscriptionSchema);

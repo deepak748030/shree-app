@@ -1,4 +1,124 @@
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
+export const API_BASE_URL =
+    process.env.EXPO_PUBLIC_API_URL || 'https://shree-jii-server.vercel.app/api';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared request layer
+//
+//  • timeout     — a flaky network must never leave the UI spinning forever
+//  • retry       — GETs retry once on a network error; writes never retry
+//                  (a duplicated sync would corrupt counters)
+//  • dedupe      — identical in-flight GETs share one promise
+//  • small cache — home content, stats and presets are almost static; caching
+//                  them makes tab switches instant and saves mobile data
+//  • safe JSON   — HTML error pages / empty bodies never throw mid-render
+// ─────────────────────────────────────────────────────────────────────────────
+
+const DEFAULT_TIMEOUT_MS = Number(process.env.EXPO_PUBLIC_API_TIMEOUT_MS || 12000);
+const getCache = new Map<string, { at: number; ttl: number; data: unknown }>();
+const inflight = new Map<string, Promise<unknown>>();
+
+async function rawFetch(url: string, init: RequestInit = {}, timeoutMs = DEFAULT_TIMEOUT_MS) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        return await fetch(url, { ...init, signal: controller.signal });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+export async function apiFetch(url: string, init: RequestInit = {}, timeoutMs?: number): Promise<Response> {
+    const method = (init.method || 'GET').toUpperCase();
+    const attempts = method === 'GET' || method === 'HEAD' ? 2 : 1;
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        try {
+            const response = await rawFetch(url, init, timeoutMs);
+            // Retry only on transient gateway/network failures.
+            if (attempts > 1 && attempt < attempts && [502, 503, 504].includes(response.status)) {
+                await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+                continue;
+            }
+            return response;
+        } catch (error) {
+            lastError = error;
+            if (attempt < attempts) {
+                await new Promise((resolve) => setTimeout(resolve, 300 * attempt));
+            }
+        }
+    }
+    throw lastError instanceof Error ? lastError : new Error('Network request failed');
+}
+
+async function readJson<T>(response: Response): Promise<T | null> {
+    try {
+        const text = await response.text();
+        if (!text) return null;
+        return JSON.parse(text) as T;
+    } catch {
+        return null;
+    }
+}
+
+interface JsonOptions {
+    /** cache this GET for N ms (0 = no cache) */
+    cacheTtlMs?: number;
+    timeoutMs?: number;
+    method?: 'GET' | 'POST' | 'PUT' | 'DELETE';
+    body?: unknown;
+}
+
+/** JSON request helper used by every read path in the app. */
+export async function apiJson<T>(path: string, options: JsonOptions = {}): Promise<T | null> {
+    const { cacheTtlMs = 0, timeoutMs, method = 'GET', body } = options;
+    const url = path.startsWith('http') ? path : `${API_BASE_URL}${path}`;
+    const cacheKey = method === 'GET' ? url : '';
+
+    if (cacheKey && cacheTtlMs > 0) {
+        const hit = getCache.get(cacheKey);
+        if (hit && Date.now() - hit.at < hit.ttl) return hit.data as T;
+    }
+    if (cacheKey) {
+        const existing = inflight.get(cacheKey);
+        if (existing) return (await existing) as T | null;
+    }
+
+    const init: RequestInit = {
+        method,
+        headers: { Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) },
+        ...(body ? { body: JSON.stringify(body) } : {}),
+    };
+
+    const promise = (async () => {
+        const response = await apiFetch(url, init, timeoutMs);
+        const data = await readJson<T>(response);
+        return data;
+    })();
+
+    if (cacheKey) inflight.set(cacheKey, promise as Promise<unknown>);
+    try {
+        const data = await promise;
+        if (cacheKey && cacheTtlMs > 0 && data !== null) {
+            getCache.set(cacheKey, { at: Date.now(), ttl: cacheTtlMs, data });
+        }
+        return data;
+    } finally {
+        if (cacheKey) inflight.delete(cacheKey);
+    }
+}
+
+/** Drop cached reads after a write (e.g. after claiming a reward). */
+export function invalidateApiCache(prefix?: string) {
+    if (!prefix) {
+        getCache.clear();
+        return;
+    }
+    for (const key of [...getCache.keys()]) {
+        if (key.includes(prefix)) getCache.delete(key);
+    }
+}
+
 
 // ============ HOME CONTENT APIs ============
 
@@ -67,12 +187,11 @@ export async function fetchGameLeaderboard(gameId: string, deviceId?: string, li
 
 export async function fetchHomeContent(): Promise<HomeContentResponse | null> {
     try {
-        const response = await fetch(`${API_BASE_URL}/home-content`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return null;
+        // Home content changes rarely: 60s cache + dedupe makes tab switches instant.
+        const data = await apiJson<{ success: boolean; response: HomeContentResponse }>('/home-content', {
+            cacheTtlMs: 60_000,
+        });
+        return data?.success && data.response ? data.response : null;
     } catch {
         return null;
     }
@@ -89,12 +208,10 @@ export interface DailyQuoteResponse {
 
 export async function fetchTodayImage(): Promise<DailyQuoteResponse | null> {
     try {
-        const response = await fetch(`${API_BASE_URL}/daily-quotes/today`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return null;
+        const data = await apiJson<{ success: boolean; response: DailyQuoteResponse }>('/daily-quotes/today', {
+            cacheTtlMs: 60_000,
+        });
+        return data?.success && data.response ? data.response : null;
     } catch {
         return null;
     }
@@ -102,12 +219,11 @@ export async function fetchTodayImage(): Promise<DailyQuoteResponse | null> {
 
 export async function fetchRecentImages(limit: number = 7): Promise<DailyQuoteResponse[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/daily-quotes/recent?limit=${limit}`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return [];
+        const data = await apiJson<{ success: boolean; response: DailyQuoteResponse[] }>(
+            `/daily-quotes/recent?limit=${limit}`,
+            { cacheTtlMs: 60_000 }
+        );
+        return data?.success && data.response ? data.response : [];
     } catch {
         return [];
     }
@@ -156,18 +272,21 @@ export interface SyncResponse {
     user: NaamJapUser;
     rank: number;
     totalUsers: number;
+    /** IST date the server attributed this sync to */
+    today?: string;
+    serverTime?: string;
+    /** monotonic realtime sequence for cheap change detection */
+    version?: number;
 }
 
 // Validate session - check if user still exists and is active
 export async function validateSession(mobile: string, deviceId: string): Promise<{ valid: boolean; user?: NaamJapUser }> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/validate-session`, {
+        const data = await apiJson<{ success: boolean; response: NaamJapUser }>('/naam-jap/validate-session', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobile, deviceId }),
+            body: { mobile, deviceId },
         });
-        const data = await response.json();
-        if (data.success && data.response) {
+        if (data?.success && data.response) {
             return { valid: true, user: data.response };
         }
         return { valid: false };
@@ -184,12 +303,11 @@ export async function authByMobile(
     pushToken?: string | null
 ): Promise<{ success: boolean; isNewUser?: boolean; response?: NaamJapUser | null; message?: string }> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/auth-mobile`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ mobile, deviceId, pushToken: pushToken || undefined }),
-        });
-        return await response.json();
+        const data = await apiJson<{ success: boolean; isNewUser?: boolean; response?: NaamJapUser | null; message?: string }>(
+            '/naam-jap/auth-mobile',
+            { method: 'POST', body: { mobile, deviceId, pushToken: pushToken || undefined } }
+        );
+        return data ?? { success: false, message: 'Empty response' };
     } catch {
         return { success: false, message: 'Network error' };
     }
@@ -204,12 +322,11 @@ export async function registerNaamJapUser(
     pushToken?: string
 ): Promise<{ success: boolean; response?: any; message?: string }> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/register`, {
+        const data = await apiJson<{ success: boolean; response?: any; message?: string }>('/naam-jap/register', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId, name, city, mobile, pushToken }),
+            body: { deviceId, name, city, mobile, pushToken },
         });
-        return await response.json();
+        return data ?? { success: false };
     } catch {
         return { success: false };
     }
@@ -251,14 +368,37 @@ export async function syncNaamJapCount(
     todayMalas: number
 ): Promise<{ success: boolean; response?: SyncResponse }> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/sync`, {
+        const data = await apiJson<{ success: boolean; response?: SyncResponse }>('/naam-jap/sync', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ deviceId, totalCount, totalMalas, todayCount, todayMalas }),
+            timeoutMs: 10_000,
+            body: { deviceId, totalCount, totalMalas, todayCount, todayMalas },
         });
-        return await response.json();
+        return data ?? { success: false };
     } catch {
         return { success: false };
+    }
+}
+
+/**
+ * Ultra-cheap change detector (~200 bytes, no aggregation). The counter screen
+ * polls this instead of the full profile when it wants to know whether another
+ * device changed something.
+ */
+export async function fetchUserSnapshot(deviceId: string): Promise<{
+    totalCount: number;
+    totalMalas: number;
+    lastSyncAt: string;
+    version: number;
+    today: string;
+} | null> {
+    try {
+        const data = await apiJson<{ success: boolean; response: any }>(
+            `/naam-jap/user/${encodeURIComponent(deviceId)}/snapshot`,
+            { timeoutMs: 6000 }
+        );
+        return data?.success ? data.response : null;
+    } catch {
+        return null;
     }
 }
 
@@ -268,14 +408,12 @@ export async function fetchLeaderboard(
     limit: number = 200
 ): Promise<LeaderboardEntry[]> {
     try {
-        const response = await fetch(
-            `${API_BASE_URL}/naam-jap/leaderboard?period=${period}&limit=${limit}`
+        // 10s cache mirrors the server-side cache TTL — nobody sees a stale board.
+        const data = await apiJson<{ success: boolean; response: LeaderboardEntry[] }>(
+            `/naam-jap/leaderboard?period=${period}&limit=${limit}`,
+            { cacheTtlMs: 10_000 }
         );
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return [];
+        return data?.success && data.response ? data.response : [];
     } catch {
         return [];
     }
@@ -284,12 +422,10 @@ export async function fetchLeaderboard(
 // Get worldwide stats
 export async function fetchNaamJapStats(): Promise<NaamJapStats | null> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/stats`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return null;
+        const data = await apiJson<{ success: boolean; response: NaamJapStats }>('/naam-jap/stats', {
+            cacheTtlMs: 30_000,
+        });
+        return data?.success && data.response ? data.response : null;
     } catch {
         return null;
     }
@@ -298,12 +434,10 @@ export async function fetchNaamJapStats(): Promise<NaamJapStats | null> {
 // Get user data + rank
 export async function fetchUserData(deviceId: string): Promise<UserRankData | null> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/user/${deviceId}`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return null;
+        const data = await apiJson<{ success: boolean; response: UserRankData }>(
+            `/naam-jap/user/${encodeURIComponent(deviceId)}`
+        );
+        return data?.success && data.response ? data.response : null;
     } catch {
         return null;
     }
@@ -315,12 +449,11 @@ export async function fetchUserDailyData(
     date: string
 ): Promise<{ dailyLog: { date: string; count: number; malas: number }; rank: number; totalUsers: number; user: NaamJapUser } | null> {
     try {
-        const response = await fetch(`${API_BASE_URL}/naam-jap/user/${deviceId}/daily/${date}`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return null;
+        const data = await apiJson<{
+            success: boolean;
+            response: { dailyLog: { date: string; count: number; malas: number }; rank: number; totalUsers: number; user: NaamJapUser };
+        }>(`/naam-jap/user/${encodeURIComponent(deviceId)}/daily/${date}`);
+        return data?.success && data.response ? data.response : null;
     } catch {
         return null;
     }
@@ -338,12 +471,10 @@ export interface PresetImageData {
 
 export async function fetchPresetImages(): Promise<PresetImageData[]> {
     try {
-        const response = await fetch(`${API_BASE_URL}/preset-images`);
-        const data = await response.json();
-        if (data.success && data.response) {
-            return data.response;
-        }
-        return [];
+        const data = await apiJson<{ success: boolean; response: PresetImageData[] }>('/preset-images', {
+            cacheTtlMs: 5 * 60_000,
+        });
+        return data?.success && data.response ? data.response : [];
     } catch {
         return [];
     }

@@ -15,6 +15,5 @@ const referralUseSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 referralUseSchema.index({ createdAt: -1 });
-referralUseSchema.index({ refereeMobile: 1 });
 
 module.exports = mongoose.model('ReferralUse', referralUseSchema);

@@ -39,7 +39,54 @@ curl http://localhost:5000/
 curl http://localhost:5000/api/health
 ```
 
-All `/api/*` requests pass through the MongoDB connection middleware, including the health endpoint. If `/api/health` fails, verify `MONGODB_URI` and database network access first.
+`/api/health` is answered before any database work, so it stays green even while
+MongoDB is reconnecting. The richer probe is `/api/system/health`, which reports
+database state, cache and realtime-hub statistics.
+
+## Performance & realtime
+
+The API is cache-first and event-driven. Details live in
+[`docs/ARCHITECTURE.md`](../docs/ARCHITECTURE.md) and
+[`docs/PERFORMANCE.md`](../docs/PERFORMANCE.md).
+
+### Realtime endpoints
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/realtime/stream?topics=users,analytics` | Server-Sent Events; `token` query param accepted for EventSource |
+| `GET /api/realtime/poll?since=<id>&topics=…` | Missed events (fallback for native clients) |
+| `GET /api/realtime/version` | ~200-byte change detector for polling fallback |
+| `GET /api/realtime/status` | Hub + cache diagnostics (admin) |
+
+Every administrative write publishes an event and invalidates the matching cache
+namespace. Events are `{ id, topic, type, at, day, data }`; the id is monotonic
+and replayable through `Last-Event-ID`.
+
+### Observability
+
+* Every response carries `X-Request-Id`, `X-Response-Time` and `Server-Timing`.
+* `GET /api/system/metrics` (admin) returns per-route count, avg, p50, p95, max.
+* `GET /api/system/health` reports database state, cache hit-rate and hub stats.
+* Responses above `SLOW_REQUEST_MS` are logged with their request id.
+
+### Caching
+
+A bounded in-process LRU is always on. Setting the Upstash variables adds a
+shared layer so multiple serverless instances invalidate together. Keys are
+versioned per namespace, which makes invalidation O(1) and impossible to miss.
+If Redis is unreachable the API keeps working (memory only).
+
+## Service scripts
+
+```bash
+npm test                 # node:test suite (cache, realtime, IST helpers)
+npm run indexes          # create missing indexes (never drops)
+npm run verify-data      # read-only integrity report
+npm run backup           # streaming JSONL.gz backup + checksums
+npm run restore -- --from=backups/<ts> --dry-run
+```
+
+See [`docs/DATA-SAFETY.md`](../docs/DATA-SAFETY.md) for the full runbook.
 
 ## Environment variables
 
@@ -54,8 +101,18 @@ All `/api/*` requests pass through the MongoDB connection middleware, including 
 | `CLOUDINARY_API_SECRET` | For uploads | Cloudinary API secret |
 | `RAZORPAY_KEY_ID` | For payments | Razorpay public key ID |
 | `RAZORPAY_KEY_SECRET` | For payments | Razorpay secret used for order creation and signature verification |
-| `UPSTASH_REDIS_REST_URL` | No | Upstash REST endpoint |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash REST endpoint (shared cache layer) |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Upstash REST token |
+| `CACHE_MAX_ENTRIES` | No | In-process LRU size (default 1000) |
+| `ANALYTICS_TTL_SECONDS` | No | Dashboard payload cache TTL (default 15) |
+| `REALTIME_THROTTLE_MS` | No | Burst coalescing window for events (default 1500) |
+| `REALTIME_HEARTBEAT_MS` | No | SSE heartbeat interval (default 25000) |
+| `DAILY_LOG_RETAIN_DAYS` | No | Hot daily-log window before archiving (default 400) |
+| `HANDWRITTEN_RETAIN_DAYS` | No | Same, for handwritten Naam (default 400) |
+| `DB_TIMEOUT_MS` | No | Mongo server-selection timeout (default 5000) |
+| `CORS_ORIGINS` | No | Comma-separated allowlist; default `*` |
+| `LOGIN_MAX_ATTEMPTS` | No | Login attempts per 15 min per IP+email (default 10) |
+| `SLOW_REQUEST_MS` | No | Slow-request log threshold (default 400) |
 
 Generate a development JWT secret, for example:
 

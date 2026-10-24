@@ -10,6 +10,8 @@ const NaamJapUser = require('../models/NaamJapUser');
 const Subscription = require('../models/Subscription');
 const StepTracker = require('../models/StepTracker');
 const HandwrittenNaam = require('../models/HandwrittenNaam');
+const { announce, announceThrottled } = require('../config/announce');
+const ist = require('../utils/ist');
 const router = express.Router();
 
 // Auth middleware
@@ -73,7 +75,7 @@ router.get('/', async (req, res) => {
         const claimedSet = new Set(claims.map(c => String(c.rewardId)));
 
         // Today's stats (dates stored as YYYY-MM-DD strings)
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = ist.today();
         const todayCount = user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
         const todaySteps = steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0;
         const todayHandwritten = hw?.dailyLogs?.find(d => d.date === todayStr)?.count || 0;
@@ -137,7 +139,7 @@ router.post('/claim', async (req, res) => {
             StepTracker.findOne({ deviceId }).lean(),
             HandwrittenNaam.findOne({ deviceId }).lean(),
         ]);
-        const todayStr = new Date().toISOString().slice(0, 10);
+        const todayStr = ist.today();
         const isDaily = reward.type === 'daily';
         const currentJap = isDaily ? (user?.dailyLogs?.find(d => d.date === todayStr)?.count || 0) : (user?.totalCount || 0);
         const currentSteps = isDaily ? (steps?.dailyLogs?.find(d => d.date === todayStr)?.steps || 0) : (steps?.totalSteps || 0);
@@ -173,6 +175,7 @@ router.post('/claim', async (req, res) => {
             note: `Reward: ${reward.title_en}`,
         });
 
+        announceThrottled('rewards', 'claimed', { deviceId, rewardId: String(reward._id) }, ['rewards', 'analyticsBiz']);
         res.json({ success: true, response: { balance: wallet.balance } });
     } catch (err) {
         console.error('Claim reward error:', err);
@@ -246,6 +249,7 @@ router.post('/wallet/withdraw', async (req, res) => {
             note: `Withdrawal to ${upiId}`,
         });
 
+        announce('withdrawals', 'requested', { withdrawalId: String(wr._id), amount }, ['withdrawals', 'analyticsBiz']);
         res.json({ success: true, response: { balance: wallet.balance, withdrawalId: wr._id } });
     } catch (err) {
         console.error('Withdraw error:', err);
@@ -303,6 +307,7 @@ router.post('/admin', authMiddleware, async (req, res) => {
             isActive: isActive !== false,
             sortOrder: Number(sortOrder) || 0,
         });
+        announce('rewards', 'changed', { rewardId: String(reward._id) }, ['rewards', 'analyticsBiz']);
         res.json({ success: true, response: reward });
     } catch (err) {
         console.error('Create reward error:', err);
@@ -318,6 +323,7 @@ router.put('/admin/:id', authMiddleware, async (req, res) => {
         fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
         const reward = await Reward.findByIdAndUpdate(req.params.id, updates, { new: true });
         if (!reward) return res.status(404).json({ success: false, message: 'Not found' });
+        announce('rewards', 'changed', { rewardId: String(reward._id) }, ['rewards', 'analyticsBiz']);
         res.json({ success: true, response: reward });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed' });
@@ -328,6 +334,7 @@ router.put('/admin/:id', authMiddleware, async (req, res) => {
 router.delete('/admin/:id', authMiddleware, async (req, res) => {
     try {
         await Reward.findByIdAndDelete(req.params.id);
+        announce('rewards', 'deleted', { rewardId: req.params.id }, ['rewards', 'analytics', 'analyticsBiz']);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed' });
@@ -370,7 +377,7 @@ router.post('/admin/withdrawals/:id/action', authMiddleware, async (req, res) =>
         if (action === 'approve') {
             wr.status = 'approved';
             wr.adminNote = note || '';
-        } else if (action === 'pay') {
+        } else if (action === 'pay' || action === 'paid') {
             wr.status = 'paid';
             wr.paidAt = new Date();
             wr.adminNote = note || wr.adminNote;
@@ -395,6 +402,7 @@ router.post('/admin/withdrawals/:id/action', authMiddleware, async (req, res) =>
         }
 
         await wr.save();
+        announce('withdrawals', 'action', { withdrawalId: String(wr._id), status: wr.status }, ['withdrawals', 'analyticsBiz']);
         res.json({ success: true, response: wr });
     } catch (err) {
         console.error('Withdrawal action error:', err);

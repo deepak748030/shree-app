@@ -9,7 +9,10 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
     const { isAuthenticated, isLoading } = useAuth()
 
-    if (isLoading) {
+    // Optimistic: we already have a cached admin profile, so render the page
+    // immediately and let the background token check sign the user out if the
+    // session is actually gone. This removes a full-screen spinner on reload.
+    if (isLoading && !isAuthenticated) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background">
                 <div className="flex flex-col items-center gap-4">

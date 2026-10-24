@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const Admin = require('../models/Admin');
 const DonationSettings = require('../models/DonationSettings');
 const cloudinary = require('../config/cloudinary');
+const { announce } = require('../config/announce');
 const router = express.Router();
 
 // Auth middleware
@@ -69,6 +70,7 @@ router.put('/admin', authMiddleware, async (req, res) => {
         if (note_en !== undefined) settings.note_en = note_en;
 
         await settings.save();
+        announce('settings', 'donation-updated', {}, ['settings']);
         res.json({ success: true, response: settings });
     } catch (error) {
         console.error('Update donation settings error:', error);
@@ -108,6 +110,7 @@ router.post('/admin/upload-scanner', authMiddleware, async (req, res) => {
         settings.scannerPublicId = result.public_id;
         await settings.save();
 
+        announce('settings', 'scanner-updated', {}, ['settings']);
         res.json({
             success: true,
             response: {
@@ -135,6 +138,7 @@ router.delete('/admin/scanner', authMiddleware, async (req, res) => {
             settings.scannerPublicId = '';
             await settings.save();
         }
+        announce('settings', 'scanner-removed', {}, ['settings']);
         res.json({ success: true, message: 'Scanner image removed' });
     } catch (error) {
         console.error('Delete scanner image error:', error);

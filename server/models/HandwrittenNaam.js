@@ -34,4 +34,7 @@ const handwrittenNaamSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
+handwrittenNaamSchema.index({ 'dailyLogs.date': 1 });
+handwrittenNaamSchema.index({ createdAt: -1 });
+
 module.exports = mongoose.model('HandwrittenNaam', handwrittenNaamSchema);

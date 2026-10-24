@@ -6,6 +6,8 @@ const MembershipPlan = require('../models/MembershipPlan');
 const Subscription = require('../models/Subscription');
 const NaamJapUser = require('../models/NaamJapUser');
 const { cacheRoute, cacheDel } = require('../config/redis');
+const { cached } = require('../config/cache');
+const { announce } = require('../config/announce');
 const PLANS_CACHE_KEY = 'memb:plans';
 const razorpay = require('../config/razorpay');
 const router = express.Router();
@@ -182,12 +184,25 @@ router.post('/verify', async (req, res) => {
         if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
             return res.status(400).json({ success: false, message: 'Missing fields' });
         }
+        if (!process.env.RAZORPAY_KEY_SECRET) {
+            console.error('[membership] RAZORPAY_KEY_SECRET is not configured');
+            return res.status(503).json({ success: false, message: 'Payments are not configured' });
+        }
+
         const expected = crypto
             .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
             .update(`${razorpay_order_id}|${razorpay_payment_id}`)
             .digest('hex');
 
-        if (expected !== razorpay_signature) {
+        // Constant-time comparison: a plain `!==` leaks how many leading
+        // characters of a forged signature were correct.
+        const expectedBuf = Buffer.from(String(expected), 'utf8');
+        const providedBuf = Buffer.from(String(razorpay_signature), 'utf8');
+        const signatureValid =
+            expectedBuf.length === providedBuf.length &&
+            crypto.timingSafeEqual(expectedBuf, providedBuf);
+
+        if (!signatureValid) {
             await Subscription.findOneAndUpdate(
                 { razorpayOrderId: razorpay_order_id },
                 { status: 'failed' }
@@ -219,6 +234,9 @@ router.post('/verify', async (req, res) => {
             if (m) sub.mobile = m;
         }
         await sub.save();
+
+        // A successful payment changes revenue, member counts and the plan mix.
+        announce('subscriptions', 'payment', { subscriptionId: String(sub._id) }, ['subscriptions', 'analyticsBiz']);
 
         res.json({
             success: true,
@@ -264,7 +282,9 @@ router.post('/admin/plans', authMiddleware, async (req, res) => {
             isBestValue: !!isBestValue,
             sortOrder: Number(sortOrder) || 0,
         });
-        cacheDel(PLANS_CACHE_KEY); res.json({ success: true, response: plan });
+        cacheDel(PLANS_CACHE_KEY);
+        announce('plans', 'changed', {}, ['plans', 'subscriptions', 'analyticsBiz']);
+        res.json({ success: true, response: plan });
     } catch (err) {
         console.error('Create plan error:', err);
         res.status(500).json({ success: false, message: 'Failed to create plan' });
@@ -279,7 +299,9 @@ router.put('/admin/plans/:id', authMiddleware, async (req, res) => {
         fields.forEach(f => { if (req.body[f] !== undefined) updates[f] = req.body[f]; });
         const plan = await MembershipPlan.findByIdAndUpdate(req.params.id, updates, { new: true });
         if (!plan) return res.status(404).json({ success: false, message: 'Plan not found' });
-        cacheDel(PLANS_CACHE_KEY); res.json({ success: true, response: plan });
+        cacheDel(PLANS_CACHE_KEY);
+        announce('plans', 'changed', {}, ['plans', 'subscriptions', 'analyticsBiz']);
+        res.json({ success: true, response: plan });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed to update' });
     }
@@ -289,7 +311,9 @@ router.put('/admin/plans/:id', authMiddleware, async (req, res) => {
 router.delete('/admin/plans/:id', authMiddleware, async (req, res) => {
     try {
         await MembershipPlan.findByIdAndDelete(req.params.id);
-        cacheDel(PLANS_CACHE_KEY); res.json({ success: true });
+        cacheDel(PLANS_CACHE_KEY);
+        announce('plans', 'deleted', {}, ['plans', 'subscriptions', 'analyticsBiz']);
+        res.json({ success: true });
     } catch (err) {
         res.status(500).json({ success: false, message: 'Failed' });
     }
@@ -311,12 +335,18 @@ router.get('/admin/subscriptions', authMiddleware, async (req, res) => {
                 { razorpayPaymentId: { $regex: search, $options: 'i' } },
             ];
         }
-        const [items, total, stats] = await Promise.all([
+        // The status breakdown scans every subscription, while the page query
+        // is index-backed. Caching the breakdown separately means paging stays
+        // fast even with a large payment history.
+        const [items, total, stats, now] = await Promise.all([
             Subscription.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
             Subscription.countDocuments(filter),
-            Subscription.aggregate([
-                { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
-            ]),
+            cached('subscriptions', 'status-breakdown', 30, () =>
+                Subscription.aggregate([
+                    { $group: { _id: '$status', count: { $sum: 1 }, amount: { $sum: '$amount' } } },
+                ])
+            ),
+            Promise.resolve(new Date()),
         ]);
 
         // Attach user info (name/city) for each subscription via NaamJapUser by mobile or deviceId
@@ -332,7 +362,6 @@ router.get('/admin/subscriptions', authMiddleware, async (req, res) => {
         const byDevice = new Map(users.map(u => [u.deviceId, u]));
         const byMobile = new Map(users.map(u => [u.mobile, u]));
 
-        const now = new Date();
         const enriched = items.map(s => {
             const u = byDevice.get(s.deviceId) || byMobile.get(s.mobile) || null;
             const isLifetime = !!s.planSnapshot?.isLifetime;
@@ -385,6 +414,7 @@ router.post('/admin/subscriptions/:id/pause', authMiddleware, async (req, res) =
         sub.status = 'paused';
         sub.pausedAt = now;
         await sub.save();
+        announce('subscriptions', 'changed', { subscriptionId: String(sub._id) }, ['subscriptions', 'analyticsBiz']);
         res.json({ success: true, response: sub });
     } catch (err) {
         console.error('Pause sub error:', err);
@@ -409,6 +439,7 @@ router.post('/admin/subscriptions/:id/resume', authMiddleware, async (req, res) 
         sub.pausedAt = null;
         sub.pausedRemainingMs = null;
         await sub.save();
+        announce('subscriptions', 'changed', { subscriptionId: String(sub._id) }, ['subscriptions', 'analyticsBiz']);
         res.json({ success: true, response: sub });
     } catch (err) {
         console.error('Resume sub error:', err);
@@ -431,6 +462,7 @@ router.post('/admin/subscriptions/:id/cancel', authMiddleware, async (req, res) 
         // End access immediately
         sub.expiresAt = sub.cancelledAt;
         await sub.save();
+        announce('subscriptions', 'changed', { subscriptionId: String(sub._id) }, ['subscriptions', 'analyticsBiz']);
         res.json({ success: true, response: sub });
     } catch (err) {
         console.error('Cancel sub error:', err);

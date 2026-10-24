@@ -5,6 +5,10 @@
 > The picture above is the whole platform on one page. This document explains
 > every box in it, the request paths between them, and the guarantees each layer
 > makes.
+>
+> The diagram is generated, not hand-edited: `python3 docs/tools/architecture-map.py`
+> re-measures every label and rewrites `docs/architecture.svg`. Change the content
+> in the generator (it is a short, plain-Python file) rather than the SVG.
 
 ## 1. System context
 

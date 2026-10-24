@@ -107,25 +107,44 @@ const dbMiddleware = async (req, res, next) => {
     }
 };
 
-// Apply DB middleware only after health, realtime and system routes.
-app.use('/api', dbMiddleware);
+// One table for both mounting and route-existence checks. Keeping them in a
+// single place means a typo'd URL can never be mistaken for an outage.
+const mounts = [
+    ['/admin', adminRoutes],
+    ['/daily-quotes', dailyQuoteRoutes],
+    ['/naam-jap', naamJapRoutes],
+    ['/home-content', homeContentRoutes],
+    ['/notifications', notificationRoutes],
+    ['/preset-images', presetImageRoutes],
+    ['/step-tracker', stepTrackerRoutes],
+    ['/app-version', appVersionRoutes],
+    ['/donation', donationRoutes],
+    ['/handwritten-naam', handwrittenAdminRoutes],
+    ['/handwritten-naam', handwrittenNaamRoutes],
+    ['/membership', membershipRoutes],
+    ['/rewards', rewardRoutes],
+    ['/referrals', referralRoutes],
+    ['/games', gameRoutes],
+];
 
-// Routes
-app.use('/api/admin', adminRoutes);
-app.use('/api/daily-quotes', dailyQuoteRoutes);
-app.use('/api/naam-jap', naamJapRoutes);
-app.use('/api/home-content', homeContentRoutes);
-app.use('/api/notifications', notificationRoutes);
-app.use('/api/preset-images', presetImageRoutes);
-app.use('/api/step-tracker', stepTrackerRoutes);
-app.use('/api/app-version', appVersionRoutes);
-app.use('/api/donation', donationRoutes);
-app.use('/api/handwritten-naam', handwrittenAdminRoutes);
-app.use('/api/handwritten-naam', handwrittenNaamRoutes);
-app.use('/api/membership', membershipRoutes);
-app.use('/api/rewards', rewardRoutes);
-app.use('/api/referrals', referralRoutes);
-app.use('/api/games', gameRoutes);
+// `req.path` is already relative to the /api mount here.
+const isKnownApiPath = (path) =>
+    mounts.some(([prefix]) => path === prefix || path.startsWith(`${prefix}/`));
+
+const apiRouter = express.Router();
+
+// Unknown endpoints are answered *before* the database gate: a wrong URL should
+// be a fast 404 whether or not MongoDB is reachable.
+apiRouter.use((req, res, next) => {
+    if (!isKnownApiPath(req.path)) return next();
+    return dbMiddleware(req, res, next);
+});
+
+for (const [prefix, router] of mounts) {
+    apiRouter.use(prefix, router);
+}
+
+app.use('/api', apiRouter);
 
 // Root route
 app.get('/', (req, res) => {
